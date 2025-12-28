@@ -1,4 +1,4 @@
-# 📋 Budget Quest - 日系極簡計畫導向記帳 App
+# 📋 Budget Quest - 極簡風格計畫導向記帳 App
 | 計畫導向記帳 | 動態餘額連動 | 資料完全掌握 |
 | :---: | :---: | :---: |
 | <img src="./screenshots/Budget_Quest_1.png" width="240"/> | <img src="./screenshots/Budget_Quest_2.png" width="240"/> | <img src="./screenshots/Budget_Quest_3.png" width="240"/> |### 📖 專案簡介 (Introduction)
