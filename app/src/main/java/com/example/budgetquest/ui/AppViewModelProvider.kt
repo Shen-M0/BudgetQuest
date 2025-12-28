@@ -11,6 +11,7 @@ import com.example.budgetquest.ui.subscription.SubscriptionViewModel
 import com.example.budgetquest.ui.summary.SummaryViewModel
 import com.example.budgetquest.ui.transaction.TransactionViewModel
 import com.example.budgetquest.ui.history.PlanHistoryViewModel // [新增 import]
+import com.example.budgetquest.ui.transaction.DailyDetailViewModel
 
 object AppViewModelProvider {
     val Factory = viewModelFactory {
@@ -42,6 +43,10 @@ object AppViewModelProvider {
         // [關鍵修正] 加入這一段！
         initializer {
             PlanHistoryViewModel(budgetQuestApplication().container.budgetRepository)
+        }
+        // [關鍵修復] 加入 DailyDetailViewModel 的初始化邏輯
+        initializer {
+            DailyDetailViewModel(budgetQuestApplication().container.budgetRepository)
         }
 
     }

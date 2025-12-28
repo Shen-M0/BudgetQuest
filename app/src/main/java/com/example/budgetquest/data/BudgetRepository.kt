@@ -11,7 +11,7 @@ interface BudgetRepository {
     fun getCurrentPlanStream(): Flow<PlanEntity?>
     fun getAllPlansStream(): Flow<List<PlanEntity>>
     suspend fun getAllPlans(): List<PlanEntity>
-    suspend fun insertPlan(plan: PlanEntity)
+    suspend fun insertPlan(plan: PlanEntity): Long
     suspend fun updatePlan(plan: PlanEntity)
     suspend fun getPlanById(id: Int): PlanEntity?
 
@@ -52,6 +52,11 @@ interface BudgetRepository {
 
     // [新增]
     suspend fun getExpensesByRangeList(start: Long, end: Long): List<ExpenseEntity>
+
+    // 在 BudgetRepository 介面中加入
+    suspend fun deletePlan(plan: PlanEntity)
+
+
 
 }
 
@@ -191,6 +196,10 @@ class OfflineBudgetRepository(private val budgetDao: BudgetDao) : BudgetReposito
     override suspend fun getExpensesByRangeList(start: Long, end: Long): List<ExpenseEntity> = withContext(Dispatchers.IO) {
         budgetDao.getExpensesListByDate(start, end)
     }
+
+    // 在 OfflineBudgetRepository 類別中加入
+    override suspend fun deletePlan(plan: PlanEntity) = budgetDao.deletePlan(plan)
+
 
 
 }

@@ -5,46 +5,33 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.budgetquest.data.BudgetRepository
 import com.example.budgetquest.data.PlanEntity
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 
 data class PlanHistoryItem(val plan: PlanEntity, val totalSpent: Int)
 
 class PlanHistoryViewModel(private val repository: BudgetRepository) : ViewModel() {
 
-    val allPlans: StateFlow<List<PlanHistoryItem>> = flow {
-        try {
-            Log.d("PlanHistoryVM", "開始讀取計畫列表...") // [Debug]
+    // [關鍵修正] 使用 combine 結合兩個資料流，實現 Real-time 更新
+    val allPlans: StateFlow<List<PlanHistoryItem>> = combine(
+        repository.getAllPlansStream(),    // 需確認 Repository 有這個 Flow
+        repository.getAllExpensesStream()  // 這是之前用過的，應該有
+    ) { plans, allExpenses ->
 
-            // 1. 嘗試讀取所有計畫
-            val plans = repository.getAllPlans()
-            Log.d("PlanHistoryVM", "讀取到 ${plans.size} 個計畫") // [Debug] 確認是否有讀到資料
+        Log.d("PlanHistoryVM", "資料變動，重新計算歷史紀錄...")
 
-            // 2. 計算每個計畫的花費
-            val items = plans.map { plan ->
-                Log.d("PlanHistoryVM", "正在處理計畫: ${plan.planName}, ID: ${plan.id}") // [Debug]
+        plans.map { plan ->
+            // 針對每個計畫，篩選出該時間範圍內的消費並加總
+            val spent = allExpenses
+                .filter { it.date >= plan.startDate && it.date <= plan.endDate }
+                .sumOf { it.amount }
 
-                val expenses = repository.getExpensesByRangeList(plan.startDate, plan.endDate)
-                val spent = expenses.sumOf { it.amount }
-
-                Log.d("PlanHistoryVM", "計畫 ${plan.planName} 總花費: $spent") // [Debug]
-
-                PlanHistoryItem(plan, spent)
-            }
-
-            // 3. 發送結果
-            emit(items.sortedByDescending { it.plan.startDate })
-
-        } catch (e: Exception) {
-            // [關鍵] 這裡會抓到閃退的原因，並印在 Logcat
-            Log.e("PlanHistoryVM", "讀取歷史紀錄失敗", e)
-            emit(emptyList()) // 發生錯誤時發送空清單，防止 APP 崩潰
+            PlanHistoryItem(plan, spent)
         }
-    }
-        .flowOn(Dispatchers.IO)
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
+            .sortedByDescending { it.plan.startDate } // 按日期新到舊排序
+
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
 }

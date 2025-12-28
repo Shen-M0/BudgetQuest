@@ -7,26 +7,53 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.budgetquest.data.BudgetRepository
 import com.example.budgetquest.data.RecurringExpenseEntity
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.util.Calendar
 import com.example.budgetquest.data.CategoryEntity
 import com.example.budgetquest.data.SubscriptionTagEntity
-import kotlinx.coroutines.flow.stateIn
-
 
 class SubscriptionViewModel(private val repository: BudgetRepository) : ViewModel() {
 
-    val recurringList: StateFlow<List<RecurringExpenseEntity>> = repository.getAllRecurringStream()
+    private val _currentPlanId = MutableStateFlow(-1)
+
+    val recurringList: StateFlow<List<RecurringExpenseEntity>> = _currentPlanId
+        .flatMapLatest { planId ->
+            repository.getAllRecurringStream().map { list ->
+                list.filter { it.planId == planId }
+            }
+        }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // UI State for Adding
     var uiState by mutableStateOf(SubscriptionUiState())
         private set
 
-    // [新增] 支援 endDate 更新
+    fun initialize(planId: Int, defaultDate: Long, defaultEndDate: Long) {
+        _currentPlanId.value = planId
+
+        // 這裡的 defaultDate/defaultEndDate 就是 Dashboard 傳進來的「當前計畫開始與結束日」
+        // 我們將它們視為「邊界限制 (Limit)」
+        val limitStart = if (defaultDate != -1L) defaultDate else System.currentTimeMillis()
+        // 若沒有結束日(極少見)，給一個很久以後的時間避免錯誤
+        val limitEnd = if (defaultEndDate != -1L) defaultEndDate else limitStart + 31536000000L
+
+        uiState = SubscriptionUiState(
+            planId = planId,
+            startDate = limitStart, // 預設選中計畫開始日
+            endDate = limitEnd,     // 預設選中計畫結束日
+
+            // [新增] 記錄邊界，用於存檔時的防呆檢查
+            limitStartDate = limitStart,
+            limitEndDate = limitEnd,
+
+            amount = "",
+            note = "",
+            category = "娛樂",
+            frequency = "MONTH",
+            customDays = "30"
+        )
+    }
+
     fun updateUiState(
         amount: String? = null,
         note: String? = null,
@@ -34,7 +61,7 @@ class SubscriptionViewModel(private val repository: BudgetRepository) : ViewMode
         startDate: Long? = null,
         frequency: String? = null,
         customDays: String? = null,
-        endDate: Long? = null // 新增
+        endDate: Long? = null
     ) {
         uiState = uiState.copy(
             amount = amount ?: uiState.amount,
@@ -47,40 +74,54 @@ class SubscriptionViewModel(private val repository: BudgetRepository) : ViewMode
         )
     }
 
-    // [修改] initialize 接收兩個參數：開始日, 結束日
-    // initialize 保持上次給你的版本 (接收 start, end)
-    fun initialize(defaultDate: Long, defaultEndDate: Long) {
-        if (defaultDate != -1L) {
-            val finalEndDate = if (defaultEndDate != -1L) defaultEndDate else null
-            uiState = uiState.copy(startDate = defaultDate, endDate = finalEndDate)
-        }
-    }
-    fun addSubscription() {
+    fun addSubscription(onSuccess: () -> Unit) {
         val amountInt = uiState.amount.toIntOrNull()
         val customDaysInt = uiState.customDays.toIntOrNull() ?: 0
 
         if (amountInt != null && amountInt > 0 && uiState.note.isNotBlank()) {
             viewModelScope.launch {
-                val initialLastGenerated = calculateInitialLastGeneratedDate(uiState.startDate, uiState.frequency, customDaysInt)
+
+                // [防呆機制 1] 處理開始日期：不能早於計畫開始日
+                val safeStartDate = if (uiState.startDate < uiState.limitStartDate) {
+                    uiState.limitStartDate
+                } else {
+                    uiState.startDate
+                }
+
+                // [防呆機制 2] 處理結束日期：不能晚於計畫結束日
+                // 如果用戶選 null (無限期) 或者 選的日期 > 計畫結束日 -> 強制設為計畫結束日
+                val safeEndDate = if (uiState.endDate == null || uiState.endDate!! > uiState.limitEndDate) {
+                    uiState.limitEndDate
+                } else {
+                    uiState.endDate
+                }
+
+                // 再次確認：如果校正後的開始日 > 結束日，則不儲存 (邏輯錯誤)
+                if (safeStartDate > safeEndDate!!) {
+                    // 這裡可以選擇顯示錯誤，或者直接 return，視需求而定
+                    // 目前簡單處理：不做動作
+                    return@launch
+                }
+
+                val initialLastGenerated = calculateInitialLastGeneratedDate(safeStartDate, uiState.frequency, customDaysInt)
 
                 repository.addRecurring(
                     RecurringExpenseEntity(
                         amount = amountInt,
                         note = uiState.note,
                         category = uiState.category,
-                        startDate = uiState.startDate,
-                        endDate = uiState.endDate,
+                        startDate = safeStartDate, // 使用校正後的日期
+                        endDate = safeEndDate,     // 使用校正後的日期
                         frequency = uiState.frequency,
                         customDays = customDaysInt,
-                        lastGeneratedDate = initialLastGenerated
+                        lastGeneratedDate = initialLastGenerated,
+                        planId = uiState.planId
                     )
                 )
 
-                // [關鍵修正] 新增完訂閱後，立刻執行一次檢查！
-                // 這樣如果開始日期是昨天，Dashboard 才會立刻扣款
                 repository.checkAndGenerateRecurringExpenses()
-
-                uiState = SubscriptionUiState()
+                uiState = uiState.copy(amount = "", note = "")
+                onSuccess()
             }
         }
     }
@@ -89,7 +130,6 @@ class SubscriptionViewModel(private val repository: BudgetRepository) : ViewMode
         viewModelScope.launch { repository.deleteRecurring(item) }
     }
 
-    // 計算初始的 "上一次時間"，好讓第一次扣款發生在 startDate
     private fun calculateInitialLastGeneratedDate(startDate: Long, freq: String, customDays: Int): Long {
         val c = Calendar.getInstance().apply { timeInMillis = startDate }
         when(freq) {
@@ -101,21 +141,22 @@ class SubscriptionViewModel(private val repository: BudgetRepository) : ViewMode
         return c.timeInMillis
     }
 
-    // [新增] 共用的分類
+    // ... 分類與標籤 (保持不變) ...
     val visibleCategories = repository.getVisibleCategoriesStream()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-    val allCategories = repository.getAllCategoriesStream() // 管理用
+    val allCategories = repository.getAllCategoriesStream()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    // [新增] 訂閱專用的備註 (SubTags)
     val visibleSubTags = repository.getVisibleSubTagsStream()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-    val allSubTags = repository.getAllSubTagsStream() // 管理用
+    val allSubTags = repository.getAllSubTagsStream()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // [新增] CRUD
-    fun addCategory(name: String, iconKey: String, colorHex: String) {
-        viewModelScope.launch { repository.insertCategory(CategoryEntity(name = name, iconKey = iconKey, colorHex = colorHex)) }
+    fun addCategory(name: String) {
+        viewModelScope.launch {
+            repository.insertCategory(
+                CategoryEntity(name = name, iconKey = "STAR", colorHex = "#B0BEC5")
+            )
+        }
     }
     fun toggleCategoryVisibility(category: CategoryEntity) {
         viewModelScope.launch { repository.updateCategory(category.copy(isVisible = !category.isVisible)) }
@@ -123,8 +164,6 @@ class SubscriptionViewModel(private val repository: BudgetRepository) : ViewMode
     fun deleteCategory(category: CategoryEntity) {
         viewModelScope.launch { repository.deleteCategory(category) }
     }
-
-    // 訂閱標籤 CRUD
     fun addSubTag(name: String) {
         viewModelScope.launch { repository.insertSubTag(SubscriptionTagEntity(name = name)) }
     }
@@ -134,10 +173,9 @@ class SubscriptionViewModel(private val repository: BudgetRepository) : ViewMode
     fun deleteSubTag(tag: SubscriptionTagEntity) {
         viewModelScope.launch { repository.deleteSubTag(tag) }
     }
-
-
 }
 
+// [修改] 增加 limit 欄位
 data class SubscriptionUiState(
     val amount: String = "",
     val note: String = "",
@@ -145,5 +183,9 @@ data class SubscriptionUiState(
     val startDate: Long = System.currentTimeMillis(),
     val frequency: String = "MONTH",
     val customDays: String = "30",
-    val endDate: Long? = null // 確保有這個欄位
+    val endDate: Long? = null,
+    val planId: Int = -1,
+    // [新增] 記錄當前計畫的邊界，用於防呆
+    val limitStartDate: Long = 0L,
+    val limitEndDate: Long = Long.MAX_VALUE
 )

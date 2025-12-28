@@ -56,8 +56,9 @@ interface BudgetDao {
     @Query("SELECT * FROM plan_table ORDER BY startDate DESC")
     fun getAllPlansStream(): Flow<List<PlanEntity>>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertPlan(plan: PlanEntity)
+    // 在 BudgetDao 介面中
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertPlan(plan: PlanEntity): Long // [修改] 改為回傳 Long
 
     @Update
     suspend fun updatePlan(plan: PlanEntity)
@@ -87,7 +88,6 @@ interface BudgetDao {
 
     // --- Recurring (訂閱) 相關 ---
 
-    // 1. 給 UI 顯示用的 Flow
     @Query("SELECT * FROM recurring_expense_table ORDER BY id DESC")
     fun getAllRecurringStream(): Flow<List<RecurringExpenseEntity>>
 
@@ -130,5 +130,9 @@ interface BudgetDao {
     // [新增] 強制寫入 Checkpoint，確保 .db 檔案包含最新資料
     @RawQuery
     suspend fun checkpoint(supportSQLiteQuery: SupportSQLiteQuery): Int
+
+    @Delete
+    suspend fun deletePlan(plan: PlanEntity)
+
 
 }

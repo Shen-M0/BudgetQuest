@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.TimePickerDialog
 import android.content.pm.PackageManager
 import android.os.Build
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -11,80 +12,79 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState // [新增] 捲動狀態
+import androidx.compose.foundation.verticalScroll // [新增] 垂直捲動
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Help
+import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.work.*
-import com.example.budgetquest.data.SettingsRepository
-import com.example.budgetquest.worker.ReminderWorker
-import java.util.Calendar
-import java.util.concurrent.TimeUnit
-import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.compose.material.icons.filled.Cloud
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Upload
 import com.example.budgetquest.data.BackupManager
-import com.example.budgetquest.ui.AppViewModelProvider
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.budgetquest.ui.plan.PlanViewModel // 用來獲取 DAO 或 Repository
+import com.example.budgetquest.data.SettingsRepository
+import com.example.budgetquest.ui.theme.AppTheme
+import com.example.budgetquest.worker.ReminderWorker
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
-
-// 日系配色 (保持與其他頁面一致)
-private val JapaneseBg = Color(0xFFF7F9FC)
-private val JapaneseSurface = Color.White
-private val JapaneseTextPrimary = Color(0xFF455A64)
-private val JapaneseTextSecondary = Color(0xFF90A4AE)
-private val JapaneseAccent = Color(0xFF78909C)
+import java.util.concurrent.TimeUnit
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     onBackClick: () -> Unit,
-    viewModel: PlanViewModel = viewModel(factory = AppViewModelProvider.Factory)
+    onDarkModeToggle: (Boolean) -> Unit,
+    onReplayOnboarding: () -> Unit
 ) {
-
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+
+    // [優化] 這些物件不需要每次重繪都建立
     val backupManager = remember { BackupManager(context) }
     val settingsRepo = remember { SettingsRepository(context) }
 
-    // 狀態
     var dailyReminder by remember { mutableStateOf(settingsRepo.isDailyReminderEnabled) }
     var reminderTime by remember { mutableStateOf(settingsRepo.reminderTime) }
     var planEndReminder by remember { mutableStateOf(settingsRepo.isPlanEndReminderEnabled) }
+    var isDarkMode by remember { mutableStateOf(settingsRepo.isDarkModeEnabled) }
 
-    // 取得資料庫實體 (為了 Checkpoint)
-    // 透過 application context 拿到 database
+    // [優化] 防手震
+    var lastClickTime by remember { mutableLongStateOf(0L) }
+    fun debounce(action: () -> Unit) {
+        val now = System.currentTimeMillis()
+        if (now - lastClickTime > 500L) {
+            lastClickTime = now
+            action()
+        }
+    }
+
     val app = context.applicationContext as com.example.budgetquest.BudgetQuestApplication
     val budgetDao = app.container.budgetRepository.let {
-        // 這裡需要一點技巧拿到 DAO，或是直接在 Repository 加一個 checkpoint 方法
-        // 為了不改太多架構，我們假設 Repository 可以執行 raw query
-        // 但最好的方式是：
         com.example.budgetquest.data.BudgetDatabase.getDatabase(context).budgetDao()
     }
 
-    // [備份] 檔案建立器
     val backupLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/x-sqlite3")
     ) { uri ->
@@ -95,13 +95,11 @@ fun SettingsScreen(
                     Toast.makeText(context, "備份成功！", Toast.LENGTH_SHORT).show()
                 } catch (e: Exception) {
                     Toast.makeText(context, "備份失敗: ${e.message}", Toast.LENGTH_LONG).show()
-                    e.printStackTrace()
                 }
             }
         }
     }
 
-    // [還原] 檔案選取器
     val restoreLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
@@ -110,8 +108,6 @@ fun SettingsScreen(
                 try {
                     backupManager.restoreDatabase(uri)
                     Toast.makeText(context, "還原成功！請重新啟動 APP 以載入資料", Toast.LENGTH_LONG).show()
-                    // 選用：強制重啟或退出
-                    // System.exit(0)
                 } catch (e: Exception) {
                     Toast.makeText(context, "還原失敗: ${e.message}", Toast.LENGTH_LONG).show()
                 }
@@ -119,11 +115,9 @@ fun SettingsScreen(
         }
     }
 
-    // 定義排程邏輯
     fun updateWorker(enabled: Boolean, time: String) {
         val workManager = WorkManager.getInstance(context)
-        workManager.cancelAllWorkByTag("daily_reminder") // 先取消舊的
-
+        workManager.cancelAllWorkByTag("daily_reminder")
         if (enabled) {
             val parts = time.split(":").map { it.toInt() }
             val now = Calendar.getInstance()
@@ -134,17 +128,14 @@ fun SettingsScreen(
             }
             if (target.before(now)) target.add(Calendar.DAY_OF_YEAR, 1)
             val delay = target.timeInMillis - now.timeInMillis
-
             val request = PeriodicWorkRequestBuilder<ReminderWorker>(24, TimeUnit.HOURS)
                 .setInitialDelay(delay, TimeUnit.MILLISECONDS)
                 .addTag("daily_reminder")
                 .build()
-
             workManager.enqueueUniquePeriodicWork("daily_reminder", ExistingPeriodicWorkPolicy.CANCEL_AND_REENQUEUE, request)
         }
     }
 
-    // 權限請求器
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
         onResult = { isGranted ->
@@ -161,18 +152,37 @@ fun SettingsScreen(
     )
 
     Scaffold(
-        containerColor = JapaneseBg,
+        containerColor = AppTheme.colors.background,
         topBar = {
             TopAppBar(
-                title = { Text("設定", color = JapaneseTextPrimary, fontSize = 18.sp) },
-                navigationIcon = { IconButton(onClick = onBackClick) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = JapaneseTextPrimary) } },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = JapaneseBg)
+                title = { Text("設定", color = AppTheme.colors.textPrimary, fontSize = 18.sp) },
+                navigationIcon = {
+                    IconButton(onClick = { debounce(onBackClick) }) { // [優化] 防手震
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = AppTheme.colors.textPrimary)
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = AppTheme.colors.background)
             )
         }
     ) { innerPadding ->
-        Column(modifier = Modifier.padding(innerPadding).padding(20.dp)) {
+        Column(
+            modifier = Modifier
+                .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
+                .padding(20.dp)
+        ) {
 
-            // [修改] 使用新的可折疊卡片元件
+            AppearanceCard(
+                isDarkMode = isDarkMode,
+                onToggle = { checked ->
+                    isDarkMode = checked
+                    settingsRepo.isDarkModeEnabled = checked
+                    onDarkModeToggle(checked)
+                }
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
             NotificationSettingsCard(
                 dailyReminder = dailyReminder,
                 reminderTime = reminderTime,
@@ -200,41 +210,58 @@ fun SettingsScreen(
                     }
                 },
                 onTimeClick = {
-                    TimePickerDialog(context, { _, h, m ->
-                        val timeStr = String.format("%02d:%02d", h, m)
-                        reminderTime = timeStr
-                        settingsRepo.reminderTime = timeStr
-                        updateWorker(true, timeStr)
-                    }, reminderTime.split(":")[0].toInt(), reminderTime.split(":")[1].toInt(), true).show()
+                    debounce {
+                        TimePickerDialog(context, { _, h, m ->
+                            val timeStr = String.format("%02d:%02d", h, m)
+                            reminderTime = timeStr
+                            settingsRepo.reminderTime = timeStr
+                            updateWorker(true, timeStr)
+                        }, reminderTime.split(":")[0].toInt(), reminderTime.split(":")[1].toInt(), true).show()
+                    }
                 },
                 onPlanEndReminderChange = {
                     planEndReminder = it
                     settingsRepo.isPlanEndReminderEnabled = it
                 },
                 onTestNotificationClick = {
-                    // 發送一次性測試通知
-                    val testRequest = OneTimeWorkRequestBuilder<ReminderWorker>().build()
-                    WorkManager.getInstance(context).enqueue(testRequest)
+                    debounce {
+                        val testRequest = OneTimeWorkRequestBuilder<ReminderWorker>().build()
+                        WorkManager.getInstance(context).enqueue(testRequest)
+                    }
                 }
             )
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // [新增] 雲端備份卡片
             CloudBackupCard(
                 onBackupClick = {
-                    val dateStr = SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(Date())
-                    backupLauncher.launch("BudgetQuest_Backup_$dateStr.db")
+                    debounce {
+                        val dateStr = SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(Date())
+                        backupLauncher.launch("BudgetQuest_Backup_$dateStr.db")
+                    }
                 },
                 onRestoreClick = {
-                    restoreLauncher.launch(arrayOf("application/x-sqlite3", "application/octet-stream"))
+                    debounce {
+                        restoreLauncher.launch(arrayOf("application/x-sqlite3", "application/octet-stream"))
+                    }
                 }
             )
+
+            Spacer(modifier = Modifier.height(20.dp))
+            HorizontalDivider(color = AppTheme.colors.divider)
+
+            SettingsItem(
+                icon = Icons.AutoMirrored.Filled.Help,
+                title = "功能導覽",
+                subtitle = "重新觀看導覽畫面",
+                onClick = { debounce(onReplayOnboarding) } // [優化] 防手震
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
         }
     }
 }
 
-// [新增] 備份卡片 UI
 @Composable
 fun CloudBackupCard(
     onBackupClick: () -> Unit,
@@ -242,13 +269,8 @@ fun CloudBackupCard(
 ) {
     var expanded by remember { mutableStateOf(false) }
 
-    // 日系配色
-    val JapaneseSurface = Color.White
-    val JapaneseTextPrimary = Color(0xFF455A64)
-    val JapaneseTextSecondary = Color(0xFF90A4AE)
-
     Card(
-        colors = CardDefaults.cardColors(containerColor = JapaneseSurface),
+        colors = CardDefaults.cardColors(containerColor = AppTheme.colors.surface),
         shape = RoundedCornerShape(24.dp),
         elevation = CardDefaults.cardElevation(0.dp),
         modifier = Modifier.fillMaxWidth()
@@ -260,26 +282,26 @@ fun CloudBackupCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Cloud, null, tint = JapaneseTextPrimary, modifier = Modifier.size(20.dp)) // 需 import Cloud icon
+                    Icon(Icons.Default.Cloud, null, tint = AppTheme.colors.textPrimary, modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(12.dp))
-                    Text("雲端備份與還原", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = JapaneseTextPrimary)
+                    Text("雲端備份與還原", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = AppTheme.colors.textPrimary)
                 }
                 Icon(
                     imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                     contentDescription = null,
-                    tint = JapaneseTextSecondary
+                    tint = AppTheme.colors.textSecondary
                 )
             }
 
             AnimatedVisibility(visible = expanded) {
                 Column(modifier = Modifier.padding(top = 16.dp)) {
-                    HorizontalDivider(color = Color(0xFFF7F9FC), thickness = 1.dp)
+                    HorizontalDivider(color = AppTheme.colors.divider, thickness = 1.dp)
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Text(
                         "將資料備份至 Google Drive (需登入 Drive App)",
                         fontSize = 12.sp,
-                        color = JapaneseTextSecondary
+                        color = AppTheme.colors.textSecondary
                     )
                     Spacer(modifier = Modifier.height(12.dp))
 
@@ -287,10 +309,13 @@ fun CloudBackupCard(
                         Button(
                             onClick = onBackupClick,
                             modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF78909C)),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = AppTheme.colors.background,
+                                contentColor = AppTheme.colors.textPrimary
+                            ),
                             shape = RoundedCornerShape(12.dp)
                         ) {
-                            Icon(Icons.Default.Upload, null, modifier = Modifier.size(16.dp)) // 需 import Upload
+                            Icon(Icons.Default.Upload, null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("備份", fontSize = 14.sp)
                         }
@@ -298,10 +323,13 @@ fun CloudBackupCard(
                         Button(
                             onClick = onRestoreClick,
                             modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFECEFF1), contentColor = JapaneseTextPrimary),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = AppTheme.colors.background,
+                                contentColor = AppTheme.colors.textPrimary
+                            ),
                             shape = RoundedCornerShape(12.dp)
                         ) {
-                            Icon(Icons.Default.Download, null, modifier = Modifier.size(16.dp)) // 需 import Download
+                            Icon(Icons.Default.Download, null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("還原", fontSize = 14.sp)
                         }
@@ -311,7 +339,7 @@ fun CloudBackupCard(
         }
     }
 }
-// [新增] 可折疊的通知設定卡片
+
 @Composable
 fun NotificationSettingsCard(
     dailyReminder: Boolean,
@@ -322,67 +350,57 @@ fun NotificationSettingsCard(
     onPlanEndReminderChange: (Boolean) -> Unit,
     onTestNotificationClick: () -> Unit
 ) {
-    // 控制展開狀態，預設為 false (收起)
     var expanded by remember { mutableStateOf(false) }
 
     Card(
-        colors = CardDefaults.cardColors(containerColor = JapaneseSurface),
+        colors = CardDefaults.cardColors(containerColor = AppTheme.colors.surface),
         shape = RoundedCornerShape(24.dp),
         elevation = CardDefaults.cardElevation(0.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
-            // 標題列 (點擊可切換展開)
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { expanded = !expanded },
+                modifier = Modifier.fillMaxWidth().clickable { expanded = !expanded },
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Notifications, null, tint = JapaneseTextPrimary, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Default.Notifications, null, tint = AppTheme.colors.textPrimary, modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(12.dp))
-                    Text("通知設定", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = JapaneseTextPrimary)
+                    Text("通知設定", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = AppTheme.colors.textPrimary)
                 }
                 Icon(
                     imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                     contentDescription = null,
-                    tint = JapaneseTextSecondary
+                    tint = AppTheme.colors.textSecondary
                 )
             }
 
-            // 展開的內容
             AnimatedVisibility(
                 visible = expanded,
                 enter = expandVertically() + fadeIn(),
                 exit = shrinkVertically() + fadeOut()
             ) {
                 Column(modifier = Modifier.padding(top = 16.dp)) {
-                    HorizontalDivider(color = JapaneseBg, thickness = 1.dp)
+                    HorizontalDivider(color = AppTheme.colors.divider, thickness = 1.dp)
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // 1. 每日提醒開關
                     SettingsSwitchItem(title = "每日記帳提醒", checked = dailyReminder, onCheckedChange = onDailyReminderChange)
 
-                    // 2. 時間選擇 (有開啟才顯示)
                     if (dailyReminder) {
                         SettingsActionItem("提醒時間", reminderTime, onTimeClick)
                     }
 
-                    // 3. 計畫結束通知
                     SettingsSwitchItem(title = "計畫結算通知", subtitle = "計畫結束當天通知", checked = planEndReminder, onCheckedChange = onPlanEndReminderChange)
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // 4. [美化] 測試通知按鈕
-                    // 使用柔和的淺色背景按鈕，符合日系風格
                     Button(
                         onClick = onTestNotificationClick,
                         modifier = Modifier.fillMaxWidth().height(50.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFECEFF1), // 淺灰藍背景
-                            contentColor = JapaneseTextPrimary  // 深色文字
+                            containerColor = AppTheme.colors.background,
+                            contentColor = AppTheme.colors.textPrimary
                         ),
                         shape = RoundedCornerShape(16.dp),
                         elevation = ButtonDefaults.buttonElevation(0.dp)
@@ -395,7 +413,7 @@ fun NotificationSettingsCard(
                     Text(
                         "點擊後若無反應，請檢查手機設定中的通知權限。",
                         fontSize = 11.sp,
-                        color = JapaneseTextSecondary,
+                        color = AppTheme.colors.textSecondary,
                         modifier = Modifier.align(Alignment.CenterHorizontally)
                     )
                 }
@@ -404,7 +422,6 @@ fun NotificationSettingsCard(
     }
 }
 
-// 保持原本的 Item 元件，稍微調整樣式
 @Composable
 fun SettingsSwitchItem(title: String, subtitle: String? = null, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     Row(
@@ -413,16 +430,16 @@ fun SettingsSwitchItem(title: String, subtitle: String? = null, checked: Boolean
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column {
-            Text(title, fontSize = 15.sp, color = JapaneseTextPrimary)
-            if (subtitle != null) Text(subtitle, fontSize = 11.sp, color = JapaneseTextSecondary)
+            Text(title, fontSize = 15.sp, color = AppTheme.colors.textPrimary)
+            if (subtitle != null) Text(subtitle, fontSize = 11.sp, color = AppTheme.colors.textSecondary)
         }
         Switch(
             checked = checked,
             onCheckedChange = onCheckedChange,
             colors = SwitchDefaults.colors(
-                checkedTrackColor = JapaneseAccent,
+                checkedTrackColor = AppTheme.colors.accent,
                 checkedThumbColor = Color.White,
-                uncheckedTrackColor = JapaneseBg,
+                uncheckedTrackColor = AppTheme.colors.background,
                 uncheckedBorderColor = Color.Transparent
             )
         )
@@ -432,25 +449,88 @@ fun SettingsSwitchItem(title: String, subtitle: String? = null, checked: Boolean
 @Composable
 fun SettingsActionItem(title: String, value: String, onClick: () -> Unit) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() }
-            .padding(vertical = 12.dp),
+        modifier = Modifier.fillMaxWidth().clickable { onClick() }.padding(vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(title, fontSize = 15.sp, color = JapaneseTextPrimary)
+        Text(title, fontSize = 15.sp, color = AppTheme.colors.textPrimary)
         Surface(
-            color = JapaneseBg,
+            color = AppTheme.colors.background,
             shape = RoundedCornerShape(8.dp)
         ) {
             Text(
                 text = value,
                 fontSize = 14.sp,
-                color = JapaneseTextPrimary,
+                color = AppTheme.colors.textPrimary,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
             )
+        }
+    }
+}
+
+@Composable
+fun AppearanceCard(isDarkMode: Boolean, onToggle: (Boolean) -> Unit) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = AppTheme.colors.surface),
+        shape = RoundedCornerShape(24.dp),
+        elevation = CardDefaults.cardElevation(0.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(20.dp).fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = if (isDarkMode) Icons.Default.DarkMode else Icons.Default.LightMode,
+                    contentDescription = null,
+                    tint = AppTheme.colors.textPrimary
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text("深色模式", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = AppTheme.colors.textPrimary)
+                    Text(if (isDarkMode) "開啟" else "關閉", fontSize = 12.sp, color = AppTheme.colors.textSecondary)
+                }
+            }
+            Switch(
+                checked = isDarkMode,
+                onCheckedChange = onToggle,
+                colors = SwitchDefaults.colors(
+                    checkedTrackColor = AppTheme.colors.accent,
+                    uncheckedTrackColor = AppTheme.colors.background
+                )
+            )
+        }
+    }
+}
+
+@Composable
+fun SettingsItem(
+    icon: ImageVector,
+    title: String,
+    subtitle: String? = null,
+    trailing: (@Composable () -> Unit)? = null,
+    onClick: (() -> Unit)? = null
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = onClick != null) { onClick?.invoke() }
+            .padding(horizontal = 20.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, null, tint = AppTheme.colors.textSecondary, modifier = Modifier.size(24.dp))
+        Spacer(modifier = Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, fontSize = 16.sp, color = AppTheme.colors.textPrimary)
+            if (subtitle != null) {
+                Text(subtitle, fontSize = 12.sp, color = AppTheme.colors.textSecondary)
+            }
+        }
+        if (trailing != null) {
+            trailing()
         }
     }
 }
