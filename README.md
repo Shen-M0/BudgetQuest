@@ -9,7 +9,7 @@
 
 ---
 
-### ✨ 最新版核心功能 (Key Features)
+### ✨ 主要功能 (Key Features)
 
 #### 1. 沉浸式儀表板 (Dashboard)
 * **專注模式 (Focus Mode)**：極簡化介面，透過跳動數字動畫 (Rolling Number) 顯示今日可用餘額，綠色代表安全，紅色代表超支。
