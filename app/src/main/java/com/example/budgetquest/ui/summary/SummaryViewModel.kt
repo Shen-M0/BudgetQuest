@@ -137,7 +137,18 @@ class SummaryViewModel(private val repository: BudgetRepository) : ViewModel() {
     val allCategories = repository.getAllCategoriesStream().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val allTags = repository.getAllTagsStream().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    fun addCategory(name: String) { viewModelScope.launch { repository.insertCategory(CategoryEntity(name = name, iconKey = "STAR", colorHex = "#B0BEC5")) } }
+    // [修改] 接收 名稱、圖示、顏色 三個參數
+    fun addCategory(name: String, iconKey: String, colorHex: String) {
+        viewModelScope.launch {
+            repository.insertCategory(
+                CategoryEntity(
+                    name = name,
+                    iconKey = iconKey,
+                    colorHex = colorHex
+                )
+            )
+        }
+    }
     fun toggleCategoryVisibility(category: CategoryEntity) { viewModelScope.launch { repository.updateCategory(category.copy(isVisible = !category.isVisible)) } }
     fun deleteCategory(category: CategoryEntity) { viewModelScope.launch { repository.deleteCategory(category) } }
     fun addTag(name: String) { viewModelScope.launch { repository.insertTag(TagEntity(name = name)) } }

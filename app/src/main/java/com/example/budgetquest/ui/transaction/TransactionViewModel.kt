@@ -114,13 +114,14 @@ class TransactionViewModel(private val repository: BudgetRepository) : ViewModel
 
     // --- 分類與標籤管理 (供 Dialog 使用) ---
 
-    fun addCategory(name: String) {
+    // [修改] 接收 名稱、圖示、顏色 三個參數
+    fun addCategory(name: String, iconKey: String, colorHex: String) {
         viewModelScope.launch {
             repository.insertCategory(
                 CategoryEntity(
                     name = name,
-                    iconKey = "STAR",      // 預設圖示 (星形)
-                    colorHex = "#B0BEC5"   // 預設顏色 (淺灰藍)
+                    iconKey = iconKey,     // 使用傳入的圖示
+                    colorHex = colorHex    // 使用傳入的顏色
                 )
             )
         }

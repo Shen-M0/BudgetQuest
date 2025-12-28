@@ -151,10 +151,15 @@ class SubscriptionViewModel(private val repository: BudgetRepository) : ViewMode
     val allSubTags = repository.getAllSubTagsStream()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    fun addCategory(name: String) {
+    // [修改] 接收 名稱、圖示、顏色 三個參數
+    fun addCategory(name: String, iconKey: String, colorHex: String) {
         viewModelScope.launch {
             repository.insertCategory(
-                CategoryEntity(name = name, iconKey = "STAR", colorHex = "#B0BEC5")
+                CategoryEntity(
+                    name = name,
+                    iconKey = iconKey,
+                    colorHex = colorHex
+                )
             )
         }
     }
