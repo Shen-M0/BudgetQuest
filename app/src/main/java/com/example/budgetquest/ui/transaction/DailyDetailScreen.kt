@@ -44,10 +44,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.budgetquest.R
 import com.example.budgetquest.data.ExpenseEntity
 import com.example.budgetquest.ui.AppViewModelProvider
 import com.example.budgetquest.ui.theme.AppTheme
@@ -71,10 +73,10 @@ fun DailyDetailScreen(
     val uiState by viewModel.uiState.collectAsState()
     val expenses by viewModel.expenses.collectAsState()
 
-    // [優化] 快取日期格式化物件
-    val dateFormatter = remember { SimpleDateFormat("yyyy/MM/dd (EEE)", Locale.getDefault()) }
+    // [提取] 日期格式字串
+    val dateFormat = stringResource(R.string.title_date_format_detail)
+    val dateFormatter = remember(dateFormat) { SimpleDateFormat(dateFormat, Locale.getDefault()) }
 
-    // [優化] 防手震
     var lastClickTime by remember { mutableLongStateOf(0L) }
     fun debounce(action: () -> Unit) {
         val now = System.currentTimeMillis()
@@ -96,8 +98,9 @@ fun DailyDetailScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = { debounce(onBackClick) }) { // [優化] 防手震
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = AppTheme.colors.textPrimary)
+                    // [提取] 返回按鈕描述 (共用 TransactionScreen 的 action_back)
+                    IconButton(onClick = { debounce(onBackClick) }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back), tint = AppTheme.colors.textPrimary)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = AppTheme.colors.background)
@@ -105,7 +108,7 @@ fun DailyDetailScreen(
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { debounce { onAddExpenseClick(uiState.date) } }, // [優化] 防手震
+                onClick = { debounce { onAddExpenseClick(uiState.date) } },
                 containerColor = AppTheme.colors.accent,
                 contentColor = Color.White,
                 shape = CircleShape
@@ -125,20 +128,20 @@ fun DailyDetailScreen(
 
             if (expenses.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("本日無消費紀錄", color = AppTheme.colors.textSecondary)
+                    // [提取] 無紀錄提示
+                    Text(stringResource(R.string.msg_no_daily_records), color = AppTheme.colors.textSecondary)
                 }
             } else {
                 LazyColumn(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     contentPadding = PaddingValues(bottom = 80.dp)
                 ) {
-                    // [優化] items 已有 key，這很好
                     items(expenses, key = { it.id }) { expense ->
                         JapaneseDetailItem(
                             expense = expense,
-                            onClick = { debounce { onItemClick(expense.id) } }, // [優化] 防手震
+                            onClick = { debounce { onItemClick(expense.id) } },
                             onDelete = {
-                                debounce { viewModel.deleteExpense(expense) } // [優化] 防手震
+                                debounce { viewModel.deleteExpense(expense) }
                             }
                         )
                     }
@@ -153,7 +156,7 @@ fun DailySummaryCard(totalAmount: Int, count: Int) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = AppTheme.colors.surface), // [修正] 卡片色
+        colors = CardDefaults.cardColors(containerColor = AppTheme.colors.surface),
         elevation = CardDefaults.cardElevation(0.dp)
     ) {
         Row(
@@ -162,16 +165,19 @@ fun DailySummaryCard(totalAmount: Int, count: Int) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column {
-                Text("本日總支出", fontSize = 12.sp, color = AppTheme.colors.textSecondary)
+                // [提取] 本日總支出
+                Text(stringResource(R.string.label_daily_total), fontSize = 12.sp, color = AppTheme.colors.textSecondary)
                 Spacer(modifier = Modifier.height(4.dp))
-                Text("$ $totalAmount", fontSize = 32.sp, fontWeight = FontWeight.Light, color = AppTheme.colors.textPrimary)
+                // [提取] 金額格式
+                Text(stringResource(R.string.amount_currency_format, totalAmount), fontSize = 32.sp, fontWeight = FontWeight.Light, color = AppTheme.colors.textPrimary)
             }
             Surface(
-                color = AppTheme.colors.background, // [修正] 標籤背景
+                color = AppTheme.colors.background,
                 shape = RoundedCornerShape(12.dp)
             ) {
+                // [提取] 筆數格式
                 Text(
-                    "$count 筆",
+                    stringResource(R.string.label_record_count, count),
                     fontSize = 12.sp,
                     color = AppTheme.colors.textPrimary,
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
@@ -191,7 +197,7 @@ fun JapaneseDetailItem(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(AppTheme.colors.surface) // [修正] 列表項目背景
+            .background(AppTheme.colors.surface)
             .clickable { onClick() }
             .padding(horizontal = 16.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -216,17 +222,19 @@ fun JapaneseDetailItem(
 
         // 右側金額與刪除
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("- $${expense.amount}", color = AppTheme.colors.textPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            // [提取] 負數金額格式
+            Text(stringResource(R.string.amount_negative_format, expense.amount), color = AppTheme.colors.textPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.width(12.dp))
 
             IconButton(
                 onClick = { onDelete() },
                 modifier = Modifier.size(24.dp)
             ) {
+                // [提取] 刪除按鈕描述
                 Icon(
                     imageVector = Icons.Default.Close,
-                    contentDescription = "刪除",
-                    tint = AppTheme.colors.textSecondary.copy(alpha = 0.5f), // [修正] 刪除鈕顏色
+                    contentDescription = stringResource(R.string.content_desc_delete),
+                    tint = AppTheme.colors.textSecondary.copy(alpha = 0.5f),
                     modifier = Modifier.size(18.dp)
                 )
             }
@@ -234,7 +242,7 @@ fun JapaneseDetailItem(
     }
 }
 
-// 輔助函式：取得分類顏色 (圓點)
+// 輔助函式：取得分類顏色 (圓點) - 這裡的分類名稱通常來自 DB，暫不提取
 private fun getCategoryColorDot(category: String): Color {
     return when(category) {
         "飲食" -> Color(0xFFFFAB91)

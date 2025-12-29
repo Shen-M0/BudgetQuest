@@ -86,4 +86,7 @@ dependencies {
     // [新增] Accompanist Permissions (用於 Android 13+ 通知權限)
     implementation("com.google.accompanist:accompanist-permissions:0.32.0")
 
+    //語言切換依賴
+    implementation("androidx.appcompat:appcompat:1.6.1")
+
 }

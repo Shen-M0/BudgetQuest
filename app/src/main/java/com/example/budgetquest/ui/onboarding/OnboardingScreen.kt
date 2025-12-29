@@ -11,15 +11,17 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
-import androidx.compose.runtime.* // [修正] 加入 runtime imports
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.budgetquest.R
 import com.example.budgetquest.ui.theme.AppTheme
 import kotlinx.coroutines.launch
 
@@ -28,28 +30,26 @@ import kotlinx.coroutines.launch
 fun OnboardingScreen(
     onFinish: () -> Unit
 ) {
-    // [優化] 使用 remember 快取頁面資料，避免重繪時重複建立 List
-    val pages = remember {
+    // [提取] 先將字串資源讀取出來 (stringResource 必須在 Composable 作用域內呼叫)
+    val title1 = stringResource(R.string.onboarding_page1_title)
+    val desc1 = stringResource(R.string.onboarding_page1_desc)
+    val title2 = stringResource(R.string.onboarding_page2_title)
+    val desc2 = stringResource(R.string.onboarding_page2_desc)
+    val title3 = stringResource(R.string.onboarding_page3_title)
+    val desc3 = stringResource(R.string.onboarding_page3_desc)
+
+    // [優化] 使用 remember 快取頁面資料 (將讀取到的字串傳入 key 以便更新)
+    val pages = remember(title1, desc1, title2, desc2, title3, desc3) {
         listOf(
-            OnboardingPage(
-                title = "計畫導向記帳",
-                description = "不再是無止盡的流水帳。\n設定一個存錢目標，透過專注模式，\n精準掌握每一天的可用餘額。"
-            ),
-            OnboardingPage(
-                title = "動態餘額連動",
-                description = "昨天省下的錢，會自動累積到今天。\n看著可用金額隨著節省而增加，\n讓存錢變得更有成就感！"
-            ),
-            OnboardingPage(
-                title = "資料完全掌握",
-                description = "支援雲端備份與還原。\n資料儲存在您的裝置與 Google Drive，\n隱私安全，完全免費。"
-            )
+            OnboardingPage(title = title1, description = desc1),
+            OnboardingPage(title = title2, description = desc2),
+            OnboardingPage(title = title3, description = desc3)
         )
     }
 
     val pagerState = rememberPagerState(pageCount = { pages.size })
     val scope = rememberCoroutineScope()
 
-    // [優化] 防手震
     var lastClickTime by remember { mutableLongStateOf(0L) }
     fun debounce(action: () -> Unit) {
         val now = System.currentTimeMillis()
@@ -130,7 +130,6 @@ fun OnboardingScreen(
 
             Button(
                 onClick = {
-                    // [優化] 套用防手震
                     debounce {
                         if (pagerState.currentPage < pages.size - 1) {
                             scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
@@ -145,7 +144,8 @@ fun OnboardingScreen(
                 if (pagerState.currentPage < pages.size - 1) {
                     Icon(Icons.Default.ArrowForward, null, tint = Color.White)
                 } else {
-                    Text("開始使用", color = Color.White)
+                    // [提取] 開始使用按鈕
+                    Text(stringResource(R.string.btn_get_started), color = Color.White)
                     Spacer(modifier = Modifier.width(8.dp))
                     Icon(Icons.Default.Check, null, tint = Color.White)
                 }

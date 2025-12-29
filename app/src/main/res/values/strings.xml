@@ -1,3 +1,265 @@
 <resources>
-    <string name="app_name">BudgetQuest</string>
+    //以下為DashboardScreen.kt
+    <string name="app_name">Budget Quest</string>
+
+    <string name="date_format_focus">%1$d 年 %2$d 月</string>
+    <string name="date_format_calendar">%1$d / %2$d</string>
+
+    <string name="action_switch_to_calendar">切換至月曆</string>
+    <string name="action_switch_to_focus">切換至專注</string>
+    <string name="action_subscribe">訂閱</string>
+    <string name="action_edit_plan">編輯計畫</string>
+    <string name="action_view_list">詳細清單</string>
+    <string name="action_view_history">歷史紀錄</string>
+    <string name="action_add_plan">新增計畫</string>
+    <string name="action_settings">設定</string>
+
+    <string name="label_plan_balance">計畫結餘</string>
+    <string name="label_available_today">今日可用</string>
+    <string name="msg_no_active_plan">目前沒有進行中的計畫</string>
+    <string name="btn_create_plan">建立新計畫</string>
+
+    <string-array name="days_of_week">
+        <item>日</item>
+        <item>一</item>
+        <item>二</item>
+        <item>三</item>
+        <item>四</item>
+        <item>五</item>
+        <item>六</item>
+    </string-array>
+
+    <string name="tutorial_title_mode">模式切換</string>
+    <string name="tutorial_title_subscribe">固定訂閱</string>
+    <string name="tutorial_title_edit">編輯計畫</string>
+    <string name="tutorial_title_list">詳細清單</string>
+    <string name="tutorial_title_record">記一筆</string>
+    <string name="tutorial_title_today">今日額度</string>
+    <string name="tutorial_title_status">每日狀態</string>
+    <string name="tutorial_title_history">歷史回顧</string>
+    <string name="tutorial_title_new_plan">新增計畫</string>
+    <string name="tutorial_title_settings">設定</string>
+    <string name="tutorial_title_calendar">月曆總覽</string>
+
+    <string name="tutorial_desc_to_calendar">點擊切換至「月曆模式」，\n查看整月概況。</string>
+    <string name="tutorial_desc_subscribe">設定房租、Netflix 等固定支出，\n系統自動記帳。</string>
+    <string name="tutorial_desc_edit">修改當前計畫的預算或日期。</string>
+    <string name="tutorial_desc_list">查看所有消費紀錄與報表分析。</string>
+    <string name="tutorial_desc_record">快速記錄消費。\n長按可補記其他日期。</string>
+    <string name="tutorial_desc_today">顯示今天還能花多少錢。\n綠色安全，紅色超支。</string>
+    <string name="tutorial_desc_status">月曆顯示每天的結餘狀況。\n「綠色」表示省錢成功。\n「紅色」表示透支消費。</string>
+    <string name="tutorial_desc_to_focus">點擊切換回「專注模式」，\n控制每日預算。</string>
+    <string name="tutorial_desc_history">查看過去所有計畫的執行成果。</string>
+    <string name="tutorial_desc_new_plan">舊計畫結束後，在此建立新計畫。</string>
+    <string name="tutorial_desc_settings">深色模式、提醒通知與資料備份。</string>
+    <string name="tutorial_desc_calendar">點擊「綠色、紅色」日期，\n進入當日計畫的消費。\n點擊「空白」日期快速建立計畫。</string>
+
+
+    //以下為TransactionScreen.kt
+    <string name="title_add_transaction">記一筆</string>
+    <string name="title_edit_transaction">編輯消費</string>
+    <string name="action_back">返回</string>
+    <string name="action_select_date">選擇日期</string>
+    <string name="btn_save">儲存</string>
+
+    <string name="label_category">分類</string>
+    <string name="label_note">備註</string>
+    <string name="hint_amount">0</string>
+    <string name="hint_note">輸入項目名稱...</string>
+    <string name="date_format_transaction">yyyy/MM/dd</string>
+
+    <string name="desc_edit_button">編輯列表</string>
+
+    //以下為DailyDetailScreen.kt
+    <string name="title_date_format_detail">yyyy/MM/dd (EEE)</string>
+    <string name="label_daily_total">本日總支出</string>
+    <string name="label_record_count">%d 筆</string>
+    <string name="msg_no_daily_records">本日無消費紀錄</string>
+    <string name="content_desc_delete">刪除</string>
+    <string name="amount_negative_format">- $%d</string>
+    <string name="amount_currency_format">$ %d</string>
+
+    //以下為CategoryManagerScreen.kt
+    <string name="action_cancel">取消</string>
+    <string name="action_confirm">確認</string>
+
+    <string name="title_manage_categories">管理分類</string>
+    <string name="hint_category_name">分類名稱</string>
+    <string name="label_select_icon">選擇圖示</string>
+    <string name="label_select_color">選擇顏色</string>
+    <string name="action_add_category">新增分類</string>
+
+    <string name="title_manage_tags">管理備註</string>
+    <string name="hint_new_tag">輸入新備註...</string>
+    <string name="action_add_tag">新增備註</string>
+
+    <string name="title_manage_subscriptions">管理訂閱項目</string>
+    <string name="hint_subscription_example">例如: Netflix...</string>
+    <string name="action_add_subscription">新增項目</string>
+
+    //以下為SummaryScreen
+    <string name="title_summary">消費記錄</string>
+    <string name="label_remaining_budget">剩餘可用</string>
+    <string name="label_expense_distribution">消費分佈</string>
+    <string name="label_filter_conditions">篩選條件</string>
+    <string name="label_filter_applied">已套用篩選</string>
+    <string name="msg_no_records_found">暫無紀錄</string>
+
+    <string name="format_pie_chart_legend">%1$s: $%2$d (%3$d%%)</string>
+
+    <string name="format_date_month_day">MM/dd</string>
+    <string name="format_category_date">%1$s · %2$s</string>
+
+    <string name="hint_search_note">搜尋備註...</string>
+
+    //以下為SubscriptionScreen.kt
+    <string name="title_fixed_expenses">固定收支</string>
+    <string name="label_date_start">開始</string>
+    <string name="label_date_end">結束</string>
+    <string name="label_date_infinite">無限期</string>
+    <string name="label_amount">金額</string>
+    <string name="label_interval_days">間隔天數</string>
+    <string name="label_category_name">分類與名稱</string>
+    <string name="hint_subscription_name">名稱 (或點擊上方選項)</string>
+    <string name="label_current_subscriptions">訂閱中:</string>
+    <string name="btn_add_to_list">加入清單</string>
+
+    <string name="freq_month">每月</string>
+    <string name="freq_week">每週</string>
+    <string name="freq_day">每天</string>
+    <string name="freq_custom">自訂</string>
+
+    <string name="format_subscription_price">$%1$d / %2$s</string>
+    <string name="format_date_standard">yyyy/MM/dd</string>
+
+    //以下為SettingsScreen.kt
+    <string name="title_settings">設定</string>
+    <string name="title_dark_mode">深色模式</string>
+    <string name="status_on">開啟</string>
+    <string name="status_off">關閉</string>
+
+    <string name="title_notification_settings">通知設定</string>
+    <string name="label_daily_reminder">每日記帳提醒</string>
+    <string name="label_reminder_time">提醒時間</string>
+    <string name="label_plan_end_reminder">計畫結算通知</string>
+    <string name="desc_plan_end_reminder">計畫結束當天通知</string>
+    <string name="btn_test_notification">發送測試通知</string>
+    <string name="msg_check_notification_permission">點擊後若無反應，請檢查手機設定中的通知權限。</string>
+
+    <string name="title_cloud_backup">雲端備份與還原</string>
+    <string name="desc_cloud_backup">將資料備份至 Google Drive (需登入 Drive App)</string>
+    <string name="btn_backup">備份</string>
+    <string name="btn_restore">還原</string>
+    <string name="msg_backup_success">備份成功！</string>
+    <string name="msg_backup_failed">備份失敗: %s</string>
+    <string name="msg_restore_success">還原成功！請重新啟動 APP 以載入資料</string>
+    <string name="msg_restore_failed">還原失敗: %s</string>
+
+    <string name="title_tutorial">功能導覽</string>
+    <string name="desc_replay_tutorial">重新觀看導覽畫面</string>
+
+    //以下為SettingsScreen.kt語言設定功能
+    <string name="title_language">語言設定</string>
+    <string name="label_current_language">目前語言</string>
+    <string name="dialog_select_language">選擇語言</string>
+
+    <string name="language_system">跟隨系統</string>
+    <string name="language_zh_tw">繁體中文</string>
+    <string name="language_en">English</string>
+    <string name="language_ja">日本語</string>
+    <string name="language_zh_cn">簡體中文</string>
+
+
+
+    //以下為PlanSetupScreen.kt
+    <string name="title_create_plan">建立計畫</string>
+    <string name="title_edit_plan">編輯計畫</string>
+    <string name="btn_start_plan">開始計畫</string>
+    <string name="btn_save_changes">儲存變更</string>
+    <string name="btn_delete_plan">刪除此計畫</string>
+
+    <string name="label_plan_name">計畫名稱</string>
+    <string name="hint_plan_name">我的記帳計畫</string>
+    <string name="label_start_date">開始日期</string>
+    <string name="label_end_date">結束日期</string>
+    <string name="label_budget_target">預算與目標</string>
+    <string name="label_total_budget">總預算</string>
+    <string name="hint_total_budget">總預算</string>
+    <string name="label_target_savings">目標存錢</string>
+    <string name="hint_target_savings">目標存錢</string>
+    <string name="label_daily_available">每日可用</string>
+    <string name="label_advanced_options">進階選項</string>
+
+    <string name="dialog_title_delete_plan">刪除計畫</string>
+    <string name="dialog_msg_delete_plan">確定要刪除此計畫嗎？刪除後無法復原。</string>
+    <string name="action_delete">刪除</string>
+
+    <string name="format_currency">$ %d</string>
+    <string name="format_date_short">MM/dd</string>
+
+    //以下為OnboardingScreen.kt
+    <string name="onboarding_page1_title">計畫導向記帳</string>
+    <string name="onboarding_page1_desc">不再是無止盡的流水帳。\n設定一個存錢目標，透過專注模式，\n精準掌握每一天的可用餘額。</string>
+
+    <string name="onboarding_page2_title">動態餘額連動</string>
+    <string name="onboarding_page2_desc">昨天省下的錢，會自動累積到今天。\n看著可用金額隨著節省而增加，\n讓存錢變得更有成就感！</string>
+
+    <string name="onboarding_page3_title">資料完全掌握</string>
+    <string name="onboarding_page3_desc">支援雲端備份與還原。\n資料儲存在您的裝置與 Google Drive，\n隱私安全，完全免費。</string>
+
+    <string name="btn_get_started">開始使用</string>
+
+    //以下為PlanHistoryScreen.kt
+    <string name="title_plan_history">計畫歷程</string>
+    <string name="format_date_history">yyyy/MM/dd</string>
+    <string name="status_ongoing">進行中</string>
+    <string name="status_ended">已結束</string>
+    <string name="format_date_range_history">%1$s - %2$s</string>
+    <string name="label_spent_amount">已花費 $%d</string>
+    <string name="label_budget_amount">預算 $%d</string>
+
+    //以下為CoachMarkOverlay.kt
+    <string name="coach_mark_skip_hint">點擊畫面任意處繼續</string>
+
+    //以下為ReminderWorker.kt與PlanViewModel.kt
+    <string name="notification_channel_name">每日記帳提醒</string>
+    <string name="notification_channel_desc">提醒您每日記錄開銷</string>
+    <string name="notification_title_daily">記帳提醒</string>
+    <string name="notification_msg_daily">今天過得如何？別忘了記錄今天的開銷喔！</string>
+
+    <string name="error_empty_plan_fields">請輸入計畫名稱與預算</string>
+    <string name="error_plan_overlap">日期範圍與現有計畫重疊，請重新選擇</string>
+
+    //以下為SubscriptionViewModel.kt與SummaryViewModel.kt
+    <string name="msg_goal_achieved">太棒了！目標達成 🎉\n好習慣正在慢慢養成中。</string>
+    <string name="msg_budget_exceeded">注意！預算已超支 ⚠️\n建議檢視非必要開銷。</string>
+    <string name="msg_no_plan_data">無計畫資料</string>
+
+    <string name="default_category_entertainment">娛樂</string>
+    <string name="default_frequency_month">MONTH</string>
+
+    <string name="cat_food">飲食</string>
+    <string name="cat_shopping">購物</string>
+    <string name="cat_transport">交通</string>
+    <string name="cat_home">居家</string>
+    <string name="cat_entertainment">娛樂</string>
+    <string name="cat_medical">醫療</string>
+    <string name="cat_education">教育</string>
+    <string name="cat_bills">帳單</string>
+    <string name="cat_investment">投資</string>
+    <string name="cat_other">其他</string>
+    <string name="cat_travel">旅遊</string>
+
+    <string name="note_lunch">午餐</string>
+    <string name="note_dinner">晚餐</string>
+    <string name="note_drink">飲料</string>
+    <string name="note_breakfast">早餐</string>
+    <string name="note_bus">公車</string>
+    <string name="note_mrt">捷運</string>
+    <string name="note_gas">加油</string>
+    <string name="note_movie">電影</string>
+    <string name="note_game">遊戲</string>
+    <string name="note_daily_use">日用品</string>
+
+
 </resources>

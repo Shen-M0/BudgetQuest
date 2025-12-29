@@ -1,0 +1,221 @@
+<resources>
+    <string name="app_name">Budget Quest</string>
+
+    <string name="action_back">返回</string>
+    <string name="action_cancel">取消</string>
+    <string name="action_confirm">确认</string>
+    <string name="action_delete">删除</string>
+    <string name="action_select_date">选择日期</string>
+    <string name="btn_save">保存</string>
+
+    <string name="date_format_focus">%1$d年 %2$d月</string>
+    <string name="date_format_calendar">%1$d / %2$d</string>
+    <string name="action_switch_to_calendar">切换至月历</string>
+    <string name="action_switch_to_focus">切换至专注</string>
+    <string name="action_subscribe">订阅</string>
+    <string name="action_edit_plan">编辑计划</string>
+    <string name="action_view_list">详细清单</string>
+    <string name="action_view_history">历史记录</string>
+    <string name="action_add_plan">新增计划</string>
+    <string name="action_settings">设置</string>
+    <string name="label_plan_balance">计划结余</string>
+    <string name="label_available_today">今日可用</string>
+    <string name="msg_no_active_plan">目前没有进行中的计划</string>
+    <string name="btn_create_plan">建立新计划</string>
+
+    <string-array name="days_of_week">
+        <item>日</item>
+        <item>一</item>
+        <item>二</item>
+        <item>三</item>
+        <item>四</item>
+        <item>五</item>
+        <item>六</item>
+    </string-array>
+
+    <string name="title_add_transaction">记一笔</string>
+    <string name="title_edit_transaction">编辑消费</string>
+    <string name="label_category">分类</string>
+    <string name="label_note">备注</string>
+    <string name="hint_amount">0</string>
+    <string name="hint_note">输入项目名称...</string>
+    <string name="date_format_transaction">yyyy/MM/dd</string>
+    <string name="desc_edit_button">编辑列表</string>
+
+    <string name="title_manage_categories">管理分类</string>
+    <string name="hint_category_name">分类名称</string>
+    <string name="label_select_icon">选择图标</string>
+    <string name="label_select_color">选择颜色</string>
+    <string name="action_add_category">新增分类</string>
+    <string name="title_manage_tags">管理备注</string>
+    <string name="hint_new_tag">输入新备注...</string>
+    <string name="action_add_tag">新增备注</string>
+    <string name="title_manage_subscriptions">管理订阅项目</string>
+    <string name="hint_subscription_example">例如: Netflix...</string>
+    <string name="action_add_subscription">新增项目</string>
+
+    <string name="title_summary">消费记录</string>
+    <string name="label_remaining_budget">剩余可用</string>
+    <string name="label_expense_distribution">消费分布</string>
+    <string name="label_filter_conditions">筛选条件</string>
+    <string name="label_filter_applied">已应用筛选</string>
+    <string name="msg_no_records_found">暂无记录</string>
+    <string name="format_pie_chart_legend">%1$s: $%2$d (%3$d%%)</string>
+    <string name="format_date_month_day">MM/dd</string>
+    <string name="format_category_date">%1$s · %2$s</string>
+    <string name="hint_search_note">搜索备注...</string>
+    <string name="msg_goal_achieved">太棒了！目标达成 🎉\n好习惯正在慢慢养成中。</string>
+    <string name="msg_budget_exceeded">注意！预算已超支 ⚠️\n建议检视非必要开销。</string>
+    <string name="msg_no_plan_data">无计划数据</string>
+
+    <string name="title_date_format_detail">yyyy/MM/dd (EEE)</string>
+    <string name="label_daily_total">本日总支出</string>
+    <string name="label_record_count">%d 笔</string>
+    <string name="msg_no_daily_records">本日无消费记录</string>
+    <string name="content_desc_delete">删除</string>
+    <string name="amount_negative_format">- $%d</string>
+    <string name="amount_currency_format">$ %d</string>
+
+    <string name="title_fixed_expenses">固定收支</string>
+    <string name="label_date_start">开始</string>
+    <string name="label_date_end">结束</string>
+    <string name="label_date_infinite">无限期</string>
+    <string name="label_amount">金额</string>
+    <string name="label_interval_days">间隔天数</string>
+    <string name="label_category_name">分类与名称</string>
+    <string name="hint_subscription_name">名称 (或点击上方选项)</string>
+    <string name="label_current_subscriptions">订阅中:</string>
+    <string name="btn_add_to_list">加入清单</string>
+    <string name="freq_month">每月</string>
+    <string name="freq_week">每周</string>
+    <string name="freq_day">每天</string>
+    <string name="freq_custom">自定义</string>
+    <string name="format_subscription_price">$%1$d / %2$s</string>
+    <string name="format_date_standard">yyyy/MM/dd</string>
+
+    <string name="title_create_plan">建立计划</string>
+    <string name="title_edit_plan">编辑计划</string>
+    <string name="btn_start_plan">开始计划</string>
+    <string name="btn_save_changes">保存变更</string>
+    <string name="btn_delete_plan">删除此计划</string>
+    <string name="label_plan_name">计划名称</string>
+    <string name="hint_plan_name">我的记账计划</string>
+    <string name="label_start_date">开始日期</string>
+    <string name="label_end_date">结束日期</string>
+    <string name="label_budget_target">预算与目标</string>
+    <string name="label_total_budget">总预算</string>
+    <string name="hint_total_budget">总预算</string>
+    <string name="label_target_savings">目标存钱</string>
+    <string name="hint_target_savings">目标存钱</string>
+    <string name="label_daily_available">每日可用</string>
+    <string name="label_advanced_options">进阶选项</string>
+    <string name="dialog_title_delete_plan">删除计划</string>
+    <string name="dialog_msg_delete_plan">确定要删除此计划吗？删除后无法恢复。</string>
+    <string name="format_currency">$ %d</string>
+    <string name="format_date_short">MM/dd</string>
+    <string name="error_empty_plan_fields">请输入计划名称与预算</string>
+    <string name="error_plan_overlap">日期范围与现有计划重叠，请重新选择</string>
+
+    <string name="title_plan_history">计划历程</string>
+    <string name="format_date_history">yyyy/MM/dd</string>
+    <string name="status_ongoing">进行中</string>
+    <string name="status_ended">已结束</string>
+    <string name="format_date_range_history">%1$s - %2$s</string>
+    <string name="label_spent_amount">已花费 $%d</string>
+    <string name="label_budget_amount">预算 $%d</string>
+
+    <string name="onboarding_page1_title">计划导向记账</string>
+    <string name="onboarding_page1_desc">不再是无止尽的流水账。\n设定一个存钱目标，通过专注模式，\n精准掌握每一天的可用余额。</string>
+    <string name="onboarding_page2_title">动态余额连动</string>
+    <string name="onboarding_page2_desc">昨天省下的钱，会自动累积到今天。\n看着可用金额随着节省而增加，\n让存钱变得更有成就感！</string>
+    <string name="onboarding_page3_title">数据完全掌握</string>
+    <string name="onboarding_page3_desc">支持云端备份与还原。\n数据储存在您的设备与 Google Drive，\n隐私安全，完全免费。</string>
+    <string name="btn_get_started">开始使用</string>
+
+    <string name="title_settings">设置</string>
+    <string name="title_dark_mode">深色模式</string>
+    <string name="status_on">开启</string>
+    <string name="status_off">关闭</string>
+    <string name="title_notification_settings">通知设置</string>
+    <string name="label_daily_reminder">每日记账提醒</string>
+    <string name="label_reminder_time">提醒时间</string>
+    <string name="label_plan_end_reminder">计划结算通知</string>
+    <string name="desc_plan_end_reminder">计划结束当天通知</string>
+    <string name="btn_test_notification">发送测试通知</string>
+    <string name="msg_check_notification_permission">点击后若无反应，请检查手机设置中的通知权限。</string>
+    <string name="title_cloud_backup">云端备份与还原</string>
+    <string name="desc_cloud_backup">将数据备份至 Google Drive (需登录 Drive App)</string>
+    <string name="btn_backup">备份</string>
+    <string name="btn_restore">还原</string>
+    <string name="msg_backup_success">备份成功！</string>
+    <string name="msg_backup_failed">备份失败: %s</string>
+    <string name="msg_restore_success">还原成功！请重新启动 APP 以载入数据</string>
+    <string name="msg_restore_failed">还原失败: %s</string>
+    <string name="title_tutorial">功能导航</string>
+    <string name="desc_replay_tutorial">重新观看导航画面</string>
+
+    <string name="tutorial_title_mode">模式切换</string>
+    <string name="tutorial_desc_to_calendar">点击切换至「月历模式」，\n查看整月概况。</string>
+    <string name="tutorial_title_subscribe">固定订阅</string>
+    <string name="tutorial_desc_subscribe">设定房租、Netflix 等固定支出，\n系统自动记账。</string>
+    <string name="tutorial_title_edit">编辑计划</string>
+    <string name="tutorial_desc_edit">修改当前计划的预算或日期。</string>
+    <string name="tutorial_title_list">详细清单</string>
+    <string name="tutorial_desc_list">查看所有消费记录与报表分析。</string>
+    <string name="tutorial_title_record">记一笔</string>
+    <string name="tutorial_desc_record">快速记录消费。\n长按可补记其他日期。</string>
+    <string name="tutorial_title_today">今日额度</string>
+    <string name="tutorial_desc_today">显示今天还能花多少钱。\n绿色安全，红色超支。</string>
+    <string name="tutorial_title_status">每日状态</string>
+    <string name="tutorial_desc_status">月历显示每天的结余状况。\n「绿色」表示省钱成功。\n「红色」表示透支消费。</string>
+    <string name="tutorial_desc_to_focus">点击切换回「专注模式」，\n控制每日预算。</string>
+    <string name="tutorial_title_history">历史回顾</string>
+    <string name="tutorial_desc_history">查看过去所有计划的执行成果。</string>
+    <string name="tutorial_title_new_plan">新增计划</string>
+    <string name="tutorial_desc_new_plan">旧计划结束后，在此建立新计划。</string>
+    <string name="tutorial_title_settings">设置</string>
+    <string name="tutorial_desc_settings">深色模式、提醒通知与数据备份。</string>
+    <string name="tutorial_title_calendar">月历总览</string>
+    <string name="tutorial_desc_calendar">点击「绿色、红色」日期，\n进入当日计划的消费。\n点击「空白」日期快速建立计划。</string>
+    <string name="coach_mark_skip_hint">点击画面任意处继续</string>
+
+    <string name="notification_channel_name">每日记账提醒</string>
+    <string name="notification_channel_desc">提醒您每日记录开销</string>
+    <string name="notification_title_daily">记账提醒</string>
+    <string name="notification_msg_daily">今天过得如何？别忘了记录今天的开销喔！</string>
+
+    <string name="title_language">语言设置</string>
+    <string name="label_current_language">当前语言</string>
+    <string name="dialog_select_language">选择语言</string>
+    <string name="language_system">跟随系统</string>
+    <string name="language_zh_tw">繁体中文</string>
+    <string name="language_en">English</string>
+    <string name="language_ja">日本语</string>
+    <string name="language_zh_cn">简体中文</string>
+    <string name="default_category_entertainment">娱乐</string>
+    <string name="default_frequency_month">MONTH</string>
+
+    <string name="cat_food">餐饮</string>
+    <string name="cat_shopping">购物</string>
+    <string name="cat_transport">交通</string>
+    <string name="cat_home">居家</string>
+    <string name="cat_entertainment">娱乐</string>
+    <string name="cat_medical">医疗</string>
+    <string name="cat_education">教育</string>
+    <string name="cat_bills">账单</string>
+    <string name="cat_investment">投资</string>
+    <string name="cat_other">其他</string>
+    <string name="cat_travel">旅游</string>
+
+    <string name="note_lunch">午餐</string>
+    <string name="note_dinner">晚餐</string>
+    <string name="note_drink">饮料</string>
+    <string name="note_breakfast">早餐</string>
+    <string name="note_bus">公交</string>
+    <string name="note_mrt">地铁</string>
+    <string name="note_gas">加油</string>
+    <string name="note_movie">电影</string>
+    <string name="note_game">游戏</string>
+    <string name="note_daily_use">日用品</string>
+
+</resources>

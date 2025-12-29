@@ -21,11 +21,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.budgetquest.R
 import com.example.budgetquest.data.RecurringExpenseEntity
 import com.example.budgetquest.ui.AppViewModelProvider
 import java.text.SimpleDateFormat
@@ -34,9 +36,9 @@ import com.example.budgetquest.ui.transaction.CategoryManagerDialog
 import com.example.budgetquest.ui.transaction.SubTagManagerDialog
 import com.example.budgetquest.ui.transaction.EditButton
 import com.example.budgetquest.ui.common.getIconByKey
-import com.example.budgetquest.ui.theme.AppTheme // 引入主題
-
-val periods = listOf("MONTH" to "每月", "WEEK" to "每週", "DAY" to "每天", "CUSTOM" to "自訂")
+import com.example.budgetquest.ui.common.getSmartCategoryName // [新增]
+import com.example.budgetquest.ui.common.getSmartTagName // [新增]
+import com.example.budgetquest.ui.theme.AppTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,7 +54,13 @@ fun SubscriptionScreen(
     val list by viewModel.recurringList.collectAsState()
     val context = LocalContext.current
 
-    // [優化] 防手震
+    val periodsMap = mapOf(
+        "MONTH" to R.string.freq_month,
+        "WEEK" to R.string.freq_week,
+        "DAY" to R.string.freq_day,
+        "CUSTOM" to R.string.freq_custom
+    )
+
     var lastClickTime by remember { mutableLongStateOf(0L) }
     fun debounce(action: () -> Unit) {
         val now = System.currentTimeMillis()
@@ -66,12 +74,12 @@ fun SubscriptionScreen(
         viewModel.initialize(planId, startDate, endDate)
     }
 
-    // [優化] 快取 Calendar 與 DateFormat
     val startCalendar = remember { Calendar.getInstance() }
     val endCalendar = remember { Calendar.getInstance() }
-    val dateFormatter = remember { SimpleDateFormat("yyyy/MM/dd", Locale.getDefault()) }
 
-    // [優化] 快取 DatePicker
+    val dateFormatStr = stringResource(R.string.format_date_standard)
+    val dateFormatter = remember(dateFormatStr) { SimpleDateFormat(dateFormatStr, Locale.getDefault()) }
+
     val startDatePickerDialog = remember(context) {
         DatePickerDialog(
             context,
@@ -121,10 +129,10 @@ fun SubscriptionScreen(
         containerColor = AppTheme.colors.background,
         topBar = {
             TopAppBar(
-                title = { Text("固定收支", color = AppTheme.colors.textPrimary, fontSize = 18.sp) },
+                title = { Text(stringResource(R.string.title_fixed_expenses), color = AppTheme.colors.textPrimary, fontSize = 18.sp) },
                 navigationIcon = {
-                    IconButton(onClick = { debounce(onBackClick) }) { // [優化] 防手震
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = AppTheme.colors.textPrimary)
+                    IconButton(onClick = { debounce(onBackClick) }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back), tint = AppTheme.colors.textPrimary)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = AppTheme.colors.background)
@@ -142,82 +150,96 @@ fun SubscriptionScreen(
             ) {
                 Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        // [優化] 使用 remember 的 formatter
-                        JapaneseDateButton("開始", dateFormatter.format(Date(uiState.startDate))) {
-                            debounce { startDatePickerDialog.show() } // [優化] 防手震
+                        JapaneseDateButton(stringResource(R.string.label_date_start), dateFormatter.format(Date(uiState.startDate))) {
+                            debounce { startDatePickerDialog.show() }
                         }
                         Box(modifier = Modifier.weight(1f)) {
-                            JapaneseTextField(value = uiState.amount, onValueChange = { viewModel.updateUiState(amount = it) }, label = "金額", isNumber = true)
+                            JapaneseTextField(value = uiState.amount, onValueChange = { viewModel.updateUiState(amount = it) }, label = stringResource(R.string.label_amount), isNumber = true)
                         }
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        JapaneseDateButton("結束", if (uiState.endDate != null) dateFormatter.format(Date(uiState.endDate!!)) else "無限期") {
-                            debounce { endDatePickerDialog.show() } // [優化] 防手震
+                        JapaneseDateButton(
+                            stringResource(R.string.label_date_end),
+                            if (uiState.endDate != null) dateFormatter.format(Date(uiState.endDate!!)) else stringResource(R.string.label_date_infinite)
+                        ) {
+                            debounce { endDatePickerDialog.show() }
                         }
                         Spacer(modifier = Modifier.width(16.dp))
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            items(periods) { (key, label) ->
-                                JapaneseCompactChip(label, uiState.frequency == key) { viewModel.updateUiState(frequency = key) }
+                            items(periodsMap.toList()) { (key, resId) ->
+                                JapaneseCompactChip(stringResource(resId), uiState.frequency == key) { viewModel.updateUiState(frequency = key) }
                             }
                         }
                     }
                     if (uiState.frequency == "CUSTOM") {
-                        JapaneseTextField(value = uiState.customDays, onValueChange = { viewModel.updateUiState(customDays = it) }, label = "間隔天數", isNumber = true)
+                        JapaneseTextField(value = uiState.customDays, onValueChange = { viewModel.updateUiState(customDays = it) }, label = stringResource(R.string.label_interval_days), isNumber = true)
                     }
 
                     HorizontalDivider(color = AppTheme.colors.divider)
 
-                    Text("分類與名稱", fontSize = 12.sp, color = AppTheme.colors.textSecondary)
+                    Text(stringResource(R.string.label_category_name), fontSize = 12.sp, color = AppTheme.colors.textSecondary)
 
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        // [優化] 加上 key
                         items(categories, key = { it.id }) { category ->
+                            // [套用 Helper] 智慧分類名稱
                             JapaneseCompactChip(
-                                label = category.name,
+                                label = getSmartCategoryName(category.name),
                                 selected = uiState.category == category.name,
                                 icon = getIconByKey(category.iconKey)
                             ) { viewModel.updateUiState(category = category.name) }
                         }
-                        item { EditButton { debounce { showCategoryManager = true } } } // [優化] 防手震
+                        item { EditButton { debounce { showCategoryManager = true } } }
                     }
 
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        // [優化] 加上 key
                         items(subTags, key = { it.id }) { tag ->
-                            JapaneseCompactChip(label = tag.name, selected = uiState.note == tag.name) {
+                            // [套用 Helper] 智慧備註名稱 (Tag)
+                            JapaneseCompactChip(
+                                label = getSmartTagName(tag.name),
+                                selected = uiState.note == tag.name
+                            ) {
                                 viewModel.updateUiState(note = tag.name)
                             }
                         }
-                        item { EditButton { debounce { showSubTagManager = true } } } // [優化] 防手震
+                        item { EditButton { debounce { showSubTagManager = true } } }
                     }
 
-                    JapaneseTextField(value = uiState.note, onValueChange = { viewModel.updateUiState(note = it) }, label = "名稱 (或點擊上方選項)")
+                    // [套用 Helper] 讓輸入框也顯示智慧名稱
+                    // 如果 uiState.note 是 "午餐"，這裡會顯示 "Lunch" (方便閱讀)
+                    // 如果用戶修改，onValueChange 會更新為新值
+                    JapaneseTextField(
+                        value = getSmartTagName(uiState.note),
+                        onValueChange = { viewModel.updateUiState(note = it) },
+                        label = stringResource(R.string.hint_subscription_name)
+                    )
 
                     Button(
                         onClick = {
-                            debounce { // [優化] 儲存防手震
+                            debounce {
                                 viewModel.addSubscription { onSaveSuccess() }
                             }
                         },
                         modifier = Modifier.fillMaxWidth().height(50.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = AppTheme.colors.accent),
                         shape = RoundedCornerShape(16.dp)
-                    ) { Text("加入清單", color = Color.White) }
+                    ) {
+                        Text(stringResource(R.string.btn_add_to_list), color = Color.White)
+                    }
                 }
             }
 
-            Text("訂閱中:", color = AppTheme.colors.textSecondary, fontSize = 14.sp, modifier = Modifier.padding(start = 4.dp))
+            Text(stringResource(R.string.label_current_subscriptions), color = AppTheme.colors.textSecondary, fontSize = 14.sp, modifier = Modifier.padding(start = 4.dp))
 
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(bottom = 20.dp)
             ) {
-                // [優化] 加上 key (假設 RecurringExpenseEntity 有 id)
                 items(list, key = { it.id }) { item ->
                     JapaneseSubscriptionItem(
                         item,
+                        frequencyLabel = stringResource(periodsMap[item.frequency] ?: R.string.freq_custom),
                         onDelete = {
-                            debounce { viewModel.deleteSubscription(item) } // [優化] 刪除防手震
+                            debounce { viewModel.deleteSubscription(item) }
                         }
                     )
                 }
@@ -225,6 +247,8 @@ fun SubscriptionScreen(
         }
     }
 }
+
+// ... 下方共用元件保持不變 ...
 
 @Composable
 fun JapaneseTextField(value: String, onValueChange: (String) -> Unit, label: String, isNumber: Boolean = false) {
@@ -239,7 +263,6 @@ fun JapaneseTextField(value: String, onValueChange: (String) -> Unit, label: Str
             focusedBorderColor = AppTheme.colors.accent,
             unfocusedContainerColor = AppTheme.colors.background,
             focusedContainerColor = AppTheme.colors.background,
-            // [新增] 確保輸入文字顏色正確
             focusedTextColor = AppTheme.colors.textPrimary,
             unfocusedTextColor = AppTheme.colors.textPrimary
         ),
@@ -259,7 +282,6 @@ fun JapaneseDateButton(label: String, value: String, onClick: () -> Unit) {
 @Composable
 fun JapaneseCompactChip(label: String, selected: Boolean, icon: androidx.compose.ui.graphics.vector.ImageVector? = null, onClick: () -> Unit) {
     Surface(
-        // [修改] 選中時用 accent，未選中用 background
         color = if (selected) AppTheme.colors.accent else AppTheme.colors.background,
         contentColor = if (selected) Color.White else AppTheme.colors.textSecondary,
         shape = RoundedCornerShape(8.dp),
@@ -279,7 +301,11 @@ fun JapaneseCompactChip(label: String, selected: Boolean, icon: androidx.compose
 }
 
 @Composable
-fun JapaneseSubscriptionItem(item: RecurringExpenseEntity, onDelete: () -> Unit) {
+fun JapaneseSubscriptionItem(
+    item: RecurringExpenseEntity,
+    frequencyLabel: String,
+    onDelete: () -> Unit
+) {
     Row(
         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(AppTheme.colors.surface).padding(20.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -293,13 +319,17 @@ fun JapaneseSubscriptionItem(item: RecurringExpenseEntity, onDelete: () -> Unit)
             }
             Spacer(modifier = Modifier.width(16.dp))
             Column {
-                Text(item.note, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = AppTheme.colors.textPrimary)
-                Text("$${item.amount} / ${item.frequency}", fontSize = 12.sp, color = AppTheme.colors.textSecondary)
+                // [套用 Helper] 列表顯示智慧名稱
+                Text(getSmartTagName(item.note), fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = AppTheme.colors.textPrimary)
+                Text(
+                    stringResource(R.string.format_subscription_price, item.amount, frequencyLabel),
+                    fontSize = 12.sp,
+                    color = AppTheme.colors.textSecondary
+                )
             }
         }
         IconButton(onClick = onDelete) {
-            // [修改] 刪除圖示顏色微調
-            Icon(Icons.Default.Delete, null, tint = AppTheme.colors.textSecondary.copy(alpha = 0.5f))
+            Icon(Icons.Default.Delete, stringResource(R.string.content_desc_delete), tint = AppTheme.colors.textSecondary.copy(alpha = 0.5f))
         }
     }
 }

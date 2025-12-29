@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -183,30 +184,26 @@ fun DashboardScreen(
                 title = {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        // [Issue 1 解決] 移除 end padding，改用自然排列
                     ) {
                         if (uiState.viewMode == ViewMode.Calendar) {
                             IconButton(
                                 onClick = { debounce { viewModel.prevMonth() } },
-                                // [Issue 1 解決] 將左按鈕向左偏移，固定位置與大小
                                 modifier = Modifier.offset(x = (-8).dp)
                             ) {
                                 Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = AppTheme.colors.textPrimary)
                             }
-                        } else {
-                            // 專注模式補位，保持文字對齊 (Optional，這裡不加也可以)
                         }
 
+                        // [修正] 使用 stringResource 帶入參數進行格式化，支援多語言
                         Text(
                             text = if (uiState.viewMode == ViewMode.Focus) {
-                                "${uiState.currentYear}年 ${uiState.currentMonth + 1}月"
+                                stringResource(R.string.date_format_focus, uiState.currentYear, uiState.currentMonth + 1)
                             } else {
-                                "${uiState.currentYear} / ${uiState.currentMonth + 1}"
+                                stringResource(R.string.date_format_calendar, uiState.currentYear, uiState.currentMonth + 1)
                             },
                             color = AppTheme.colors.textPrimary,
                             fontSize = 22.sp,
                             fontWeight = FontWeight.Bold,
-                            // [Issue 1 解決] 微調文字邊距
                             modifier = Modifier.padding(start = if (uiState.viewMode == ViewMode.Calendar) 0.dp else 16.dp)
                         )
 
@@ -224,7 +221,8 @@ fun DashboardScreen(
                             onClick = { debounce { viewModel.toggleViewMode() } },
                             modifier = Modifier.onGloballyPositioned { focusToggleBtnCoords = it }
                         ) {
-                            Icon(Icons.Default.DateRange, "切換至月曆", tint = iconTint)
+                            Icon(Icons.Default.DateRange,
+                                stringResource(R.string.action_switch_to_calendar), tint = iconTint)
                         }
                         IconButton(
                             onClick = {
@@ -235,20 +233,21 @@ fun DashboardScreen(
                             },
                             modifier = Modifier.onGloballyPositioned { subBtnCoords = it }
                         ) {
-                            Icon(Icons.Default.Star, "訂閱", tint = iconTint)
+                            Icon(Icons.Default.Star,
+                                stringResource(R.string.action_subscribe), tint = iconTint)
                         }
                         if (uiState.activePlan != null) {
                             IconButton(
                                 onClick = { debounce { onEditPlanClick(uiState.activePlan?.id) } },
                                 modifier = Modifier.onGloballyPositioned { editBtnCoords = it }
                             ) {
-                                Icon(Icons.Default.Edit, "編輯計畫", tint = iconTint)
+                                Icon(Icons.Default.Edit, stringResource(R.string.action_edit_plan), tint = iconTint)
                             }
                             IconButton(
                                 onClick = { debounce { onSummaryClick(uiState.activePlan?.id) } },
                                 modifier = Modifier.onGloballyPositioned { listBtnCoords = it }
                             ) {
-                                Icon(Icons.AutoMirrored.Filled.List, "詳細清單", tint = iconTint)
+                                Icon(Icons.AutoMirrored.Filled.List, stringResource(R.string.action_view_list), tint = iconTint)
                             }
                         }
                     } else {
@@ -256,25 +255,27 @@ fun DashboardScreen(
                             onClick = { debounce { viewModel.toggleViewMode() } },
                             modifier = Modifier.onGloballyPositioned { calendarToggleBtnCoords = it }
                         ) {
-                            Icon(Icons.Default.Face, "切換至專注", tint = iconTint)
+                            Icon(Icons.Default.Face,
+                                stringResource(R.string.action_switch_to_focus), tint = iconTint)
                         }
                         IconButton(
                             onClick = { debounce { onHistoryClick() } },
                             modifier = Modifier.onGloballyPositioned { historyBtnCoords = it }
                         ) {
-                            Icon(Icons.Default.History, "歷史紀錄", tint = iconTint)
+                            Icon(Icons.Default.History,
+                                stringResource(R.string.action_view_history), tint = iconTint)
                         }
                         IconButton(
                             onClick = { debounce { onEditPlanClick(null) } },
                             modifier = Modifier.onGloballyPositioned { addPlanBtnCoords = it }
                         ) {
-                            Icon(Icons.Default.Add, "新增計畫", tint = iconTint)
+                            Icon(Icons.Default.Add, stringResource(R.string.action_add_plan), tint = iconTint)
                         }
                         IconButton(
                             onClick = { debounce { onSettingsClick() } },
                             modifier = Modifier.onGloballyPositioned { settingsBtnCoords = it }
                         ) {
-                            Icon(Icons.Default.Settings, "設定", tint = iconTint)
+                            Icon(Icons.Default.Settings, stringResource(R.string.action_settings), tint = iconTint)
                         }
                     }
                 },
@@ -338,16 +339,18 @@ fun DashboardScreen(
                     }
 
                     if (uiState.dailyStates.isEmpty() && uiState.activePlan == null) {
-                        Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        Box(modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth(), contentAlignment = Alignment.Center) {
                             if (uiState.viewMode == ViewMode.Focus && uiState.activePlan == null) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text("目前沒有進行中的計畫", color = AppTheme.colors.textSecondary)
+                                    Text(stringResource(R.string.msg_no_active_plan), color = AppTheme.colors.textSecondary)
                                     Spacer(modifier = Modifier.height(16.dp))
                                     Button(
                                         onClick = { debounce { onEmptyDateClick(System.currentTimeMillis(), System.currentTimeMillis() + 86400000L * 30) } },
                                         colors = ButtonDefaults.buttonColors(containerColor = AppTheme.colors.accent)
                                     ) {
-                                        Text("建立新計畫", color = Color.White)
+                                        Text(stringResource(R.string.btn_create_plan), color = Color.White)
                                     }
                                 }
                             } else {
@@ -370,11 +373,9 @@ fun DashboardScreen(
                                     verticalArrangement = Arrangement.spacedBy(8.dp),
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    // [修復閃退] 確保 Key 唯一性：日期 + 狀態 + 索引 (針對 Empty)
                                     itemsIndexed(
                                         uiState.dailyStates,
                                         key = { index, dayState ->
-                                            // 如果是 Empty，加上 index 來區分多個空白格子
                                             if (dayState.status == DayStatus.Empty) {
                                                 "empty_$index"
                                             } else {
@@ -416,7 +417,9 @@ fun DashboardScreen(
                                 if (pagerState.currentPage > 0) {
                                     IconButton(
                                         onClick = { scope.launch { pagerState.animateScrollToPage(pagerState.currentPage - 1) } },
-                                        modifier = Modifier.align(Alignment.CenterStart).offset(x = (-12).dp)
+                                        modifier = Modifier
+                                            .align(Alignment.CenterStart)
+                                            .offset(x = (-12).dp)
                                     ) {
                                         Icon(
                                             Icons.AutoMirrored.Filled.KeyboardArrowLeft,
@@ -429,7 +432,9 @@ fun DashboardScreen(
                                 if (pagerState.currentPage < totalPageCount - 1) {
                                     IconButton(
                                         onClick = { scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) } },
-                                        modifier = Modifier.align(Alignment.CenterEnd).offset(x = 12.dp)
+                                        modifier = Modifier
+                                            .align(Alignment.CenterEnd)
+                                            .offset(x = 12.dp)
                                     ) {
                                         Icon(
                                             Icons.AutoMirrored.Filled.KeyboardArrowRight,
@@ -446,16 +451,24 @@ fun DashboardScreen(
             }
         }
     }
-    // ... Tutorial Overlay ...
+
+    // [修正] CoachMark 全部改用 stringResource
     if (isTutorialMode && isTutorialReady && coachMarkStep > 0) {
         val target = when (coachMarkStep) {
-            1 -> focusToggleBtnCoords?.let { CoachMarkTarget(it, "模式切換", "點擊切換至「月曆模式」，\n查看整月概況。", position = CoachMarkPosition.Bottom) }
-            2 -> subBtnCoords?.let { CoachMarkTarget(it, "固定訂閱", "設定房租、Netflix 等固定支出，\n系統自動記帳。", position = CoachMarkPosition.Bottom) }
-            3 -> editBtnCoords?.let { CoachMarkTarget(it, "編輯計畫", "修改當前計畫的預算或日期。", position = CoachMarkPosition.Bottom) }
-            4 -> listBtnCoords?.let { CoachMarkTarget(it, "詳細清單", "查看所有消費紀錄與報表分析。", position = CoachMarkPosition.Bottom) }
-            5 -> fabCoords?.let { CoachMarkTarget(it, "記一筆", "快速記錄消費。\n長按可補記其他日期。", position = CoachMarkPosition.Top) }
-            6 -> statusCardCoords?.let { CoachMarkTarget(it, "今日額度", "顯示今天還能花多少錢。\n綠色安全，紅色超支。", isCircle = false, position = CoachMarkPosition.Bottom) }
-            7 -> cardCoords?.let { CoachMarkTarget(it, "每日狀態", "月曆顯示每天的結餘狀況。\n「綠色」表示省錢成功。\n「紅色」表示透支消費。", isCircle = false, position = CoachMarkPosition.Bottom, extraHeight = gridHeight) }
+            1 -> focusToggleBtnCoords?.let { CoachMarkTarget(it,
+                stringResource(R.string.tutorial_title_mode), stringResource(R.string.tutorial_desc_to_calendar), position = CoachMarkPosition.Bottom) }
+            2 -> subBtnCoords?.let { CoachMarkTarget(it,
+                stringResource(R.string.tutorial_title_subscribe), stringResource(R.string.tutorial_desc_subscribe), position = CoachMarkPosition.Bottom) }
+            3 -> editBtnCoords?.let { CoachMarkTarget(it,
+                stringResource(R.string.tutorial_title_edit), stringResource(R.string.tutorial_desc_edit), position = CoachMarkPosition.Bottom) }
+            4 -> listBtnCoords?.let { CoachMarkTarget(it,
+                stringResource(R.string.tutorial_title_list), stringResource(R.string.tutorial_desc_list), position = CoachMarkPosition.Bottom) }
+            5 -> fabCoords?.let { CoachMarkTarget(it,
+                stringResource(R.string.tutorial_title_record), stringResource(R.string.tutorial_desc_record), position = CoachMarkPosition.Top) }
+            6 -> statusCardCoords?.let { CoachMarkTarget(it,
+                stringResource(R.string.tutorial_title_today), stringResource(R.string.tutorial_desc_today), isCircle = false, position = CoachMarkPosition.Bottom) }
+            7 -> cardCoords?.let { CoachMarkTarget(it,
+                stringResource(R.string.tutorial_title_status), stringResource(R.string.tutorial_desc_status), isCircle = false, position = CoachMarkPosition.Bottom, extraHeight = gridHeight) }
             8 -> {
                 LaunchedEffect(Unit) {
                     viewModel.toggleViewMode()
@@ -464,11 +477,16 @@ fun DashboardScreen(
                 }
                 null
             }
-            9 -> calendarToggleBtnCoords?.let { CoachMarkTarget(it, "模式切換", "點擊切換回「專注模式」，\n控制每日預算。", position = CoachMarkPosition.Bottom) }
-            10 -> historyBtnCoords?.let { CoachMarkTarget(it, "歷史回顧", "查看過去所有計畫的執行成果。", position = CoachMarkPosition.Bottom) }
-            11 -> addPlanBtnCoords?.let { CoachMarkTarget(it, "新增計畫", "舊計畫結束後，在此建立新計畫。", position = CoachMarkPosition.Bottom) }
-            12 -> settingsBtnCoords?.let { CoachMarkTarget(it, "設定", "深色模式、提醒通知與資料備份。", position = CoachMarkPosition.Bottom) }
-            13 -> cardCoords?.let { CoachMarkTarget(it, "月曆總覽", "點擊「綠色、紅色」日期，\n進入當日計畫的消費。\n點擊「空白」日期快速建立計畫。", isCircle = false, position = CoachMarkPosition.Bottom, extraHeight = gridHeight) }
+            9 -> calendarToggleBtnCoords?.let { CoachMarkTarget(it,
+                stringResource(R.string.tutorial_title_mode), stringResource(R.string.tutorial_desc_to_focus), position = CoachMarkPosition.Bottom) }
+            10 -> historyBtnCoords?.let { CoachMarkTarget(it,
+                stringResource(R.string.tutorial_title_history), stringResource(R.string.tutorial_desc_history), position = CoachMarkPosition.Bottom) }
+            11 -> addPlanBtnCoords?.let { CoachMarkTarget(it,
+                stringResource(R.string.tutorial_title_new_plan), stringResource(R.string.tutorial_desc_new_plan), position = CoachMarkPosition.Bottom) }
+            12 -> settingsBtnCoords?.let { CoachMarkTarget(it,
+                stringResource(R.string.tutorial_title_settings), stringResource(R.string.tutorial_desc_settings), position = CoachMarkPosition.Bottom) }
+            13 -> cardCoords?.let { CoachMarkTarget(it,
+                stringResource(R.string.tutorial_title_calendar), stringResource(R.string.tutorial_desc_calendar), isCircle = false, position = CoachMarkPosition.Bottom, extraHeight = gridHeight) }
             else -> null
         }
 
@@ -496,7 +514,7 @@ fun DashboardScreen(
     }
 }
 
-// ... RollingNumberText, DashboardStatusCard, WeekHeader, JapaneseDayGridItem ...
+// ... RollingNumberText, DashboardStatusCard ...
 @Composable
 fun RollingNumberText(
     targetValue: Int,
@@ -556,7 +574,8 @@ fun DashboardStatusCard(todayAvailable: Int, isExpired: Boolean) {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                if (isExpired) "計畫結餘" else "今日可用",
+                // [修正] 改為 stringResource
+                if (isExpired) stringResource(R.string.label_plan_balance) else stringResource(R.string.label_available_today),
                 fontSize = 14.sp,
                 color = AppTheme.colors.textSecondary
             )
@@ -580,7 +599,8 @@ fun WeekHeader() {
             .padding(bottom = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        val days = listOf("日", "一", "二", "三", "四", "五", "六")
+        // [修正] 改為 stringArrayResource
+        val days = stringArrayResource(R.array.days_of_week)
         days.forEach { day ->
             Text(
                 text = day,
@@ -596,7 +616,7 @@ fun WeekHeader() {
 @Composable
 fun JapaneseDayGridItem(
     dayState: DailyState,
-    showBalance: Boolean, // 這個參數剛好可以用來區分模式 (Focus=true, Calendar=false)
+    showBalance: Boolean,
     onClick: (Long) -> Unit
 ) {
     val backgroundColor = when (dayState.status) {
@@ -621,11 +641,6 @@ fun JapaneseDayGridItem(
         Modifier
     }
 
-    // [關鍵修正] 決定是否啟用點擊
-    // 邏輯：
-    // 1. 如果不是 Neutral (正常日期) -> 永遠可點
-    // 2. 如果是 Neutral (灰色日期) -> 只有在 "不顯示餘額" (即月曆模式) 時才可點
-    // 這樣專注模式的補位空白依然不可點，但月曆模式的空白日期可以點擊建立計畫
     val isClickable = dayState.status != DayStatus.Neutral || !showBalance
 
     Column(
@@ -634,7 +649,7 @@ fun JapaneseDayGridItem(
             .clip(RoundedCornerShape(12.dp))
             .background(backgroundColor)
             .then(borderModifier)
-            .clickable(enabled = isClickable) { onClick(dayState.date) } // 使用新的判斷邏輯
+            .clickable(enabled = isClickable) { onClick(dayState.date) }
             .padding(4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center

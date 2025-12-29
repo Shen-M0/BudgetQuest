@@ -9,13 +9,15 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.budgetquest.R
 import com.example.budgetquest.ui.AppViewModelProvider
-import com.example.budgetquest.ui.common.JapaneseBudgetProgressBar // [import]
-import com.example.budgetquest.ui.theme.AppTheme // [import]
+import com.example.budgetquest.ui.common.JapaneseBudgetProgressBar
+import com.example.budgetquest.ui.theme.AppTheme
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -27,7 +29,6 @@ fun PlanHistoryScreen(
 ) {
     val plans by viewModel.allPlans.collectAsState()
 
-    // [優化] 防手震
     var lastClickTime by remember { mutableLongStateOf(0L) }
     fun debounce(action: () -> Unit) {
         val now = System.currentTimeMillis()
@@ -41,10 +42,12 @@ fun PlanHistoryScreen(
         containerColor = AppTheme.colors.background,
         topBar = {
             TopAppBar(
-                title = { Text("計畫歷程", color = AppTheme.colors.textPrimary, fontSize = 18.sp) },
+                // [提取] 標題
+                title = { Text(stringResource(R.string.title_plan_history), color = AppTheme.colors.textPrimary, fontSize = 18.sp) },
                 navigationIcon = {
-                    IconButton(onClick = { debounce(onBackClick) }) { // [優化] 防手震
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = AppTheme.colors.textPrimary)
+                    // [提取] 返回按鈕描述 (共用)
+                    IconButton(onClick = { debounce(onBackClick) }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back), tint = AppTheme.colors.textPrimary)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = AppTheme.colors.background)
@@ -55,7 +58,6 @@ fun PlanHistoryScreen(
             modifier = Modifier.padding(innerPadding).padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // [優化] 加入 key (假設 PlanHistoryItem.plan 有 id)
             items(plans, key = { it.plan.id }) { planItem ->
                 PlanHistoryCard(planItem)
             }
@@ -65,8 +67,9 @@ fun PlanHistoryScreen(
 
 @Composable
 fun PlanHistoryCard(item: PlanHistoryItem) {
-    // [優化] 快取 formatter，避免列表捲動時重複建立物件
-    val dateFormat = remember { SimpleDateFormat("yyyy/MM/dd", Locale.getDefault()) }
+    // [提取] 日期格式
+    val dateFormatPattern = stringResource(R.string.format_date_history)
+    val dateFormat = remember(dateFormatPattern) { SimpleDateFormat(dateFormatPattern, Locale.getDefault()) }
 
     val spent = item.totalSpent
     val budget = item.plan.totalBudget
@@ -90,16 +93,23 @@ fun PlanHistoryCard(item: PlanHistoryItem) {
                 )
 
                 if (isOngoing) {
-                    Text("進行中", fontSize = 12.sp, color = AppTheme.colors.success, fontWeight = FontWeight.Bold)
+                    // [提取] 進行中
+                    Text(stringResource(R.string.status_ongoing), fontSize = 12.sp, color = AppTheme.colors.success, fontWeight = FontWeight.Bold)
                 } else {
-                    Text("已結束", fontSize = 12.sp, color = AppTheme.colors.textSecondary)
+                    // [提取] 已結束
+                    Text(stringResource(R.string.status_ended), fontSize = 12.sp, color = AppTheme.colors.textSecondary)
                 }
             }
 
             Spacer(modifier = Modifier.height(4.dp))
 
+            // [提取] 日期範圍格式 (yyyy/MM/dd - yyyy/MM/dd)
             Text(
-                "${dateFormat.format(Date(item.plan.startDate))} - ${dateFormat.format(Date(item.plan.endDate))}",
+                stringResource(
+                    R.string.format_date_range_history,
+                    dateFormat.format(Date(item.plan.startDate)),
+                    dateFormat.format(Date(item.plan.endDate))
+                ),
                 fontSize = 12.sp,
                 color = AppTheme.colors.textSecondary
             )
@@ -111,8 +121,10 @@ fun PlanHistoryCard(item: PlanHistoryItem) {
             Spacer(modifier = Modifier.height(8.dp))
 
             Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                Text("已花費 $$spent", fontSize = 12.sp, color = AppTheme.colors.fail)
-                Text("預算 $$budget", fontSize = 12.sp, color = AppTheme.colors.textSecondary)
+                // [提取] 已花費金額格式
+                Text(stringResource(R.string.label_spent_amount, spent), fontSize = 12.sp, color = AppTheme.colors.fail)
+                // [提取] 預算金額格式
+                Text(stringResource(R.string.label_budget_amount, budget), fontSize = 12.sp, color = AppTheme.colors.textSecondary)
             }
         }
     }

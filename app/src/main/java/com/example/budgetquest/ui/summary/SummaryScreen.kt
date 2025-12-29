@@ -58,17 +58,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.budgetquest.R
 import com.example.budgetquest.data.CategoryEntity
 import com.example.budgetquest.data.ExpenseEntity
 import com.example.budgetquest.data.TagEntity
 import com.example.budgetquest.ui.AppViewModelProvider
 import com.example.budgetquest.ui.common.JapaneseBudgetProgressBar
 import com.example.budgetquest.ui.common.getIconByKey
+import com.example.budgetquest.ui.common.getSmartCategoryName // [新增]
+import com.example.budgetquest.ui.common.getSmartTagName // [新增]
 import com.example.budgetquest.ui.theme.AppTheme
 import com.example.budgetquest.ui.transaction.CategoryManagerDialog
 import com.example.budgetquest.ui.transaction.EditButton
@@ -99,7 +103,6 @@ fun SummaryScreen(
     var showCategoryManager by remember { mutableStateOf(false) }
     var showTagManager by remember { mutableStateOf(false) }
 
-    // [優化] 防手震
     var lastClickTime by remember { mutableLongStateOf(0L) }
     fun debounce(action: () -> Unit) {
         val now = System.currentTimeMillis()
@@ -122,10 +125,10 @@ fun SummaryScreen(
         containerColor = AppTheme.colors.background,
         topBar = {
             TopAppBar(
-                title = { Text("消費記錄", color = AppTheme.colors.textPrimary, fontSize = 18.sp) },
+                title = { Text(stringResource(R.string.title_summary), color = AppTheme.colors.textPrimary, fontSize = 18.sp) },
                 navigationIcon = {
-                    IconButton(onClick = { debounce(onBackClick) }) { // [優化] 防手震
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回", tint = AppTheme.colors.textPrimary)
+                    IconButton(onClick = { debounce(onBackClick) }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back), tint = AppTheme.colors.textPrimary)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = AppTheme.colors.background)
@@ -140,10 +143,17 @@ fun SummaryScreen(
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             if (uiState.plan != null) {
+                // [提取] 狀態訊息
+                val message = when (uiState.budgetStatus) {
+                    BudgetStatus.Achieved -> stringResource(R.string.msg_goal_achieved)
+                    BudgetStatus.Exceeded -> stringResource(R.string.msg_budget_exceeded)
+                    BudgetStatus.None -> stringResource(R.string.msg_no_plan_data)
+                }
+
                 MinimalBudgetCard(
                     totalBudget = uiState.plan!!.totalBudget,
                     totalSpent = uiState.totalSpent,
-                    message = uiState.resultMessage
+                    message = message
                 )
             }
 
@@ -160,13 +170,13 @@ fun SummaryScreen(
                 onTagSelect = viewModel::toggleTagFilter,
                 categories = categories,
                 tags = tags,
-                onEditCategory = { debounce { showCategoryManager = true } }, // [優化] 防手震
-                onEditTag = { debounce { showTagManager = true } } // [優化] 防手震
+                onEditCategory = { debounce { showCategoryManager = true } },
+                onEditTag = { debounce { showTagManager = true } }
             )
 
             if (uiState.filteredExpenses.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize().weight(1f), contentAlignment = Alignment.Center) {
-                    Text("暫無紀錄", color = AppTheme.colors.textSecondary, fontSize = 14.sp)
+                    Text(stringResource(R.string.msg_no_records_found), color = AppTheme.colors.textSecondary, fontSize = 14.sp)
                 }
             } else {
                 LazyColumn(
@@ -177,7 +187,7 @@ fun SummaryScreen(
                     items(uiState.filteredExpenses, key = { it.id }) { expense ->
                         JapaneseExpenseItem(
                             expense = expense,
-                            onDelete = { debounce { viewModel.deleteExpense(expense) } } // [優化] 防手震
+                            onDelete = { debounce { viewModel.deleteExpense(expense) } }
                         )
                     }
                 }
@@ -186,7 +196,6 @@ fun SummaryScreen(
     }
 }
 
-// [修正] 進度條卡片
 @Composable
 fun MinimalBudgetCard(totalBudget: Int, totalSpent: Int, message: String) {
     val remaining = totalBudget - totalSpent
@@ -199,13 +208,12 @@ fun MinimalBudgetCard(totalBudget: Int, totalSpent: Int, message: String) {
     ) {
         Column(modifier = Modifier.padding(24.dp)) {
             Row(verticalAlignment = Alignment.Bottom) {
-                Text("$ $remaining", fontSize = 32.sp, fontWeight = FontWeight.Light, color = AppTheme.colors.textPrimary)
+                Text(stringResource(R.string.amount_currency_format, remaining), fontSize = 32.sp, fontWeight = FontWeight.Light, color = AppTheme.colors.textPrimary)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("剩餘可用", fontSize = 12.sp, color = AppTheme.colors.textSecondary, modifier = Modifier.padding(bottom = 6.dp))
+                Text(stringResource(R.string.label_remaining_budget), fontSize = 12.sp, color = AppTheme.colors.textSecondary, modifier = Modifier.padding(bottom = 6.dp))
             }
             Spacer(modifier = Modifier.height(20.dp))
 
-            // [關鍵] 使用紅綠進度條
             JapaneseBudgetProgressBar(
                 totalBudget = totalBudget,
                 totalSpent = totalSpent,
@@ -218,12 +226,10 @@ fun MinimalBudgetCard(totalBudget: Int, totalSpent: Int, message: String) {
     }
 }
 
-// [修正] 圓餅圖
 @Composable
 fun CollapsiblePieChart(data: List<CategoryStat>) {
     var expanded by remember { mutableStateOf(false) }
 
-    // [優化] 防手震計時器
     var lastClickTime by remember { mutableLongStateOf(0L) }
     fun debounceToggle() {
         val now = System.currentTimeMillis()
@@ -238,11 +244,11 @@ fun CollapsiblePieChart(data: List<CategoryStat>) {
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
             .background(AppTheme.colors.surface)
-            .clickable { debounceToggle() } // [優化] 防手震
+            .clickable { debounceToggle() }
             .padding(16.dp)
     ) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("消費分佈", color = AppTheme.colors.textPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+            Text(stringResource(R.string.label_expense_distribution), color = AppTheme.colors.textPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
             Icon(if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown, null, tint = AppTheme.colors.textSecondary, modifier = Modifier.size(20.dp))
         }
         AnimatedVisibility(visible = expanded, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
@@ -254,7 +260,6 @@ fun CollapsiblePieChart(data: List<CategoryStat>) {
     }
 }
 
-// [修正] 篩選卡片
 @Composable
 fun JapaneseFilterCard(
     searchQuery: String,
@@ -270,7 +275,6 @@ fun JapaneseFilterCard(
 ) {
     var expanded by remember { mutableStateOf(false) }
 
-    // [優化] 防手震
     var lastClickTime by remember { mutableLongStateOf(0L) }
     fun debounceToggle() {
         val now = System.currentTimeMillis()
@@ -290,11 +294,11 @@ fun JapaneseFilterCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { debounceToggle() }, // [優化] 防手震
+                    .clickable { debounceToggle() },
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("篩選條件", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = AppTheme.colors.textPrimary)
+                Text(stringResource(R.string.label_filter_conditions), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = AppTheme.colors.textPrimary)
                 Icon(
                     imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                     contentDescription = null,
@@ -313,14 +317,16 @@ fun JapaneseFilterCard(
                 ) {
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(categories) { cat ->
-                            JapaneseCompactChip(cat.name, selectedCategory == cat.name, getIconByKey(cat.iconKey)) { onCategorySelect(cat.name) }
+                            // [套用 Helper] 分類篩選
+                            JapaneseCompactChip(getSmartCategoryName(cat.name), selectedCategory == cat.name, getIconByKey(cat.iconKey)) { onCategorySelect(cat.name) }
                         }
                         item { EditButton(onEditCategory) }
                     }
 
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(tags) { tag ->
-                            JapaneseCompactChip(tag.name, selectedTag == tag.name) { onTagSelect(tag.name) }
+                            // [套用 Helper] 備註篩選
+                            JapaneseCompactChip(getSmartTagName(tag.name), selectedTag == tag.name) { onTagSelect(tag.name) }
                         }
                         item { EditButton(onEditTag) }
                     }
@@ -329,7 +335,7 @@ fun JapaneseFilterCard(
                         value = searchQuery,
                         onValueChange = onSearchQueryChanged,
                         modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("搜尋備註...", color = AppTheme.colors.textSecondary, fontSize = 14.sp) },
+                        placeholder = { Text(stringResource(R.string.hint_search_note), color = AppTheme.colors.textSecondary, fontSize = 14.sp) },
                         leadingIcon = { Icon(Icons.Default.Search, null, tint = AppTheme.colors.textSecondary) },
                         singleLine = true,
                         shape = RoundedCornerShape(16.dp),
@@ -347,7 +353,7 @@ fun JapaneseFilterCard(
             }
             if (!expanded && (selectedCategory != null || selectedTag != null || searchQuery.isNotEmpty())) {
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("已套用篩選", fontSize = 12.sp, color = AppTheme.colors.accent)
+                Text(stringResource(R.string.label_filter_applied), fontSize = 12.sp, color = AppTheme.colors.accent)
             }
         }
     }
@@ -376,8 +382,8 @@ fun JapaneseCompactChip(label: String, selected: Boolean, icon: ImageVector? = n
 
 @Composable
 fun JapaneseExpenseItem(expense: ExpenseEntity, onDelete: () -> Unit) {
-    // [優化] 快取 DateFormat
-    val dateFormatter = remember { SimpleDateFormat("MM/dd", Locale.getDefault()) }
+    val dateFormat = stringResource(R.string.format_date_month_day)
+    val dateFormatter = remember(dateFormat) { SimpleDateFormat(dateFormat, Locale.getDefault()) }
 
     Row(
         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(AppTheme.colors.surface).padding(horizontal = 16.dp, vertical = 12.dp),
@@ -388,18 +394,23 @@ fun JapaneseExpenseItem(expense: ExpenseEntity, onDelete: () -> Unit) {
         Spacer(modifier = Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(text = expense.category, color = AppTheme.colors.textSecondary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                Text(text = " · ${dateFormatter.format(Date(expense.date))}", color = AppTheme.colors.textSecondary.copy(alpha = 0.8f), fontSize = 12.sp)
+                // [套用 Helper] 列表分類顯示
+                Text(text = getSmartCategoryName(expense.category), color = AppTheme.colors.textSecondary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                Text(
+                    text = stringResource(R.string.format_category_date, " ", dateFormatter.format(Date(expense.date))),
+                    color = AppTheme.colors.textSecondary.copy(alpha = 0.8f),
+                    fontSize = 12.sp
+                )
             }
             Spacer(modifier = Modifier.height(4.dp))
             Text(text = expense.note, color = AppTheme.colors.textPrimary, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         Spacer(modifier = Modifier.width(8.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(text = "- $${expense.amount}", color = AppTheme.colors.textPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Text(text = stringResource(R.string.amount_negative_format, expense.amount), color = AppTheme.colors.textPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.width(12.dp))
             IconButton(onClick = onDelete, modifier = Modifier.size(24.dp)) {
-                Icon(Icons.Default.Close, "刪除", tint = AppTheme.colors.textSecondary.copy(alpha = 0.5f), modifier = Modifier.size(18.dp))
+                Icon(Icons.Default.Close, stringResource(R.string.content_desc_delete), tint = AppTheme.colors.textSecondary.copy(alpha = 0.5f), modifier = Modifier.size(18.dp))
             }
         }
     }
@@ -434,7 +445,11 @@ fun PieChart(data: List<CategoryStat>, modifier: Modifier = Modifier) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(modifier = Modifier.size(12.dp).background(stat.color, shape = CircleShape))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = "${stat.name}: $${stat.totalAmount} (${(stat.totalAmount.toFloat() / total * 100).toInt()}%)", style = MaterialTheme.typography.bodyMedium.copy(color = AppTheme.colors.textPrimary))
+                    // [套用 Helper] 圓餅圖分類顯示
+                    Text(
+                        text = stringResource(R.string.format_pie_chart_legend, getSmartCategoryName(stat.name), stat.totalAmount, (stat.totalAmount.toFloat() / total * 100).toInt()),
+                        style = MaterialTheme.typography.bodyMedium.copy(color = AppTheme.colors.textPrimary)
+                    )
                 }
             }
         }

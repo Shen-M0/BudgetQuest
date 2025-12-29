@@ -50,14 +50,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.budgetquest.R
 import com.example.budgetquest.ui.AppViewModelProvider
 import com.example.budgetquest.ui.common.getIconByKey
+import com.example.budgetquest.ui.common.getSmartCategoryName // [新增]
+import com.example.budgetquest.ui.common.getSmartTagName // [新增]
 import com.example.budgetquest.ui.theme.AppTheme
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -80,7 +84,6 @@ fun TransactionScreen(
     var showCategoryManager by remember { mutableStateOf(false) }
     var showTagManager by remember { mutableStateOf(false) }
 
-    // [優化] 防手震計時器
     var lastClickTime by remember { mutableLongStateOf(0L) }
     fun debounce(action: () -> Unit) {
         val now = System.currentTimeMillis()
@@ -113,10 +116,8 @@ fun TransactionScreen(
     }
 
     val context = LocalContext.current
-
-    // [優化] 使用 remember 快取 Calendar 與 Format，避免重繪時重複建立物件
     val calendar = remember { Calendar.getInstance() }
-    // 每次 uiState.date 改變時，更新 calendar
+
     LaunchedEffect(uiState.date) {
         calendar.timeInMillis = uiState.date
     }
@@ -131,7 +132,7 @@ fun TransactionScreen(
             calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH)
         )
     }
-    // 當日期改變時，更新 Dialog 的選中日期
+
     LaunchedEffect(uiState.date) {
         datePickerDialog.updateDate(
             calendar.get(Calendar.YEAR),
@@ -140,7 +141,8 @@ fun TransactionScreen(
         )
     }
 
-    val dateFormatter = remember { SimpleDateFormat("yyyy/MM/dd", Locale.getDefault()) }
+    val dateFormatString = stringResource(R.string.date_format_transaction)
+    val dateFormatter = remember(dateFormatString) { SimpleDateFormat(dateFormatString, Locale.getDefault()) }
 
     LaunchedEffect(expenseId, initialDate) {
         if (expenseId != -1L) {
@@ -155,10 +157,17 @@ fun TransactionScreen(
         containerColor = AppTheme.colors.background,
         topBar = {
             TopAppBar(
-                title = { Text(if (expenseId == -1L) "記一筆" else "編輯消費", color = AppTheme.colors.textPrimary, fontSize = 18.sp) },
+                title = {
+                    Text(
+                        if (expenseId == -1L) stringResource(R.string.title_add_transaction)
+                        else stringResource(R.string.title_edit_transaction),
+                        color = AppTheme.colors.textPrimary,
+                        fontSize = 18.sp
+                    )
+                },
                 navigationIcon = {
-                    IconButton(onClick = { debounce(onBackClick) }) { // [優化] 防手震
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = AppTheme.colors.textPrimary)
+                    IconButton(onClick = { debounce(onBackClick) }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back), tint = AppTheme.colors.textPrimary)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = AppTheme.colors.background)
@@ -169,31 +178,28 @@ fun TransactionScreen(
             modifier = Modifier.padding(innerPadding).padding(20.dp).fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            // 1. 金額與日期卡片
             Card(
                 colors = CardDefaults.cardColors(containerColor = AppTheme.colors.surface),
                 shape = RoundedCornerShape(24.dp),
                 elevation = CardDefaults.cardElevation(0.dp)
             ) {
                 Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    // 日期按鈕
                     Row(
-                        modifier = Modifier.clickable { debounce { datePickerDialog.show() } }, // [優化] 防手震
+                        modifier = Modifier.clickable { debounce { datePickerDialog.show() } },
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.DateRange, null, tint = AppTheme.colors.textSecondary, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.DateRange, stringResource(R.string.action_select_date), tint = AppTheme.colors.textSecondary, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(dateFormatter.format(Date(uiState.date)), color = AppTheme.colors.textSecondary, fontSize = 14.sp)
                     }
 
-                    // 金額輸入
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("$", fontSize = 24.sp, color = AppTheme.colors.textSecondary, fontWeight = FontWeight.Bold)
                         Spacer(modifier = Modifier.width(8.dp))
                         JapaneseTransparentInput(
                             value = uiState.amount,
                             onValueChange = { viewModel.updateAmount(it) },
-                            placeholder = "0",
+                            placeholder = stringResource(R.string.hint_amount),
                             isNumber = true,
                             fontSize = 32
                         )
@@ -201,50 +207,46 @@ fun TransactionScreen(
                 }
             }
 
-            // 2. 分類與備註卡片
             Card(
                 colors = CardDefaults.cardColors(containerColor = AppTheme.colors.surface),
                 shape = RoundedCornerShape(24.dp),
                 elevation = CardDefaults.cardElevation(0.dp)
             ) {
                 Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Text("分類", fontSize = 12.sp, color = AppTheme.colors.textSecondary)
+                    Text(stringResource(R.string.label_category), fontSize = 12.sp, color = AppTheme.colors.textSecondary)
 
-                    // 分類列表
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        // [優化] 加入 key，提升列表渲染效能
                         items(categories, key = { it.id }) { cat ->
+                            // [套用 Helper] 智慧分類名稱
                             JapaneseCompactChip(
-                                label = cat.name,
+                                label = getSmartCategoryName(cat.name),
                                 selected = uiState.category == cat.name,
                                 icon = getIconByKey(cat.iconKey)
                             ) { viewModel.updateCategory(cat.name) }
                         }
                         item {
-                            EditButton { debounce { showCategoryManager = true } } // [優化] 防手震
+                            EditButton { debounce { showCategoryManager = true } }
                         }
                     }
 
                     HorizontalDivider(color = AppTheme.colors.divider, thickness = 1.dp)
 
-                    Text("備註", fontSize = 12.sp, color = AppTheme.colors.textSecondary)
+                    Text(stringResource(R.string.label_note), fontSize = 12.sp, color = AppTheme.colors.textSecondary)
 
-                    // 常用標籤列表
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        // [優化] 加入 key
                         items(tags, key = { it.id }) { tag ->
-                            JapaneseCompactChip(tag.name, uiState.note == tag.name) { viewModel.updateNote(tag.name) }
+                            // [套用 Helper] 智慧備註名稱
+                            JapaneseCompactChip(getSmartTagName(tag.name), uiState.note == tag.name) { viewModel.updateNote(tag.name) }
                         }
                         item {
-                            EditButton { debounce { showTagManager = true } } // [優化] 防手震
+                            EditButton { debounce { showTagManager = true } }
                         }
                     }
 
-                    // 備註輸入
                     JapaneseTransparentInput(
                         value = uiState.note,
                         onValueChange = { viewModel.updateNote(it) },
-                        placeholder = "輸入項目名稱...",
+                        placeholder = stringResource(R.string.hint_note),
                         fontSize = 16
                     )
                 }
@@ -252,10 +254,8 @@ fun TransactionScreen(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // 儲存按鈕
             Button(
                 onClick = {
-                    // [優化] 儲存按鈕防手震
                     debounce {
                         viewModel.saveExpense {
                             onSaveSuccess(uiState.date)
@@ -266,13 +266,12 @@ fun TransactionScreen(
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = AppTheme.colors.accent)
             ) {
-                Text("儲存", fontSize = 18.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.btn_save), fontSize = 18.sp, color = Color.White, fontWeight = FontWeight.Bold)
             }
         }
     }
 }
 
-// 透明背景輸入框 (支援深色模式)
 @Composable
 fun JapaneseTransparentInput(value: String, onValueChange: (String) -> Unit, placeholder: String, isNumber: Boolean = false, fontSize: Int) {
     Box(contentAlignment = Alignment.CenterStart) {
@@ -280,7 +279,7 @@ fun JapaneseTransparentInput(value: String, onValueChange: (String) -> Unit, pla
             Text(
                 text = placeholder,
                 fontSize = fontSize.sp,
-                color = AppTheme.colors.textSecondary.copy(alpha = 0.5f) // [修正]
+                color = AppTheme.colors.textSecondary.copy(alpha = 0.5f)
             )
         }
         BasicTextField(
@@ -288,23 +287,22 @@ fun JapaneseTransparentInput(value: String, onValueChange: (String) -> Unit, pla
             onValueChange = onValueChange,
             textStyle = TextStyle(
                 fontSize = fontSize.sp,
-                color = AppTheme.colors.textPrimary, // [修正]
+                color = AppTheme.colors.textPrimary,
                 lineHeight = fontSize.sp,
                 fontWeight = if (isNumber) FontWeight.Bold else FontWeight.Normal
             ),
             keyboardOptions = if (isNumber) KeyboardOptions(keyboardType = KeyboardType.Number) else KeyboardOptions.Default,
             singleLine = true,
-            cursorBrush = SolidColor(AppTheme.colors.accent), // [修正]
+            cursorBrush = SolidColor(AppTheme.colors.accent),
             modifier = Modifier.fillMaxWidth()
         )
     }
 }
 
-// 復用 SummaryScreen 的 Chip (支援深色模式)
 @Composable
 fun JapaneseCompactChip(label: String, selected: Boolean, icon: ImageVector? = null, onClick: () -> Unit) {
     Surface(
-        color = if (selected) AppTheme.colors.accent else AppTheme.colors.background, // [修正] 未選中時用背景色
+        color = if (selected) AppTheme.colors.accent else AppTheme.colors.background,
         contentColor = if (selected) Color.White else AppTheme.colors.textSecondary,
         shape = RoundedCornerShape(8.dp),
         modifier = Modifier.clickable { onClick() }
@@ -322,16 +320,15 @@ fun JapaneseCompactChip(label: String, selected: Boolean, icon: ImageVector? = n
     }
 }
 
-// 日系風格的編輯小按鈕 (支援深色模式)
 @Composable
 fun EditButton(onClick: () -> Unit) {
     Surface(
         shape = CircleShape,
-        color = AppTheme.colors.background, // [修正]
+        color = AppTheme.colors.background,
         modifier = Modifier.size(32.dp).clickable { onClick() }
     ) {
         Box(contentAlignment = Alignment.Center) {
-            Icon(Icons.Default.Add, null, tint = AppTheme.colors.textSecondary, modifier = Modifier.size(16.dp))
+            Icon(Icons.Default.Add, stringResource(R.string.desc_edit_button), tint = AppTheme.colors.textSecondary, modifier = Modifier.size(16.dp))
         }
     }
 }

@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
@@ -25,6 +26,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.budgetquest.R
 import com.example.budgetquest.ui.theme.AppTheme
 
 enum class CoachMarkPosition { Top, Bottom, Auto }
@@ -51,10 +53,11 @@ fun CoachMarkOverlay(
     val primaryColor = AppTheme.colors.accent
     val textColor = Color.White
 
-    // [已優化] 點擊防抖 (保持您原有的邏輯)
+    // [提取] 點擊提示文字
+    val skipHintText = stringResource(R.string.coach_mark_skip_hint)
+
     var lastClickTime by remember { mutableLongStateOf(0L) }
 
-    // 計算 Target 資訊
     val position = target.coordinates.positionInRoot()
     val size = target.coordinates.size
     val padding = 8.dp.value
@@ -70,7 +73,6 @@ fun CoachMarkOverlay(
 
     val center = targetRect.center
 
-    // [優化] 預先測量文字，避免在 DrawScope 中重複運算
     val textLayoutResult = remember(target.title, target.description) {
         textMeasurer.measure(
             text = "${target.title}\n${target.description}",
@@ -83,9 +85,9 @@ fun CoachMarkOverlay(
         )
     }
 
-    val skipTextResult = remember {
+    val skipTextResult = remember(skipHintText) { // 記得加入 key
         textMeasurer.measure(
-            text = "點擊畫面任意處繼續",
+            text = skipHintText,
             style = TextStyle(color = Color.White.copy(alpha = 0.5f), fontSize = 14.sp)
         )
     }
@@ -107,10 +109,8 @@ fun CoachMarkOverlay(
         Canvas(modifier = Modifier.fillMaxSize()) {
             drawContext.canvas.nativeCanvas.saveLayer(null, null)
 
-            // 背景
             drawRect(color = Color.Black.copy(alpha = 0.7f))
 
-            // 挖洞
             if (target.isCircle) {
                 drawCircle(
                     color = Color.Transparent,
@@ -143,7 +143,6 @@ fun CoachMarkOverlay(
 
             drawContext.canvas.nativeCanvas.restore()
 
-            // 決定文字位置
             val showBelow = when (target.position) {
                 CoachMarkPosition.Bottom -> true
                 CoachMarkPosition.Top -> false
@@ -174,7 +173,6 @@ fun CoachMarkOverlay(
                 topLeft = Offset(textX, textY)
             )
 
-            // 畫箭頭 (直接在 Canvas 繪製路徑，避免每次建立 Path 物件)
             val path = Path().apply {
                 if (showBelow) {
                     moveTo(center.x, targetRect.bottom + 10f)
@@ -199,10 +197,10 @@ fun CoachMarkOverlay(
             )
 
             drawText(
-                textLayoutResult = skipTextResult, // 使用快取的結果
+                textLayoutResult = skipTextResult,
                 topLeft = Offset(
                     (canvasWidth - skipTextResult.size.width) / 2f,
-                    this.size.height - 90.dp.toPx() // 稍微調整位置避免太貼底
+                    this.size.height - 90.dp.toPx()
                 )
             )
         }

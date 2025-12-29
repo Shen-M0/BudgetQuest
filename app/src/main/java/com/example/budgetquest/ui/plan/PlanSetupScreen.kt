@@ -51,11 +51,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.budgetquest.R
 import com.example.budgetquest.ui.AppViewModelProvider
 import com.example.budgetquest.ui.theme.AppTheme
 import java.text.SimpleDateFormat
@@ -78,7 +80,6 @@ fun PlanSetupScreen(
     val uiState = viewModel.planUiState
     val context = LocalContext.current
 
-    // [優化] 防手震
     var lastClickTime by remember { mutableLongStateOf(0L) }
     fun debounce(action: () -> Unit) {
         val now = System.currentTimeMillis()
@@ -88,7 +89,6 @@ fun PlanSetupScreen(
         }
     }
 
-    // [優化] 快取 Calendar 與 DatePicker，避免重複建立
     val calendar = remember { Calendar.getInstance() }
 
     val startDatePickerDialog = remember(context) {
@@ -101,7 +101,6 @@ fun PlanSetupScreen(
             calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH)
         )
     }
-    // 當日期改變時，更新 Dialog 狀態
     LaunchedEffect(uiState.startDate) {
         val c = Calendar.getInstance().apply { timeInMillis = uiState.startDate }
         startDatePickerDialog.updateDate(c.get(Calendar.YEAR), c.get(Calendar.MONTH), c.get(Calendar.DAY_OF_MONTH))
@@ -128,22 +127,27 @@ fun PlanSetupScreen(
     if (showDeleteConfirmation) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirmation = false },
-            title = { Text("刪除計畫") },
-            text = { Text("確定要刪除此計畫嗎？刪除後無法復原。") },
+            // [提取] 刪除對話框標題
+            title = { Text(stringResource(R.string.dialog_title_delete_plan)) },
+            // [提取] 刪除對話框內容
+            text = { Text(stringResource(R.string.dialog_msg_delete_plan)) },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        // [優化] 刪除操作防手震
                         debounce {
                             viewModel.deletePlan(onSuccess = onDeleteClick)
                             showDeleteConfirmation = false
                         }
                     },
                     colors = ButtonDefaults.textButtonColors(contentColor = AppTheme.colors.fail)
-                ) { Text("刪除") }
+                ) {
+                    // [提取] 刪除按鈕 (共用 action_delete)
+                    Text(stringResource(R.string.action_delete))
+                }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteConfirmation = false }) { Text("取消") }
+                // [提取] 取消按鈕 (共用 action_cancel)
+                TextButton(onClick = { showDeleteConfirmation = false }) { Text(stringResource(R.string.action_cancel)) }
             },
             containerColor = AppTheme.colors.surface,
             titleContentColor = AppTheme.colors.textPrimary,
@@ -163,10 +167,17 @@ fun PlanSetupScreen(
         containerColor = AppTheme.colors.background,
         topBar = {
             TopAppBar(
-                title = { Text(if (planId == null) "建立計畫" else "編輯計畫", color = AppTheme.colors.textPrimary) },
+                // [提取] 標題 (根據狀態切換)
+                title = {
+                    Text(
+                        if (planId == null) stringResource(R.string.title_create_plan)
+                        else stringResource(R.string.title_edit_plan),
+                        color = AppTheme.colors.textPrimary
+                    )
+                },
                 navigationIcon = {
                     if (showBackButton) {
-                        IconButton(onClick = { debounce(onBackClick) }) { // [優化] 防手震
+                        IconButton(onClick = { debounce(onBackClick) }) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = AppTheme.colors.textPrimary)
                         }
                     }
@@ -175,12 +186,15 @@ fun PlanSetupScreen(
             )
         },
         snackbarHost = {
-            if (uiState.errorMessage != null) {
+            if (uiState.errorMessageId != null) { // 改為 errorMessageId
                 Snackbar(
                     containerColor = AppTheme.colors.fail,
                     contentColor = Color.White,
                     modifier = Modifier.padding(16.dp)
-                ) { Text(uiState.errorMessage!!) }
+                ) {
+                    // 使用 stringResource 來顯示錯誤訊息
+                    Text(stringResource(uiState.errorMessageId!!))
+                }
             }
         }
     ) { innerPadding ->
@@ -192,44 +206,51 @@ fun PlanSetupScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            JapaneseInputCard(label = "計畫名稱") {
+            // [提取] 計畫名稱標籤
+            JapaneseInputCard(label = stringResource(R.string.label_plan_name)) {
                 JapaneseTextField(
                     value = uiState.planName,
                     onValueChange = { viewModel.updatePlanState(planName = it) },
-                    placeholder = "我的記帳計畫"
+                    // [提取] 計畫名稱提示
+                    placeholder = stringResource(R.string.hint_plan_name)
                 )
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                // [提取] 開始日期
                 JapaneseDateCard(
-                    label = "開始日期",
+                    label = stringResource(R.string.label_start_date),
                     date = uiState.startDate,
-                    onClick = { debounce { startDatePickerDialog.show() } }, // [優化] 防手震
+                    onClick = { debounce { startDatePickerDialog.show() } },
                     modifier = Modifier.weight(1f)
                 )
+                // [提取] 結束日期
                 JapaneseDateCard(
-                    label = "結束日期",
+                    label = stringResource(R.string.label_end_date),
                     date = uiState.endDate,
-                    onClick = { debounce { endDatePickerDialog.show() } }, // [優化] 防手震
+                    onClick = { debounce { endDatePickerDialog.show() } },
                     modifier = Modifier.weight(1f)
                 )
             }
 
-            JapaneseInputCard(label = "預算與目標") {
+            // [提取] 預算與目標標籤
+            JapaneseInputCard(label = stringResource(R.string.label_budget_target)) {
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     JapaneseTextField(
                         value = uiState.totalBudget,
                         onValueChange = { viewModel.updatePlanState(totalBudget = it) },
-                        placeholder = "總預算",
-                        label = "總預算",
+                        // [提取] 總預算
+                        placeholder = stringResource(R.string.hint_total_budget),
+                        label = stringResource(R.string.label_total_budget),
                         isNumber = true
                     )
                     HorizontalDivider(color = AppTheme.colors.divider)
                     JapaneseTextField(
                         value = uiState.targetSavings,
                         onValueChange = { viewModel.updatePlanState(targetSavings = it) },
-                        placeholder = "目標存錢",
-                        label = "目標存錢",
+                        // [提取] 目標存錢
+                        placeholder = stringResource(R.string.hint_target_savings),
+                        label = stringResource(R.string.label_target_savings),
                         isNumber = true
                     )
                 }
@@ -254,10 +275,12 @@ fun PlanSetupScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column {
-                        Text("每日可用", fontSize = 14.sp, color = AppTheme.colors.textSecondary)
+                        // [提取] 每日可用
+                        Text(stringResource(R.string.label_daily_available), fontSize = 14.sp, color = AppTheme.colors.textSecondary)
                         Spacer(modifier = Modifier.height(8.dp))
+                        // [提取] 金額格式
                         Text(
-                            "$ $dailyAvailable",
+                            stringResource(R.string.format_currency, dailyAvailable),
                             fontSize = 32.sp,
                             fontWeight = FontWeight.Bold,
                             color = AppTheme.colors.success
@@ -276,7 +299,7 @@ fun PlanSetupScreen(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { debounce { isDeleteExpanded = !isDeleteExpanded } }, // [優化] 防手震
+                        .clickable { debounce { isDeleteExpanded = !isDeleteExpanded } },
                     shape = RoundedCornerShape(24.dp),
                     colors = CardDefaults.cardColors(containerColor = AppTheme.colors.surface),
                     elevation = CardDefaults.cardElevation(0.dp)
@@ -287,7 +310,8 @@ fun PlanSetupScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("進階選項", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = AppTheme.colors.textPrimary)
+                            // [提取] 進階選項
+                            Text(stringResource(R.string.label_advanced_options), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = AppTheme.colors.textPrimary)
                             Icon(
                                 imageVector = if (isDeleteExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                                 contentDescription = null,
@@ -298,7 +322,7 @@ fun PlanSetupScreen(
                         AnimatedVisibility(visible = isDeleteExpanded) {
                             Column(modifier = Modifier.padding(top = 16.dp)) {
                                 Button(
-                                    onClick = { debounce { showDeleteConfirmation = true } }, // [優化] 防手震
+                                    onClick = { debounce { showDeleteConfirmation = true } },
                                     modifier = Modifier.fillMaxWidth(),
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = AppTheme.colors.fail.copy(alpha = 0.1f),
@@ -309,7 +333,8 @@ fun PlanSetupScreen(
                                 ) {
                                     Icon(Icons.Default.Delete, null, modifier = Modifier.size(18.dp))
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Text("刪除此計畫")
+                                    // [提取] 刪除此計畫按鈕
+                                    Text(stringResource(R.string.btn_delete_plan))
                                 }
                             }
                         }
@@ -321,7 +346,6 @@ fun PlanSetupScreen(
 
             Button(
                 onClick = {
-                    // [優化] 儲存按鈕防手震
                     debounce {
                         viewModel.savePlan(onSuccess = { savedId ->
                             onSaveClick(savedId)
@@ -332,7 +356,13 @@ fun PlanSetupScreen(
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = AppTheme.colors.accent)
             ) {
-                Text(if (planId == null) "開始計畫" else "儲存變更", fontSize = 18.sp, color = Color.White)
+                // [提取] 底部按鈕文字 (開始/儲存)
+                Text(
+                    if (planId == null) stringResource(R.string.btn_start_plan)
+                    else stringResource(R.string.btn_save_changes),
+                    fontSize = 18.sp,
+                    color = Color.White
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -340,12 +370,12 @@ fun PlanSetupScreen(
     }
 }
 
-// --- 輔助元件 (使用 AppTheme) ---
+// --- 輔助元件 (JapaneseInputCard, JapaneseDateCard, JapaneseTextField) ---
 
 @Composable
 fun JapaneseInputCard(label: String, content: @Composable () -> Unit) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = AppTheme.colors.surface), // [修正]
+        colors = CardDefaults.cardColors(containerColor = AppTheme.colors.surface),
         shape = RoundedCornerShape(24.dp),
         elevation = CardDefaults.cardElevation(0.dp),
         modifier = Modifier.fillMaxWidth()
@@ -359,9 +389,12 @@ fun JapaneseInputCard(label: String, content: @Composable () -> Unit) {
 
 @Composable
 fun JapaneseDateCard(label: String, date: Long, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val formatter = SimpleDateFormat("MM/dd", Locale.getDefault())
+    // [提取] 日期格式
+    val dateFormat = stringResource(R.string.format_date_short)
+    val formatter = remember(dateFormat) { SimpleDateFormat(dateFormat, Locale.getDefault()) }
+
     Card(
-        colors = CardDefaults.cardColors(containerColor = AppTheme.colors.surface), // [修正]
+        colors = CardDefaults.cardColors(containerColor = AppTheme.colors.surface),
         shape = RoundedCornerShape(24.dp),
         modifier = modifier.clickable { onClick() }
     ) {
@@ -371,7 +404,7 @@ fun JapaneseDateCard(label: String, date: Long, onClick: () -> Unit, modifier: M
         ) {
             Text(label, fontSize = 12.sp, color = AppTheme.colors.textSecondary)
             Spacer(modifier = Modifier.height(8.dp))
-            Text(formatter.format(Date(date)), fontSize = 24.sp, fontWeight = FontWeight.Bold, color = AppTheme.colors.textPrimary) // [修正]
+            Text(formatter.format(Date(date)), fontSize = 24.sp, fontWeight = FontWeight.Bold, color = AppTheme.colors.textPrimary)
         }
     }
 }
@@ -395,12 +428,12 @@ fun JapaneseTextField(
             modifier = Modifier.fillMaxWidth(),
             textStyle = androidx.compose.ui.text.TextStyle(
                 fontSize = 18.sp,
-                color = AppTheme.colors.textPrimary // [修正]
+                color = AppTheme.colors.textPrimary
             ),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = Color.Transparent,
                 unfocusedBorderColor = Color.Transparent,
-                focusedContainerColor = Color.Transparent, // 透明背景
+                focusedContainerColor = Color.Transparent,
                 unfocusedContainerColor = Color.Transparent
             ),
             keyboardOptions = if (isNumber) KeyboardOptions(keyboardType = KeyboardType.Number) else KeyboardOptions.Default,

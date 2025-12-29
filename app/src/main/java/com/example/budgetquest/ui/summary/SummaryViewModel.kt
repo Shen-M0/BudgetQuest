@@ -19,12 +19,15 @@ data class CategoryStat(
     val color: Color
 )
 
+// [新增] 狀態 Enum
+enum class BudgetStatus { Achieved, Exceeded, None }
+
 data class SummaryUiState(
     val plan: PlanEntity? = null,
     val filteredExpenses: List<ExpenseEntity> = emptyList(),
     val totalSpent: Int = 0,
     val actualSaved: Int = 0,
-    val resultMessage: String = "",
+    val budgetStatus: BudgetStatus = BudgetStatus.None, // [修改] 改用 Enum
     val categoryStats: List<CategoryStat> = emptyList(),
     val searchQuery: String = "",
     val selectedCategories: Set<String> = emptySet(),
@@ -42,17 +45,12 @@ class SummaryViewModel(private val repository: BudgetRepository) : ViewModel() {
     private val _selectedTags = MutableStateFlow<Set<String>>(emptySet())
     val selectedTag = _selectedTags.map { it.firstOrNull() }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
-    // [新增] 指定要查看的計畫 ID (null 或 -1 代表未指定)
     private val _targetPlanId = MutableStateFlow<Int?>(null)
 
-    // [新增] 設定計畫 ID
     fun setPlanId(id: Int) {
         _targetPlanId.value = if (id == -1) null else id
     }
 
-    // [關鍵修正] 決定要顯示哪個計畫
-    // 邏輯：如果有指定 ID -> 找該 ID 的計畫
-    //       如果沒指定   -> 找包含今天且 Active 的計畫 (預設行為)
     private val targetPlanFlow = combine(_targetPlanId, repository.getAllPlansStream()) { targetId, plans ->
         if (targetId != null) {
             plans.find { it.id == targetId }
@@ -63,7 +61,7 @@ class SummaryViewModel(private val repository: BudgetRepository) : ViewModel() {
     }
 
     val uiState: StateFlow<SummaryUiState> = combine(
-        targetPlanFlow, // 改用這個新的 Flow
+        targetPlanFlow,
         repository.getAllExpensesStream(),
         _searchQuery,
         _selectedCategories,
@@ -88,12 +86,12 @@ class SummaryViewModel(private val repository: BudgetRepository) : ViewModel() {
         val totalSpent = planExpenses.sumOf { it.amount }
         val actualSaved = (plan?.totalBudget ?: 0) - totalSpent - (plan?.targetSavings ?: 0)
 
-        val message = if (plan != null) {
+        // [修改] 計算狀態 Enum 而非字串
+        val status = if (plan != null) {
             val remaining = (plan.totalBudget - plan.targetSavings) - totalSpent
-            if (remaining >= 0) "太棒了！目標達成 🎉\n好習慣正在慢慢養成中。"
-            else "注意！預算已超支 ⚠️\n建議檢視非必要開銷。"
+            if (remaining >= 0) BudgetStatus.Achieved else BudgetStatus.Exceeded
         } else {
-            "無計畫資料"
+            BudgetStatus.None
         }
 
         val stats = calculateCategoryStats(planExpenses)
@@ -103,7 +101,7 @@ class SummaryViewModel(private val repository: BudgetRepository) : ViewModel() {
             filteredExpenses = filtered,
             totalSpent = totalSpent,
             actualSaved = actualSaved,
-            resultMessage = message,
+            budgetStatus = status, // [修改]
             categoryStats = stats,
             searchQuery = query,
             selectedCategories = catFilter,
@@ -137,7 +135,6 @@ class SummaryViewModel(private val repository: BudgetRepository) : ViewModel() {
     val allCategories = repository.getAllCategoriesStream().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val allTags = repository.getAllTagsStream().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // [修改] 接收 名稱、圖示、顏色 三個參數
     fun addCategory(name: String, iconKey: String, colorHex: String) {
         viewModelScope.launch {
             repository.insertCategory(

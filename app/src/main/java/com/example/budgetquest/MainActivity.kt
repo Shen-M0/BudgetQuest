@@ -36,8 +36,10 @@ import com.example.budgetquest.ui.theme.AppTheme
 import com.example.budgetquest.ui.theme.BudgetQuestTheme
 import com.example.budgetquest.ui.transaction.DailyDetailScreen
 import com.example.budgetquest.ui.transaction.TransactionScreen
+import androidx.appcompat.app.AppCompatActivity
 
-class MainActivity : ComponentActivity() {
+
+class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 

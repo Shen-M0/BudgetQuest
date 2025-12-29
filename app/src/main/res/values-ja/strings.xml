@@ -1,0 +1,223 @@
+<resources>
+    <string name="app_name">Budget Quest</string>
+
+    <string name="action_back">戻る</string>
+    <string name="action_cancel">キャンセル</string>
+    <string name="action_confirm">確認</string>
+    <string name="action_delete">削除</string>
+    <string name="action_select_date">日付選択</string>
+    <string name="btn_save">保存</string>
+
+    <string name="date_format_focus">%1$d年 %2$d月</string>
+    <string name="date_format_calendar">%1$d / %2$d</string>
+    <string name="action_switch_to_calendar">カレンダー</string>
+    <string name="action_switch_to_focus">フォーカス</string>
+    <string name="action_subscribe">固定費</string>
+    <string name="action_edit_plan">編集</string>
+    <string name="action_view_list">詳細リスト</string>
+    <string name="action_view_history">履歴</string>
+    <string name="action_add_plan">新規計画</string>
+    <string name="action_settings">設定</string>
+    <string name="label_plan_balance">残り予算</string>
+    <string name="label_available_today">今日の予算</string>
+    <string name="msg_no_active_plan">計画がありません</string>
+    <string name="btn_create_plan">計画を作成</string>
+
+    <string-array name="days_of_week">
+        <item>日</item>
+        <item>月</item>
+        <item>火</item>
+        <item>水</item>
+        <item>木</item>
+        <item>金</item>
+        <item>土</item>
+    </string-array>
+
+    <string name="title_add_transaction">支出を記録</string>
+    <string name="title_edit_transaction">支出を編集</string>
+    <string name="label_category">カテゴリ</string>
+    <string name="label_note">メモ</string>
+    <string name="hint_amount">0</string>
+    <string name="hint_note">項目名を入力...</string>
+    <string name="date_format_transaction">yyyy/MM/dd</string>
+    <string name="desc_edit_button">リスト編集</string>
+
+    <string name="title_manage_categories">カテゴリ管理</string>
+    <string name="hint_category_name">カテゴリ名</string>
+    <string name="label_select_icon">アイコン選択</string>
+    <string name="label_select_color">色選択</string>
+    <string name="action_add_category">追加</string>
+    <string name="title_manage_tags">メモ管理</string>
+    <string name="hint_new_tag">新しいメモ...</string>
+    <string name="action_add_tag">追加</string>
+    <string name="title_manage_subscriptions">固定費管理</string>
+    <string name="hint_subscription_example">例: Netflix...</string>
+    <string name="action_add_subscription">項目追加</string>
+
+    <string name="title_summary">消費記録</string>
+    <string name="label_remaining_budget">残高</string>
+    <string name="label_expense_distribution">内訳</string>
+    <string name="label_filter_conditions">絞り込み</string>
+    <string name="label_filter_applied">適用中</string>
+    <string name="msg_no_records_found">記録なし</string>
+    <string name="format_pie_chart_legend">%1$s: $%2$d (%3$d%%)</string>
+    <string name="format_date_month_day">MM/dd</string>
+    <string name="format_category_date">%1$s · %2$s</string>
+    <string name="hint_search_note">検索...</string>
+    <string name="msg_goal_achieved">目標達成！🎉\n良い習慣が身についています。</string>
+    <string name="msg_budget_exceeded">予算オーバー ⚠️\n無駄遣いを見直しましょう。</string>
+    <string name="msg_no_plan_data">データなし</string>
+
+    <string name="title_date_format_detail">yyyy/MM/dd (EEE)</string>
+    <string name="label_daily_total">合計支出</string>
+    <string name="label_record_count">%d 件</string>
+    <string name="msg_no_daily_records">記録がありません</string>
+    <string name="content_desc_delete">削除</string>
+    <string name="amount_negative_format">- $%d</string>
+    <string name="amount_currency_format">$ %d</string>
+
+    <string name="title_fixed_expenses">固定収支</string>
+    <string name="label_date_start">開始</string>
+    <string name="label_date_end">終了</string>
+    <string name="label_date_infinite">無期限</string>
+    <string name="label_amount">金額</string>
+    <string name="label_interval_days">間隔日数</string>
+    <string name="label_category_name">カテゴリと名前</string>
+    <string name="hint_subscription_name">名前 (または上から選択)</string>
+    <string name="label_current_subscriptions">登録済み:</string>
+    <string name="btn_add_to_list">リストに追加</string>
+    <string name="freq_month">毎月</string>
+    <string name="freq_week">毎週</string>
+    <string name="freq_day">毎日</string>
+    <string name="freq_custom">カスタム</string>
+    <string name="format_subscription_price">$%1$d / %2$s</string>
+    <string name="format_date_standard">yyyy/MM/dd</string>
+
+    <string name="title_create_plan">計画作成</string>
+    <string name="title_edit_plan">計画編集</string>
+    <string name="btn_start_plan">開始</string>
+    <string name="btn_save_changes">保存</string>
+    <string name="btn_delete_plan">この計画を削除</string>
+    <string name="label_plan_name">計画名</string>
+    <string name="hint_plan_name">私の家計簿</string>
+    <string name="label_start_date">開始日</string>
+    <string name="label_end_date">終了日</string>
+    <string name="label_budget_target">予算と目標</string>
+    <string name="label_total_budget">総予算</string>
+    <string name="hint_total_budget">総予算</string>
+    <string name="label_target_savings">貯金目標</string>
+    <string name="hint_target_savings">貯金目標</string>
+    <string name="label_daily_available">1日の予算</string>
+    <string name="label_advanced_options">詳細設定</string>
+    <string name="dialog_title_delete_plan">計画削除</string>
+    <string name="dialog_msg_delete_plan">削除してもよろしいですか？元に戻せません。</string>
+    <string name="format_currency">$ %d</string>
+    <string name="format_date_short">MM/dd</string>
+    <string name="error_empty_plan_fields">名前と予算を入力してください</string>
+    <string name="error_plan_overlap">期間が他の計画と重複しています</string>
+
+    <string name="title_plan_history">計画履歴</string>
+    <string name="format_date_history">yyyy/MM/dd</string>
+    <string name="status_ongoing">進行中</string>
+    <string name="status_ended">終了</string>
+    <string name="format_date_range_history">%1$s - %2$s</string>
+    <string name="label_spent_amount">支出 $%d</string>
+    <string name="label_budget_amount">予算 $%d</string>
+
+    <string name="onboarding_page1_title">計画的な家計簿</string>
+    <string name="onboarding_page1_desc">ただ記録するだけではありません。\n目標を設定し、フォーカスモードで\n毎日の使えるお金を把握しましょう。</string>
+    <string name="onboarding_page2_title">残高の繰越</string>
+    <string name="onboarding_page2_desc">節約したお金は自動的に明日に繰り越されます。\n使えるお金が増える楽しみを！</string>
+    <string name="onboarding_page3_title">データ管理</string>
+    <string name="onboarding_page3_desc">クラウドバックアップに対応。\nGoogle Driveに保存されるので安心です。</string>
+    <string name="btn_get_started">始める</string>
+
+    <string name="title_settings">設定</string>
+    <string name="title_dark_mode">ダークモード</string>
+    <string name="status_on">オン</string>
+    <string name="status_off">オフ</string>
+    <string name="title_notification_settings">通知設定</string>
+    <string name="label_daily_reminder">毎日リマインダー</string>
+    <string name="label_reminder_time">時間</string>
+    <string name="label_plan_end_reminder">終了通知</string>
+    <string name="desc_plan_end_reminder">計画終了日にお知らせ</string>
+    <string name="btn_test_notification">通知テスト送信</string>
+    <string name="msg_check_notification_permission">反応がない場合は、設定の通知権限を確認してください。</string>
+    <string name="title_cloud_backup">バックアップと復元</string>
+    <string name="desc_cloud_backup">Google Driveにバックアップ</string>
+    <string name="btn_backup">バックアップ</string>
+    <string name="btn_restore">復元</string>
+    <string name="msg_backup_success">バックアップ成功！</string>
+    <string name="msg_backup_failed">失敗: %s</string>
+    <string name="msg_restore_success">復元成功！アプリを再起動してください。</string>
+    <string name="msg_restore_failed">失敗: %s</string>
+    <string name="title_tutorial">チュートリアル</string>
+    <string name="desc_replay_tutorial">機能紹介をもう一度見る</string>
+
+    <string name="tutorial_title_mode">モード切替</string>
+    <string name="tutorial_desc_to_calendar">カレンダーモードへ切り替え、\n月ごとの状況を確認。</string>
+    <string name="tutorial_title_subscribe">固定費</string>
+    <string name="tutorial_desc_subscribe">家賃やサブスクなどの固定支出を\n自動記録設定。</string>
+    <string name="tutorial_title_edit">計画編集</string>
+    <string name="tutorial_desc_edit">現在の計画の予算や日付を修正。</string>
+    <string name="tutorial_title_list">詳細リスト</string>
+    <string name="tutorial_desc_list">全ての記録とレポートを確認。</string>
+    <string name="tutorial_title_record">記録</string>
+    <string name="tutorial_desc_record">素早く記録。\n長押しで別の日付に追加。</string>
+    <string name="tutorial_title_today">今日の予算</string>
+    <string name="tutorial_desc_today">今日使える金額を表示。\n緑は安全、赤は超過。</string>
+    <string name="tutorial_title_status">日毎の状態</string>
+    <string name="tutorial_desc_status">カレンダーで毎日の収支を確認。\n緑は節約成功、赤は使いすぎ。</string>
+    <string name="tutorial_desc_to_focus">フォーカスモードへ戻り、\n日々の予算を管理。</string>
+    <string name="tutorial_title_history">履歴</string>
+    <string name="tutorial_desc_history">過去の計画結果を確認。</string>
+    <string name="tutorial_title_new_plan">新規計画</string>
+    <string name="tutorial_desc_new_plan">現在の計画終了後、\n新しい計画を作成。</string>
+    <string name="tutorial_title_settings">設定</string>
+    <string name="tutorial_desc_settings">ダークモード、バックアップ、通知設定。</string>
+    <string name="tutorial_title_calendar">カレンダー</string>
+    <string name="tutorial_desc_calendar">色付き日付をタップして詳細確認。\n空白の日付をタップして計画作成。</string>
+    <string name="coach_mark_skip_hint">画面をタップして次へ</string>
+
+    <string name="notification_channel_name">毎日リマインダー</string>
+    <string name="notification_channel_desc">支出記録の忘れ防止</string>
+    <string name="notification_title_daily">Budget Quest</string>
+    <string name="notification_msg_daily">今日はいかがでしたか？支出の記録をお忘れなく！</string>
+
+    <string name="title_language">言語設定</string>
+    <string name="label_current_language">現在の言語</string>
+    <string name="dialog_select_language">言語を選択</string>
+    <string name="language_system">システムに従う</string>
+    <string name="language_zh_tw">中国語繁体字</string>
+    <string name="language_en">English</string>
+    <string name="language_ja">日本語</string>
+    <string name="language_zh_cn">中国語簡体字</string>
+    <string name="default_category_entertainment">エンタメ</string>
+    <string name="default_frequency_month">MONTH</string>
+
+    <string name="cat_food">食事</string>
+    <string name="cat_shopping">買い物</string>
+    <string name="cat_transport">交通費</string>
+    <string name="cat_home">住居</string>
+    <string name="cat_entertainment">エンタメ</string>
+    <string name="cat_medical">医療</string>
+    <string name="cat_education">教育</string>
+    <string name="cat_bills">公共料金</string>
+    <string name="cat_investment">投資</string>
+    <string name="cat_other">その他</string>
+    <string name="cat_travel">旅行</string>
+
+    <string name="note_lunch">昼食</string>
+    <string name="note_dinner">夕食</string>
+    <string name="note_drink">飲み物</string>
+    <string name="note_breakfast">朝食</string>
+    <string name="note_bus">バス</string>
+    <string name="note_mrt">地下鉄</string>
+    <string name="note_gas">ガソリン</string>
+    <string name="note_movie">映画</string>
+    <string name="note_game">ゲーム</string>
+    <string name="note_daily_use">日用品</string>
+
+
+
+</resources>

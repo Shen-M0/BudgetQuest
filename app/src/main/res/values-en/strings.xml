@@ -1,0 +1,221 @@
+<resources>
+    <string name="app_name">Budget Quest</string>
+
+    <string name="action_back">Back</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_confirm">Confirm</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_select_date">Select Date</string>
+    <string name="btn_save">Save</string>
+
+    <string name="date_format_focus">%1$d / %2$d</string>
+    <string name="date_format_calendar">%1$d / %2$d</string>
+    <string name="action_switch_to_calendar">Calendar Mode</string>
+    <string name="action_switch_to_focus">Focus Mode</string>
+    <string name="action_subscribe">Subscribe</string>
+    <string name="action_edit_plan">Edit Plan</string>
+    <string name="action_view_list">Details</string>
+    <string name="action_view_history">History</string>
+    <string name="action_add_plan">New Plan</string>
+    <string name="action_settings">Settings</string>
+    <string name="label_plan_balance">Plan Balance</string>
+    <string name="label_available_today">Today\'s Budget</string>
+    <string name="msg_no_active_plan">No Active Plan</string>
+    <string name="btn_create_plan">Create Plan</string>
+
+    <string-array name="days_of_week">
+        <item>Sun</item>
+        <item>Mon</item>
+        <item>Tue</item>
+        <item>Wed</item>
+        <item>Thu</item>
+        <item>Fri</item>
+        <item>Sat</item>
+    </string-array>
+
+    <string name="title_add_transaction">Add Expense</string>
+    <string name="title_edit_transaction">Edit Expense</string>
+    <string name="label_category">Category</string>
+    <string name="label_note">Note</string>
+    <string name="hint_amount">0</string>
+    <string name="hint_note">Enter note...</string>
+    <string name="date_format_transaction">MM/dd/yyyy</string>
+    <string name="desc_edit_button">Edit List</string>
+
+    <string name="title_manage_categories">Manage Categories</string>
+    <string name="hint_category_name">Category Name</string>
+    <string name="label_select_icon">Select Icon</string>
+    <string name="label_select_color">Select Color</string>
+    <string name="action_add_category">Add Category</string>
+    <string name="title_manage_tags">Manage Tags</string>
+    <string name="hint_new_tag">New Tag...</string>
+    <string name="action_add_tag">Add Tag</string>
+    <string name="title_manage_subscriptions">Manage Subs</string>
+    <string name="hint_subscription_example">e.g. Netflix...</string>
+    <string name="action_add_subscription">Add Item</string>
+
+    <string name="title_summary">Summary</string>
+    <string name="label_remaining_budget">Remaining</string>
+    <string name="label_expense_distribution">Distribution</string>
+    <string name="label_filter_conditions">Filters</string>
+    <string name="label_filter_applied">Filter Applied</string>
+    <string name="msg_no_records_found">No Records</string>
+    <string name="format_pie_chart_legend">%1$s: $%2$d (%3$d%%)</string>
+    <string name="format_date_month_day">MM/dd</string>
+    <string name="format_category_date">%1$s · %2$s</string>
+    <string name="hint_search_note">Search notes...</string>
+    <string name="msg_goal_achieved">Goal Achieved! 🎉\nGreat habit building.</string>
+    <string name="msg_budget_exceeded">Over Budget ⚠️\nReview unnecessary expenses.</string>
+    <string name="msg_no_plan_data">No Plan Data</string>
+
+    <string name="title_date_format_detail">yyyy/MM/dd (EEE)</string>
+    <string name="label_daily_total">Total</string>
+    <string name="label_record_count">%d items</string>
+    <string name="msg_no_daily_records">No records today</string>
+    <string name="content_desc_delete">Delete</string>
+    <string name="amount_negative_format">- $%d</string>
+    <string name="amount_currency_format">$ %d</string>
+
+    <string name="title_fixed_expenses">Fixed Expenses</string>
+    <string name="label_date_start">Start</string>
+    <string name="label_date_end">End</string>
+    <string name="label_date_infinite">Infinite</string>
+    <string name="label_amount">Amount</string>
+    <string name="label_interval_days">Days Interval</string>
+    <string name="label_category_name">Category &amp; Name</string>
+    <string name="hint_subscription_name">Name (or select above)</string>
+    <string name="label_current_subscriptions">Active:</string>
+    <string name="btn_add_to_list">Add to List</string>
+    <string name="freq_month">Monthly</string>
+    <string name="freq_week">Weekly</string>
+    <string name="freq_day">Daily</string>
+    <string name="freq_custom">Custom</string>
+    <string name="format_subscription_price">$%1$d / %2$s</string>
+    <string name="format_date_standard">MM/dd/yyyy</string>
+
+    <string name="title_create_plan">Create Plan</string>
+    <string name="title_edit_plan">Edit Plan</string>
+    <string name="btn_start_plan">Start Plan</string>
+    <string name="btn_save_changes">Save Changes</string>
+    <string name="btn_delete_plan">Delete Plan</string>
+    <string name="label_plan_name">Plan Name</string>
+    <string name="hint_plan_name">My Budget Plan</string>
+    <string name="label_start_date">Start Date</string>
+    <string name="label_end_date">End Date</string>
+    <string name="label_budget_target">Budget &amp; Goal</string>
+    <string name="label_total_budget">Total Budget</string>
+    <string name="hint_total_budget">Total Budget</string>
+    <string name="label_target_savings">Savings Goal</string>
+    <string name="hint_target_savings">Savings Goal</string>
+    <string name="label_daily_available">Daily Limit</string>
+    <string name="label_advanced_options">Advanced</string>
+    <string name="dialog_title_delete_plan">Delete Plan</string>
+    <string name="dialog_msg_delete_plan">Are you sure? This cannot be undone.</string>
+    <string name="format_currency">$ %d</string>
+    <string name="format_date_short">MM/dd</string>
+    <string name="error_empty_plan_fields">Please enter name and budget</string>
+    <string name="error_plan_overlap">Dates overlap with existing plan</string>
+
+    <string name="title_plan_history">Plan History</string>
+    <string name="format_date_history">MM/dd/yyyy</string>
+    <string name="status_ongoing">Active</string>
+    <string name="status_ended">Ended</string>
+    <string name="format_date_range_history">%1$s - %2$s</string>
+    <string name="label_spent_amount">Spent $%d</string>
+    <string name="label_budget_amount">Budget $%d</string>
+
+    <string name="onboarding_page1_title">Plan-Based</string>
+    <string name="onboarding_page1_desc">No more endless logging.\nSet a goal and master your daily budget.</string>
+    <string name="onboarding_page2_title">Rollover Balance</string>
+    <string name="onboarding_page2_desc">Saved money rolls over to tomorrow.\nWatch your budget grow!</string>
+    <string name="onboarding_page3_title">Data Control</string>
+    <string name="onboarding_page3_desc">Supports Cloud Backup.\nYour data is private and secure.</string>
+    <string name="btn_get_started">Get Started</string>
+
+    <string name="title_settings">Settings</string>
+    <string name="title_dark_mode">Dark Mode</string>
+    <string name="status_on">On</string>
+    <string name="status_off">Off</string>
+    <string name="title_notification_settings">Notifications</string>
+    <string name="label_daily_reminder">Daily Reminder</string>
+    <string name="label_reminder_time">Time</string>
+    <string name="label_plan_end_reminder">Plan End Alert</string>
+    <string name="desc_plan_end_reminder">Notify when plan ends</string>
+    <string name="btn_test_notification">Test Notification</string>
+    <string name="msg_check_notification_permission">If no notification, check system settings.</string>
+    <string name="title_cloud_backup">Cloud Backup</string>
+    <string name="desc_cloud_backup">Backup to Google Drive</string>
+    <string name="btn_backup">Backup</string>
+    <string name="btn_restore">Restore</string>
+    <string name="msg_backup_success">Backup Successful!</string>
+    <string name="msg_backup_failed">Backup Failed: %s</string>
+    <string name="msg_restore_success">Restore Successful! Please restart app.</string>
+    <string name="msg_restore_failed">Restore Failed: %s</string>
+    <string name="title_tutorial">Tutorial</string>
+    <string name="desc_replay_tutorial">Replay onboarding</string>
+
+    <string name="tutorial_title_mode">Mode Switch</string>
+    <string name="tutorial_desc_to_calendar">Switch to Calendar view for monthly overview.</string>
+    <string name="tutorial_title_subscribe">Subscriptions</string>
+    <string name="tutorial_desc_subscribe">Manage recurring expenses like Netflix or Rent.</string>
+    <string name="tutorial_title_edit">Edit Plan</string>
+    <string name="tutorial_desc_edit">Modify budget or dates.</string>
+    <string name="tutorial_title_list">Details</string>
+    <string name="tutorial_desc_list">View all records and charts.</string>
+    <string name="tutorial_title_record">Add Expense</string>
+    <string name="tutorial_desc_record">Quick add. Long press for other dates.</string>
+    <string name="tutorial_title_today">Today\'s Budget</string>
+    <string name="tutorial_desc_today">Green is safe, Red is over budget.</string>
+    <string name="tutorial_title_status">Daily Status</string>
+    <string name="tutorial_desc_status">Green means saved, Red means overspent.</string>
+    <string name="tutorial_desc_to_focus">Switch back to Focus mode for daily budget.</string>
+    <string name="tutorial_title_history">History</string>
+    <string name="tutorial_desc_history">Review past plans.</string>
+    <string name="tutorial_title_new_plan">New Plan</string>
+    <string name="tutorial_desc_new_plan">Create new plan after current one ends.</string>
+    <string name="tutorial_title_settings">Settings</string>
+    <string name="tutorial_desc_settings">Dark mode, backup and notifications.</string>
+    <string name="tutorial_title_calendar">Calendar</string>
+    <string name="tutorial_desc_calendar">Tap Green/Red dates to view. \nTap Empty dates to create plan.</string>
+    <string name="coach_mark_skip_hint">Tap anywhere to continue</string>
+
+    <string name="notification_channel_name">Daily Reminder</string>
+    <string name="notification_channel_desc">Reminds you to log expenses</string>
+    <string name="notification_title_daily">Budget Quest</string>
+    <string name="notification_msg_daily">How was your day? Don\'t forget to log expenses!</string>
+
+    <string name="title_language">Language</string>
+    <string name="label_current_language">Current</string>
+    <string name="dialog_select_language">Select Language</string>
+    <string name="language_system">System Default</string>
+    <string name="language_zh_tw">Traditional Chinese</string>
+    <string name="language_en">English</string>
+    <string name="language_ja">Japanese</string>
+    <string name="language_zh_cn">simplified chinese</string>
+    <string name="default_category_entertainment">Entertainment</string>
+    <string name="default_frequency_month">MONTH</string>
+
+    <string name="cat_food">Food</string>
+    <string name="cat_shopping">Shopping</string>
+    <string name="cat_transport">Transport</string>
+    <string name="cat_home">Home</string>
+    <string name="cat_entertainment">Entertainment</string>
+    <string name="cat_medical">Medical</string>
+    <string name="cat_education">Education</string>
+    <string name="cat_bills">Bills</string>
+    <string name="cat_investment">Invest</string>
+    <string name="cat_other">Other</string>
+    <string name="cat_travel">Travel</string>
+
+    <string name="note_lunch">Lunch</string>
+    <string name="note_dinner">Dinner</string>
+    <string name="note_drink">Drinks</string>
+    <string name="note_breakfast">Breakfast</string>
+    <string name="note_bus">Bus</string>
+    <string name="note_mrt">Subway</string>
+    <string name="note_gas">Gas</string>
+    <string name="note_movie">Movie</string>
+    <string name="note_game">Game</string>
+    <string name="note_daily_use">Daily Needs</string>
+
+</resources>
