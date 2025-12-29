@@ -5,9 +5,12 @@ import androidx.lifecycle.viewModelScope
 import com.example.budgetquest.data.BudgetRepository
 import com.example.budgetquest.data.ExpenseEntity
 import com.example.budgetquest.data.PlanEntity
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.util.Calendar
+import kotlin.math.max
+import kotlin.math.min
 
 enum class ViewMode { Focus, Calendar }
 enum class DayStatus { Future, Success, Neutral, Fail, Empty }
@@ -34,15 +37,21 @@ data class DashboardUiState(
     val isExpired: Boolean = false
 )
 
+data class CalendarState(val year: Int, val month: Int)
+
 class DashboardViewModel(
     private val budgetRepository: BudgetRepository
 ) : ViewModel() {
 
     private val _viewMode = MutableStateFlow(ViewMode.Focus)
-    private val _currentMonthOffset = MutableStateFlow(0)
+    private val _currentYear = MutableStateFlow(Calendar.getInstance().get(Calendar.YEAR))
+    private val _currentMonth = MutableStateFlow(Calendar.getInstance().get(Calendar.MONTH))
     private val _selectedPlanId = MutableStateFlow<Int?>(null)
 
-    // 1. 決定當前要顯示哪個計畫 (專注模式用)
+    private val _calendarState = combine(_currentYear, _currentMonth) { year, month ->
+        CalendarState(year, month)
+    }
+
     private val _targetPlan = combine(
         _selectedPlanId,
         budgetRepository.getAllPlansStream()
@@ -63,34 +72,39 @@ class DashboardViewModel(
         budgetRepository.getAllPlansStream(),
         budgetRepository.getAllExpensesStream(),
         _viewMode,
-        _currentMonthOffset
-    ) { activePlan, allPlans, expenses, mode, monthOffset ->
+        _calendarState
+    ) { activePlan, allPlans, expenses, mode, calState ->
 
-        val calendar = Calendar.getInstance()
-        calendar.add(Calendar.MONTH, monthOffset)
-        val year = calendar.get(Calendar.YEAR)
-        val month = calendar.get(Calendar.MONTH)
+        val year = calState.year
+        val month = calState.month
 
-        // 1. 生成格子
         val dailyStates = if (mode == ViewMode.Focus) {
-            if (activePlan != null) generateFocusModeDays(activePlan, expenses) else emptyList()
+            if (activePlan != null) {
+                generateFocusModeDays(activePlan, expenses, year, month)
+            } else {
+                generateEmptyCalendarDays(year, month)
+            }
         } else {
-            // [關鍵修正] 這裡會呼叫新的邏輯，計算正確的顏色
             generateCalendarModeDays(year, month, allPlans, expenses)
         }
 
-        // 2. 計算今日可用額度 (保持不變)
         var displayAmount = 0
         var isExpired = false
+
         if (activePlan != null) {
             val todayMillis = System.currentTimeMillis()
             isExpired = todayMillis > getEndOfDay(activePlan.endDate)
+
             if (isExpired) {
                 val planExpenses = expenses.filter { it.date >= activePlan.startDate && it.date <= activePlan.endDate }
                 displayAmount = activePlan.totalBudget - planExpenses.sumOf { it.amount } - activePlan.targetSavings
             } else {
-                val todayState = dailyStates.find { it.isToday }
-                displayAmount = todayState?.balance ?: 0
+                val todayStart = getStartOfDay(todayMillis)
+                if (todayStart >= getStartOfDay(activePlan.startDate) && todayStart <= getEndOfDay(activePlan.endDate)) {
+                    val states = generateAllPlanDays(activePlan, expenses)
+                    val todayState = states.find { isSameDay(it.date, todayMillis) }
+                    displayAmount = todayState?.balance ?: 0
+                }
             }
         }
 
@@ -103,34 +117,83 @@ class DashboardViewModel(
             viewMode = mode,
             isExpired = isExpired
         )
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = DashboardUiState()
-    )
+    }
+        .flowOn(Dispatchers.Default) // [優化] 將繁重的計算移至背景執行緒，避免卡頓
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = DashboardUiState()
+        )
 
     init {
         viewModelScope.launch { budgetRepository.checkAndGenerateRecurringExpenses() }
     }
 
     fun toggleViewMode() { _viewMode.value = if (_viewMode.value == ViewMode.Focus) ViewMode.Calendar else ViewMode.Focus }
-    fun nextMonth() { _currentMonthOffset.value += 1 }
-    fun prevMonth() { _currentMonthOffset.value -= 1 }
+
+    fun updateMonth(year: Int, month: Int) {
+        _currentYear.value = year
+        _currentMonth.value = month
+    }
+
+    fun nextMonth() {
+        val c = Calendar.getInstance().apply { set(_currentYear.value, _currentMonth.value, 1); add(Calendar.MONTH, 1) }
+        updateMonth(c.get(Calendar.YEAR), c.get(Calendar.MONTH))
+    }
+    fun prevMonth() {
+        val c = Calendar.getInstance().apply { set(_currentYear.value, _currentMonth.value, 1); add(Calendar.MONTH, -1) }
+        updateMonth(c.get(Calendar.YEAR), c.get(Calendar.MONTH))
+    }
 
     fun selectPlanByDate(dateMillis: Long) {
         viewModelScope.launch {
             val allPlans = budgetRepository.getAllPlans()
             val targetPlan = allPlans.find { plan -> dateMillis >= getStartOfDay(plan.startDate) && dateMillis <= getEndOfDay(plan.endDate) }
+
             if (targetPlan != null) {
                 _selectedPlanId.value = targetPlan.id
                 _viewMode.value = ViewMode.Focus
+                val c = Calendar.getInstance().apply { timeInMillis = dateMillis }
+                updateMonth(c.get(Calendar.YEAR), c.get(Calendar.MONTH))
             }
         }
     }
 
+    // [關鍵修正] 避免重複選擇導致模式重置
     fun selectPlanById(planId: Int) {
-        _selectedPlanId.value = planId
-        _viewMode.value = ViewMode.Focus
+        viewModelScope.launch {
+            // 如果選中的 ID 已經是當前的 ID，直接返回，不做任何狀態重置
+            // 這樣當從設定頁面返回時，因為 ID 沒變，ViewMode 和月份就不會被強制修改
+            if (_selectedPlanId.value == planId) return@launch
+
+            _selectedPlanId.value = planId
+            _viewMode.value = ViewMode.Focus // 只有在「真正切換」新計畫時，才跳轉到專注模式
+
+            val allPlans = budgetRepository.getAllPlans()
+            val plan = allPlans.find { it.id == planId }
+
+            if (plan != null) {
+                val currentViewCal = Calendar.getInstance().apply {
+                    set(Calendar.YEAR, _currentYear.value)
+                    set(Calendar.MONTH, _currentMonth.value)
+                    set(Calendar.DAY_OF_MONTH, 1)
+                    set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+                }
+
+                val currentViewStart = currentViewCal.timeInMillis
+                val currentViewEnd = getEndOfMonth(currentViewStart)
+
+                val planStart = getStartOfDay(plan.startDate)
+                val planEnd = getEndOfDay(plan.endDate)
+
+                val isOverlap = planStart <= currentViewEnd && planEnd >= currentViewStart
+
+                if (!isOverlap) {
+                    val c = Calendar.getInstance().apply { timeInMillis = plan.startDate }
+                    updateMonth(c.get(Calendar.YEAR), c.get(Calendar.MONTH))
+                }
+            }
+        }
     }
 
     suspend fun calculateSmartDates(clickedDate: Long): Pair<Long, Long> {
@@ -145,7 +208,7 @@ class DashboardViewModel(
         return startDate to endDate
     }
 
-    // --- Helpers (保持不變) ---
+    // --- Helpers ---
     private fun isSameDay(t1: Long, t2: Long): Boolean {
         val c1 = Calendar.getInstance().apply { timeInMillis = t1 }
         val c2 = Calendar.getInstance().apply { timeInMillis = t2 }
@@ -177,20 +240,19 @@ class DashboardViewModel(
 
     // --- 生成邏輯 ---
 
-    // 專注模式產生器 (保持不變，這是計算核心)
-    private fun generateFocusModeDays(plan: PlanEntity, expenses: List<ExpenseEntity>): List<DailyState> {
-        val dailyStates = mutableListOf<DailyState>()
+    private fun generateAllPlanDays(plan: PlanEntity, expenses: List<ExpenseEntity>): List<DailyState> {
+        val list = mutableListOf<DailyState>()
         val calendar = Calendar.getInstance()
         calendar.timeInMillis = plan.startDate
-        calendar.set(Calendar.HOUR_OF_DAY, 0); calendar.set(Calendar.MINUTE, 0); calendar.set(Calendar.SECOND, 0)
-
-        val startDayOfWeek = calendar.get(Calendar.DAY_OF_WEEK)
-        repeat(startDayOfWeek - 1) { dailyStates.add(createEmptyState()) }
+        calendar.set(Calendar.HOUR_OF_DAY, 0); calendar.set(Calendar.MINUTE, 0); calendar.set(Calendar.SECOND, 0); calendar.set(Calendar.MILLISECOND, 0)
 
         val diff = plan.endDate - plan.startDate
         val totalDays = (diff / (1000 * 60 * 60 * 24)).toInt() + 1
         val safeTotalDays = if (totalDays > 0) totalDays else 1
+
         val dailyBase = (plan.totalBudget - plan.targetSavings) / safeTotalDays
+        val remainder = (plan.totalBudget - plan.targetSavings) % safeTotalDays
+
         val todayMillis = System.currentTimeMillis()
         var accumulatedCarryOver = 0
 
@@ -199,80 +261,127 @@ class DashboardViewModel(
             val dayEnd = getEndOfDay(dayStart)
             val daySpent = expenses.filter { it.date in dayStart..dayEnd }.sumOf { it.amount }
 
-            val currentAvailable = dailyBase + accumulatedCarryOver
+            val extraForLastDay = if (i == safeTotalDays - 1) remainder else 0
+
+            val currentAvailable = dailyBase + accumulatedCarryOver + extraForLastDay
             val balance = currentAvailable - daySpent
             accumulatedCarryOver = balance
 
             val isFutureDay = dayStart > todayMillis
-            val status = if (isFutureDay) DayStatus.Future else if (balance >= 0) DayStatus.Success else DayStatus.Fail
+            val status = if (isSameDay(dayStart, todayMillis)) {
+                if (balance >= 0) DayStatus.Success else DayStatus.Fail
+            } else if (dayStart > todayMillis) {
+                DayStatus.Future
+            } else if (balance >= 0) {
+                DayStatus.Success
+            } else {
+                DayStatus.Fail
+            }
 
-            dailyStates.add(DailyState(
+            list.add(DailyState(
                 date = dayStart,
                 dayOfMonth = calendar.get(Calendar.DAY_OF_MONTH),
                 isToday = isSameDay(dayStart, todayMillis),
                 available = currentAvailable,
                 spent = daySpent,
                 balance = balance,
-                baseLimit = dailyBase,
+                baseLimit = dailyBase + extraForLastDay,
                 status = status
             ))
             calendar.add(Calendar.DAY_OF_MONTH, 1)
         }
-        return dailyStates
+        return list
     }
 
-    // [關鍵修正] 月曆模式產生器
+    private fun generateFocusModeDays(plan: PlanEntity, expenses: List<ExpenseEntity>, displayYear: Int, displayMonth: Int): List<DailyState> {
+        val allPlanDays = generateAllPlanDays(plan, expenses)
+
+        val monthStartCal = Calendar.getInstance().apply {
+            set(displayYear, displayMonth, 1, 0, 0, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val monthStartMillis = monthStartCal.timeInMillis
+        val monthEndMillis = getEndOfMonth(monthStartMillis)
+
+        val viewStart = max(getStartOfDay(plan.startDate), monthStartMillis)
+        val viewEnd = min(getEndOfDay(plan.endDate), monthEndMillis)
+
+        if (viewStart > viewEnd) return emptyList()
+
+        val filteredDays = allPlanDays.filter { it.date in viewStart..viewEnd }
+        if (filteredDays.isEmpty()) return emptyList()
+
+        val resultList = mutableListOf<DailyState>()
+
+        val firstDayCal = Calendar.getInstance().apply { timeInMillis = viewStart }
+        val startDayOfWeek = firstDayCal.get(Calendar.DAY_OF_WEEK)
+
+        repeat(startDayOfWeek - 1) { resultList.add(createEmptyState()) }
+
+        resultList.addAll(filteredDays)
+
+        return resultList
+    }
+
+    private fun generateEmptyCalendarDays(year: Int, month: Int): List<DailyState> {
+        val calendar = Calendar.getInstance().apply {
+            set(year, month, 1, 0, 0, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val startDayOfWeek = calendar.get(Calendar.DAY_OF_WEEK)
+        val daysInMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
+        val list = mutableListOf<DailyState>()
+        repeat(startDayOfWeek - 1) { list.add(createEmptyState()) }
+        for (day in 1..daysInMonth) {
+            calendar.set(Calendar.DAY_OF_MONTH, day)
+            list.add(createGrayState(calendar.timeInMillis, day))
+        }
+        return list
+    }
+
     private fun generateCalendarModeDays(year: Int, month: Int, allPlans: List<PlanEntity>, expenses: List<ExpenseEntity>): List<DailyState> {
         val calendar = Calendar.getInstance()
         calendar.set(year, month, 1, 0, 0, 0)
-        val monthStart = calendar.timeInMillis
-        calendar.set(Calendar.DAY_OF_MONTH, calendar.getActualMaximum(Calendar.DAY_OF_MONTH))
-        val monthEnd = getEndOfDay(calendar.timeInMillis)
-        calendar.set(Calendar.DAY_OF_MONTH, 1) // Reset 回月初
+        calendar.set(Calendar.MILLISECOND, 0)
 
-        // 1. 找出與當月重疊的所有計畫
+        val startDayOfWeek = calendar.get(Calendar.DAY_OF_WEEK)
+        val maxDays = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
+
+        val monthStart = calendar.timeInMillis
+        val monthEnd = getEndOfMonth(monthStart)
+
         val overlappingPlans = allPlans.filter { plan ->
             (plan.startDate <= monthEnd) && (plan.endDate >= monthStart)
         }
 
-        // 2. 預先計算這些計畫中，每一天的詳細狀態 (包含紅綠顏色)，並存入 Map
         val calculatedStatesMap = mutableMapOf<Long, DailyState>()
         overlappingPlans.forEach { plan ->
-            // 重用專注模式的計算邏輯
-            val planDays = generateFocusModeDays(plan, expenses)
-            planDays.forEach { dayState ->
-                if (dayState.status != DayStatus.Empty) {
-                    // 使用日期起始時間作為 Key
-                    calculatedStatesMap[getStartOfDay(dayState.date)] = dayState
-                }
-            }
+            val planDays = generateAllPlanDays(plan, expenses)
+            planDays.forEach { day -> calculatedStatesMap[day.date] = day }
         }
 
-        val dailyStates = mutableListOf<DailyState>()
+        val resultList = mutableListOf<DailyState>()
+        repeat(startDayOfWeek - 1) { resultList.add(createEmptyState()) }
 
-        // 3. 計算前面的空白格
-        val startDayOfWeek = calendar.get(Calendar.DAY_OF_WEEK)
-        repeat(startDayOfWeek - 1) { dailyStates.add(createEmptyState()) }
-
-        // 4. 生成當月格子
-        val maxDays = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
         for (day in 1..maxDays) {
             calendar.set(Calendar.DAY_OF_MONTH, day)
-            val dayStart = getStartOfDay(calendar.timeInMillis)
+            val currentDayMillis = getStartOfDay(calendar.timeInMillis)
 
-            // 5. [核心] 優先從計算好的 Map 中取值
-            val preCalculatedState = calculatedStatesMap[dayStart]
+            val planState = calculatedStatesMap[currentDayMillis]
 
-            if (preCalculatedState != null) {
-                // 如果這一天有計算好的狀態，直接使用 (顏色就會是對的)
-                // 需要重新設定 isToday，因為 Map 中的 isToday 可能是舊的
-                dailyStates.add(preCalculatedState.copy(isToday = isSameDay(dayStart, System.currentTimeMillis())))
+            if (planState != null) {
+                resultList.add(planState)
             } else {
-                // 如果沒有計畫，顯示灰色
-                dailyStates.add(createGrayState(dayStart, day))
+                resultList.add(DailyState(
+                    date = currentDayMillis,
+                    dayOfMonth = day,
+                    isToday = isSameDay(currentDayMillis, System.currentTimeMillis()),
+                    available = 0, spent = 0, balance = 0, baseLimit = 0,
+                    status = DayStatus.Neutral
+                ))
             }
         }
-        return dailyStates
+        return resultList
     }
 
     private fun createEmptyState() = DailyState(0, 0, false, 0, 0, 0, 0, DayStatus.Empty)

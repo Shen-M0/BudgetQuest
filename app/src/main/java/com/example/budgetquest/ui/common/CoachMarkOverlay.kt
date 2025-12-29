@@ -42,6 +42,7 @@ data class CoachMarkTarget(
 fun CoachMarkOverlay(
     target: CoachMarkTarget?,
     onNext: () -> Unit,
+    onSkip: () -> Unit
 ) {
     if (target?.coordinates == null || !target.coordinates.isAttached) return
 
