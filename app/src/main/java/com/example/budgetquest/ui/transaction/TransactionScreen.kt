@@ -219,7 +219,7 @@ fun TransactionScreen(
                         items(categories, key = { it.id }) { cat ->
                             // [套用 Helper] 智慧分類名稱
                             JapaneseCompactChip(
-                                label = getSmartCategoryName(cat.name),
+                                label = getSmartCategoryName(cat.name, cat.resourceKey),
                                 selected = uiState.category == cat.name,
                                 icon = getIconByKey(cat.iconKey)
                             ) { viewModel.updateCategory(cat.name) }
@@ -236,7 +236,7 @@ fun TransactionScreen(
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(tags, key = { it.id }) { tag ->
                             // [套用 Helper] 智慧備註名稱
-                            JapaneseCompactChip(getSmartTagName(tag.name), uiState.note == tag.name) { viewModel.updateNote(tag.name) }
+                            JapaneseCompactChip(getSmartTagName(tag.name, tag.resourceKey), uiState.note == tag.name) { viewModel.updateNote(tag.name) }
                         }
                         item {
                             EditButton { debounce { showTagManager = true } }

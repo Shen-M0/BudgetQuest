@@ -46,12 +46,61 @@ class DashboardViewModel(
     private val _viewMode = MutableStateFlow(ViewMode.Focus)
     private val _currentYear = MutableStateFlow(Calendar.getInstance().get(Calendar.YEAR))
     private val _currentMonth = MutableStateFlow(Calendar.getInstance().get(Calendar.MONTH))
+
+    // 統一使用 _selectedPlanId 來管理當前選中的計畫
     private val _selectedPlanId = MutableStateFlow<Int?>(null)
+
+    // [關鍵修改] 在 ViewModel 內部記錄最後一次處理的 Trigger 時間戳
+    private var lastProcessedTrigger: Long = 0L
 
     private val _calendarState = combine(_currentYear, _currentMonth) { year, month ->
         CalendarState(year, month)
     }
 
+    // [修正] 移除所有防呆變數，回歸單純的指令執行
+    // 防呆邏輯改由 UI 層的 Timestamp 控制
+
+    // [關鍵修改] 接收 trigger 參數
+    fun setViewingPlanId(id: Int, trigger: Long) {
+        // 1. 如果 trigger 無效 (0) 或是 跟上次處理的一樣 -> 忽略！
+        // 這是防止 "幽靈參數" 再次觸發跳轉的絕對防線
+        if (trigger <= 0 || trigger == lastProcessedTrigger) return
+
+        // 2. 標記為已處理
+        lastProcessedTrigger = trigger
+
+        // 3. 執行邏輯
+        if (id != -1) {
+            selectPlanById(id)
+        }
+    }
+
+    // [關鍵修改] 接收 trigger 參數
+    fun switchToCalendarDate(date: Long, trigger: Long) {
+        // 同樣的防呆邏輯
+        if (trigger <= 0 || trigger == lastProcessedTrigger) return
+
+        lastProcessedTrigger = trigger
+
+        if (date == -1L) return
+
+        viewModelScope.launch {
+            val allPlans = budgetRepository.getAllPlans()
+            if (allPlans.isEmpty()) {
+                _viewMode.value = ViewMode.Focus
+                _selectedPlanId.value = null
+                val c = Calendar.getInstance()
+                updateMonth(c.get(Calendar.YEAR), c.get(Calendar.MONTH))
+            } else {
+                _viewMode.value = ViewMode.Calendar
+                val c = Calendar.getInstance().apply { timeInMillis = date }
+                updateMonth(c.get(Calendar.YEAR), c.get(Calendar.MONTH))
+                _selectedPlanId.value = null
+            }
+        }
+    }
+
+    // [簡化後] _targetPlan 邏輯
     private val _targetPlan = combine(
         _selectedPlanId,
         budgetRepository.getAllPlansStream()
@@ -61,7 +110,7 @@ class DashboardViewModel(
             allPlans.find { it.id == selectedId }
         } else {
             val currentActivePlan = allPlans.find { plan ->
-                today >= getStartOfDay(plan.startDate) && today <= getEndOfDay(plan.endDate)
+                plan.isActive && today >= getStartOfDay(plan.startDate) && today <= getEndOfDay(plan.endDate)
             }
             currentActivePlan ?: allPlans.maxByOrNull { it.endDate }
         }
@@ -118,7 +167,7 @@ class DashboardViewModel(
             isExpired = isExpired
         )
     }
-        .flowOn(Dispatchers.Default) // [優化] 將繁重的計算移至背景執行緒，避免卡頓
+        .flowOn(Dispatchers.Default)
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
@@ -159,15 +208,13 @@ class DashboardViewModel(
         }
     }
 
-    // [關鍵修正] 避免重複選擇導致模式重置
     fun selectPlanById(planId: Int) {
         viewModelScope.launch {
-            // 如果選中的 ID 已經是當前的 ID，直接返回，不做任何狀態重置
-            // 這樣當從設定頁面返回時，因為 ID 沒變，ViewMode 和月份就不會被強制修改
+            // [優化] 避免重複執行
             if (_selectedPlanId.value == planId) return@launch
 
             _selectedPlanId.value = planId
-            _viewMode.value = ViewMode.Focus // 只有在「真正切換」新計畫時，才跳轉到專注模式
+            _viewMode.value = ViewMode.Focus
 
             val allPlans = budgetRepository.getAllPlans()
             val plan = allPlans.find { it.id == planId }
@@ -196,6 +243,7 @@ class DashboardViewModel(
         }
     }
 
+    // ... calculateSmartDates, Helpers, generateLogic 保持不變 ...
     suspend fun calculateSmartDates(clickedDate: Long): Pair<Long, Long> {
         val allPlans = budgetRepository.getAllPlans().sortedBy { it.startDate }
         val nextPlan = allPlans.firstOrNull { it.startDate > clickedDate }
@@ -208,7 +256,6 @@ class DashboardViewModel(
         return startDate to endDate
     }
 
-    // --- Helpers ---
     private fun isSameDay(t1: Long, t2: Long): Boolean {
         val c1 = Calendar.getInstance().apply { timeInMillis = t1 }
         val c2 = Calendar.getInstance().apply { timeInMillis = t2 }
@@ -237,8 +284,6 @@ class DashboardViewModel(
         val c = Calendar.getInstance().apply { timeInMillis = time; set(Calendar.HOUR_OF_DAY, 23); set(Calendar.MINUTE, 59); set(Calendar.SECOND, 59); set(Calendar.MILLISECOND, 999) }
         return c.timeInMillis
     }
-
-    // --- 生成邏輯 ---
 
     private fun generateAllPlanDays(plan: PlanEntity, expenses: List<ExpenseEntity>): List<DailyState> {
         val list = mutableListOf<DailyState>()

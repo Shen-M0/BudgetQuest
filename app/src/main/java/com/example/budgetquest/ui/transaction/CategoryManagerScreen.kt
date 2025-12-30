@@ -258,7 +258,7 @@ fun CategoryManagerDialog(
                                 }
                                 Spacer(modifier = Modifier.width(12.dp))
                                 // [套用 Helper] 顯示智慧分類名稱
-                                Text(getSmartCategoryName(item.name), color = if (item.isVisible) AppTheme.colors.textPrimary else AppTheme.colors.textSecondary, fontSize = 14.sp)
+                                Text(getSmartCategoryName(item.name, item.resourceKey), color = if (item.isVisible) AppTheme.colors.textPrimary else AppTheme.colors.textSecondary, fontSize = 14.sp)
                             }
 
                             Row {
@@ -396,7 +396,7 @@ fun TagManagerDialog(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             // [套用 Helper] 顯示智慧標籤名稱
-                            Text(getSmartTagName(item.name), color = if(item.isVisible) AppTheme.colors.textPrimary else AppTheme.colors.textSecondary)
+                            Text(getSmartTagName(item.name, item.resourceKey), color = if(item.isVisible) AppTheme.colors.textPrimary else AppTheme.colors.textSecondary)
                             Row {
                                 IconButton(onClick = { debounce { onToggleVisibility(item) } }, modifier = Modifier.size(32.dp)) {
                                     Icon(if (item.isVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff, null, tint = if(item.isVisible) AppTheme.colors.accent else AppTheme.colors.textSecondary, modifier = Modifier.size(18.dp))
@@ -527,7 +527,7 @@ fun SubTagManagerDialog(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             // [套用 Helper] 顯示智慧分類名稱
-                            Text(getSmartCategoryName(item.name), color = if(item.isVisible) AppTheme.colors.textPrimary else AppTheme.colors.textSecondary)
+                            Text(getSmartCategoryName(item.name, item.resourceKey), color = if(item.isVisible) AppTheme.colors.textPrimary else AppTheme.colors.textSecondary)
                             Row {
                                 IconButton(onClick = { debounce { onToggleVisibility(item) } }, modifier = Modifier.size(32.dp)) {
                                     Icon(if (item.isVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff, null, tint = if(item.isVisible) AppTheme.colors.accent else AppTheme.colors.textSecondary, modifier = Modifier.size(18.dp))

@@ -318,7 +318,7 @@ fun JapaneseFilterCard(
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(categories) { cat ->
                             // [套用 Helper] 分類篩選
-                            JapaneseCompactChip(getSmartCategoryName(cat.name), selectedCategory == cat.name, getIconByKey(cat.iconKey)) { onCategorySelect(cat.name) }
+                            JapaneseCompactChip(getSmartCategoryName(cat.name, cat.resourceKey), selectedCategory == cat.name, getIconByKey(cat.iconKey)) { onCategorySelect(cat.name) }
                         }
                         item { EditButton(onEditCategory) }
                     }
@@ -326,7 +326,7 @@ fun JapaneseFilterCard(
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(tags) { tag ->
                             // [套用 Helper] 備註篩選
-                            JapaneseCompactChip(getSmartTagName(tag.name), selectedTag == tag.name) { onTagSelect(tag.name) }
+                            JapaneseCompactChip(getSmartTagName(tag.name, tag.resourceKey), selectedTag == tag.name) { onTagSelect(tag.name) }
                         }
                         item { EditButton(onEditTag) }
                     }

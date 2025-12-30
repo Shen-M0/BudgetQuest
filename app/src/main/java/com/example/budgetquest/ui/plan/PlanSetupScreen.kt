@@ -74,9 +74,14 @@ fun PlanSetupScreen(
     showBackButton: Boolean = true,
     onBackClick: () -> Unit,
     onSaveClick: (Int) -> Unit,
-    onDeleteClick: () -> Unit = { onBackClick() },
+    // [修改 1] onDeleteClick 改為接收 Long (日期)
+    onDeleteClick: (Long) -> Unit,
     viewModel: PlanViewModel = viewModel(factory = AppViewModelProvider.Factory)
 ) {
+
+    // [修正 1] 補上這行狀態宣告，紅色錯誤就會消失
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
     val uiState = viewModel.planUiState
     val context = LocalContext.current
 
@@ -134,9 +139,13 @@ fun PlanSetupScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        debounce {
-                            viewModel.deletePlan(onSuccess = onDeleteClick)
-                            showDeleteConfirmation = false
+                        // [關鍵修改] 刪除前，先記下當前計畫的開始日期
+                        val targetDate = viewModel.planUiState.startDate
+
+                        viewModel.deletePlan {
+                            showDeleteDialog = false
+                            // [關鍵修改] 將日期傳出去給 MainActivity
+                            onDeleteClick(targetDate)
                         }
                     },
                     colors = ButtonDefaults.textButtonColors(contentColor = AppTheme.colors.fail)

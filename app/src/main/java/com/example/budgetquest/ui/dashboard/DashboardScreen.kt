@@ -55,6 +55,10 @@ import java.util.Calendar
 @Composable
 fun DashboardScreen(
     initialPlanId: Int? = null,
+    planId: Int = -1,
+    targetDate: Long = -1L,
+    trigger: Long = 0L, // [新增] 用來判斷是否為新的跳轉指令 (時間戳記)
+    onConsumeNavigationArgs: () -> Unit = {},
     isTutorialMode: Boolean = false,
     onTutorialFinished: () -> Unit = {},
     onAddExpenseClick: (Long) -> Unit,
@@ -69,6 +73,21 @@ fun DashboardScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
+
+    // [Bug 修復核心] 使用 Trigger 來判斷是否為 "新" 的指令
+    // 如果 trigger 沒有變 (例如從詳細頁返回，參數雖然還在，但 trigger 是舊的)，就不執行
+    var lastHandledTrigger by rememberSaveable { mutableLongStateOf(0L) }
+
+
+    LaunchedEffect(planId, targetDate, trigger) {
+        if (planId != -1) {
+            // 將 trigger 傳入
+            viewModel.setViewingPlanId(planId, trigger)
+        } else if (targetDate != -1L) {
+            // 將 trigger 傳入
+            viewModel.switchToCalendarDate(targetDate, trigger)
+        }
+    }
 
     val calendarAnchorYear = 1900
 
@@ -194,7 +213,6 @@ fun DashboardScreen(
                             }
                         }
 
-                        // [修正] 使用 stringResource 帶入參數進行格式化，支援多語言
                         Text(
                             text = if (uiState.viewMode == ViewMode.Focus) {
                                 stringResource(R.string.date_format_focus, uiState.currentYear, uiState.currentMonth + 1)
@@ -452,7 +470,7 @@ fun DashboardScreen(
         }
     }
 
-    // [修正] CoachMark 全部改用 stringResource
+    // ... CoachMark 與下方共用 Composable 保持不變 ...
     if (isTutorialMode && isTutorialReady && coachMarkStep > 0) {
         val target = when (coachMarkStep) {
             1 -> focusToggleBtnCoords?.let { CoachMarkTarget(it,
@@ -514,7 +532,7 @@ fun DashboardScreen(
     }
 }
 
-// ... RollingNumberText, DashboardStatusCard ...
+// [修正] 優化後的 RollingNumberText
 @Composable
 fun RollingNumberText(
     targetValue: Int,
@@ -522,21 +540,14 @@ fun RollingNumberText(
     fontWeight: FontWeight,
     color: Color
 ) {
-    var lastValue by rememberSaveable { mutableIntStateOf(-1) }
-    var isReadyToAnimate by rememberSaveable { mutableStateOf(false) }
+    // 初始值直接設為 targetValue，避免第一次進入時從 -1 或 0 開始跳
+    var lastValue by rememberSaveable { mutableIntStateOf(targetValue) }
 
-    val startValue = if (lastValue != -1) lastValue.toFloat() else targetValue.toFloat()
-    val animatable = remember { Animatable(startValue) }
-
-    LaunchedEffect(Unit) {
-        if (!isReadyToAnimate) {
-            delay(500)
-            isReadyToAnimate = true
-        }
-    }
+    val animatable = remember { Animatable(lastValue.toFloat()) }
 
     LaunchedEffect(targetValue) {
-        if (isReadyToAnimate) {
+        // [關鍵] 只有當數值 "真的不一樣" 時，才執行動畫
+        if (targetValue != lastValue) {
             animatable.animateTo(
                 targetValue = targetValue.toFloat(),
                 animationSpec = tween(
@@ -544,10 +555,11 @@ fun RollingNumberText(
                     easing = FastOutSlowInEasing
                 )
             )
+            lastValue = targetValue
         } else {
+            // 如果數值一樣 (例如返回頁面時)，直接設為目標值，不跑動畫
             animatable.snapTo(targetValue.toFloat())
         }
-        lastValue = targetValue
     }
 
     Text(
@@ -574,7 +586,6 @@ fun DashboardStatusCard(todayAvailable: Int, isExpired: Boolean) {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                // [修正] 改為 stringResource
                 if (isExpired) stringResource(R.string.label_plan_balance) else stringResource(R.string.label_available_today),
                 fontSize = 14.sp,
                 color = AppTheme.colors.textSecondary
@@ -599,7 +610,6 @@ fun WeekHeader() {
             .padding(bottom = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        // [修正] 改為 stringArrayResource
         val days = stringArrayResource(R.array.days_of_week)
         days.forEach { day ->
             Text(

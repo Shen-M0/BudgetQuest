@@ -69,25 +69,24 @@ class MainActivity : AppCompatActivity() {
 
                         if (isDataReady) {
 
-                            val dashboardRoute = "dashboard?planId={planId}&tutorial={tutorial}"
+                            val dashboardRoute = "dashboard?planId={planId}&date={date}&trigger={trigger}&tutorial={tutorial}"
 
                             val startDestination = remember {
                                 if (settingsRepo.isFirstLaunch) {
                                     "onboarding"
-                                } else if (planUiState.currentPlan == null) {
-                                    "setup/-1?showBack=false"
                                 } else {
+                                    // [方案 A 實作]
+                                    // 無論有沒有計畫，只要不是第一次，都進 Dashboard。
+                                    // Dashboard 自己會處理 "無計畫" 的顯示 (Empty State)。
                                     "dashboard"
                                 }
                             }
 
-                            // [修正] 定義時間常數，讓 tween 自動推斷類型
                             val animDuration = 300
 
                             NavHost(
                                 navController = navController,
                                 startDestination = startDestination,
-                                // [修正] 分別使用 tween(animDuration)，編譯器會自動推斷 IntOffset 或 Float
                                 enterTransition = {
                                     slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Left, animationSpec = tween(animDuration)) +
                                             fadeIn(animationSpec = tween(animDuration))
@@ -128,15 +127,30 @@ class MainActivity : AppCompatActivity() {
                                     route = dashboardRoute,
                                     arguments = listOf(
                                         navArgument("planId") { type = NavType.IntType; defaultValue = -1 },
+                                        navArgument("date") { type = NavType.LongType; defaultValue = -1L },
+                                        navArgument("trigger") { type = NavType.LongType; defaultValue = 0L }, // [新增]
                                         navArgument("tutorial") { type = NavType.BoolType; defaultValue = false }
                                     )
                                 ) { backStackEntry ->
                                     val planId = backStackEntry.arguments?.getInt("planId") ?: -1
+                                    val date = backStackEntry.arguments?.getLong("date") ?: -1L
+                                    val trigger = backStackEntry.arguments?.getLong("trigger") ?: 0L // [新增]
                                     val isTutorial = backStackEntry.arguments?.getBoolean("tutorial") ?: false
 
                                     DashboardScreen(
                                         initialPlanId = if (planId != -1) planId else null,
+                                        planId = planId,
+                                        targetDate = date,
+                                        trigger = trigger, // [新增] 傳入 Screen
                                         isTutorialMode = isTutorial,
+
+                                        // [新增] 實作清除參數的邏輯
+                                        onConsumeNavigationArgs = {
+                                            backStackEntry.arguments?.putInt("planId", -1)
+                                            backStackEntry.arguments?.putLong("date", -1L)
+                                            backStackEntry.arguments?.putLong("trigger", 0L)
+                                        },
+
                                         onTutorialFinished = {
                                             navController.navigate("dashboard") {
                                                 popUpTo(0)
@@ -243,11 +257,13 @@ class MainActivity : AppCompatActivity() {
                                         navArgument("showBack") { type = NavType.BoolType; defaultValue = true }
                                     )
                                 ) { backStackEntry ->
-                                    val planId = backStackEntry.arguments?.getInt("planId") ?: -1
+                                    val planIdArg = backStackEntry.arguments?.getInt("planId") ?: -1
                                     val startDate = backStackEntry.arguments?.getLong("startDate") ?: -1L
                                     val endDate = backStackEntry.arguments?.getLong("endDate") ?: -1L
                                     val showBack = backStackEntry.arguments?.getBoolean("showBack") ?: true
-                                    val validPlanId = if (planId == -1) null else planId
+
+                                    val isCreatingNewPlan = planIdArg == -1
+                                    val validPlanId = if (planIdArg == -1) null else planIdArg
 
                                     PlanSetupScreen(
                                         planId = validPlanId,
@@ -256,13 +272,28 @@ class MainActivity : AppCompatActivity() {
                                         showBackButton = showBack,
                                         onBackClick = { navController.popBackStack() },
                                         onSaveClick = { savedId ->
-                                            val tutorialFlag = !showBack
-                                            navController.navigate("dashboard?planId=$savedId&tutorial=$tutorialFlag") {
-                                                popUpTo(0)
+                                            if (!showBack) {
+                                                // Onboarding 強制跳轉 (Trigger 可加可不加，反正是一次性的)
+                                                navController.navigate("dashboard?planId=$savedId&tutorial=true") {
+                                                    popUpTo(0)
+                                                }
+                                            } else if (isCreatingNewPlan) {
+                                                // [關鍵修改] 新建計畫 -> 帶入 trigger = 當前時間
+                                                // 這樣 Dashboard 就會知道這是一個 "新的" 跳轉指令
+                                                val timestamp = System.currentTimeMillis()
+                                                navController.navigate("dashboard?planId=$savedId&trigger=$timestamp") {
+                                                    popUpTo("dashboard") { inclusive = true }
+                                                }
+                                            } else {
+                                                // 編輯計畫 -> popBackStack (不帶參數，Trigger 不變，Dashboard 忽略)
+                                                navController.popBackStack()
                                             }
                                         },
-                                        onDeleteClick = {
-                                            navController.navigate("dashboard") {
+                                        // [修改] 這裡接收傳回來的 deletedPlanDate
+                                        onDeleteClick = { deletedPlanDate ->
+                                            // [關鍵修改] 刪除計畫 -> 帶入 trigger = 當前時間
+                                            val timestamp = System.currentTimeMillis()
+                                            navController.navigate("dashboard?planId=-1&date=$deletedPlanDate&trigger=$timestamp") {
                                                 popUpTo(0)
                                             }
                                         }

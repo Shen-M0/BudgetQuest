@@ -8,5 +8,7 @@ data class SubscriptionTagEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,
     val name: String,
-    val isVisible: Boolean = true
+    val isVisible: Boolean = true,
+    // [新增]
+    val resourceKey: String? = null
 )

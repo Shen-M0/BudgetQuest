@@ -5,24 +5,26 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.budgetquest.R // [確保 import]
 import com.example.budgetquest.data.BudgetRepository
 import com.example.budgetquest.data.PlanEntity
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.Calendar
-import com.example.budgetquest.R // [新增] Import R
 
-// 1. 定義 Dashboard 需要的狀態
+// 1. 定義 Dashboard 需要的狀態 (唯讀，給首頁用)
 data class PlanUiState(
     val currentPlan: PlanEntity? = null,
     val dailyLimit: Int = 0,
     val isLoading: Boolean = true
 )
 
-// [修改] errorMessage 改為儲存 Resource ID (Int?)
+// PlanSetupState (表單用)
+// [維持上一階段優化] 使用 Int? 儲存錯誤訊息的 Resource ID
 data class PlanSetupState(
     val id: Int = 0,
     val planName: String = "",
@@ -30,31 +32,52 @@ data class PlanSetupState(
     val endDate: Long = System.currentTimeMillis() + 86400000L * 30,
     val totalBudget: String = "",
     val targetSavings: String = "",
-    val errorMessageId: Int? = null // [修改] 改名為 Id 以示區別
+    val errorMessageId: Int? = null
 )
 
 class PlanViewModel(private val repository: BudgetRepository) : ViewModel() {
 
-    // --- Dashboard Logic (保持不變) ---
-    val uiState: StateFlow<PlanUiState> = repository.getCurrentPlanStream()
-        .map { plan ->
-            if (plan != null) {
-                val diff = plan.endDate - plan.startDate
-                val days = (diff / (1000 * 60 * 60 * 24)).toInt() + 1
-                val safeDays = if (days > 0) days else 1
-                val daily = (plan.totalBudget - plan.targetSavings) / safeDays
-                PlanUiState(currentPlan = plan, dailyLimit = daily, isLoading = false)
-            } else {
-                PlanUiState(currentPlan = null, dailyLimit = 0, isLoading = false)
-            }
-        }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = PlanUiState(isLoading = true)
-        )
+    // [Bug 修復] 新增：指定要查看的計畫 ID (null 代表預設查看進行中計畫)
+    private val _viewingPlanId = MutableStateFlow<Int?>(null)
 
-    // --- Plan Setup Logic ---
+    // [Bug 修復] DashboardScreen 進入時必須呼叫此函式
+    fun setViewingPlanId(id: Int) {
+        _viewingPlanId.value = if (id == -1) null else id
+    }
+
+    // [Bug 修復] 修改資料流來源
+    // 使用 combine 結合 "指定ID" 與 "所有計畫"，動態決定要顯示哪一個
+    val uiState: StateFlow<PlanUiState> = combine(
+        _viewingPlanId,
+        repository.getAllPlansStream()
+    ) { targetId, plans ->
+        // 1. 決定要顯示哪個計畫
+        val plan = if (targetId != null) {
+            // 如果有指定 ID (例如從歷史紀錄進來)，就找那個計畫
+            plans.find { it.id == targetId }
+        } else {
+            // 如果沒指定 (Dashboard 預設)，就找當前進行中的計畫
+            val today = System.currentTimeMillis()
+            plans.find { it.isActive && today >= it.startDate && today <= it.endDate }
+        }
+
+        // 2. 計算邏輯 (保持不變)
+        if (plan != null) {
+            val diff = plan.endDate - plan.startDate
+            val days = (diff / (1000 * 60 * 60 * 24)).toInt() + 1
+            val safeDays = if (days > 0) days else 1
+            val daily = (plan.totalBudget - plan.targetSavings) / safeDays
+            PlanUiState(currentPlan = plan, dailyLimit = daily, isLoading = false)
+        } else {
+            PlanUiState(currentPlan = null, dailyLimit = 0, isLoading = false)
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = PlanUiState(isLoading = true)
+    )
+
+    // --- Plan Setup Logic (表單邏輯) ---
 
     var planUiState by mutableStateOf(PlanSetupState())
         private set
@@ -85,7 +108,7 @@ class PlanViewModel(private val repository: BudgetRepository) : ViewModel() {
             endDate = endDate ?: planUiState.endDate,
             totalBudget = totalBudget ?: planUiState.totalBudget,
             targetSavings = targetSavings ?: planUiState.targetSavings,
-            errorMessageId = null // [修改] 清除錯誤 ID
+            errorMessageId = null // 清除錯誤
         )
     }
 
@@ -108,7 +131,7 @@ class PlanViewModel(private val repository: BudgetRepository) : ViewModel() {
     fun savePlan(onSuccess: (Int) -> Unit) {
         val currentState = planUiState
         if (currentState.planName.isBlank() || currentState.totalBudget.isBlank()) {
-            // [提取] 設定錯誤訊息 ID
+            // [提取] 使用 Resource ID
             planUiState = planUiState.copy(errorMessageId = R.string.error_empty_plan_fields)
             return
         }
@@ -121,7 +144,7 @@ class PlanViewModel(private val repository: BudgetRepository) : ViewModel() {
             }
 
             if (hasOverlap) {
-                // [提取] 設定錯誤訊息 ID
+                // [提取] 使用 Resource ID
                 planUiState = planUiState.copy(errorMessageId = R.string.error_plan_overlap)
             } else {
                 val plan = PlanEntity(
