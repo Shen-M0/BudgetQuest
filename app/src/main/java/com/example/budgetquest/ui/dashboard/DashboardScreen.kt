@@ -57,8 +57,8 @@ fun DashboardScreen(
     initialPlanId: Int? = null,
     planId: Int = -1,
     targetDate: Long = -1L,
-    trigger: Long = 0L, // [新增] 用來判斷是否為新的跳轉指令 (時間戳記)
-    onConsumeNavigationArgs: () -> Unit = {},
+    trigger: Long = 0L,
+    onConsumeNavigationArgs: () -> Unit = {}, // 確保這個函式被呼叫
     isTutorialMode: Boolean = false,
     onTutorialFinished: () -> Unit = {},
     onAddExpenseClick: (Long) -> Unit,
@@ -74,18 +74,26 @@ fun DashboardScreen(
     val uiState by viewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
 
-    // [Bug 修復核心] 使用 Trigger 來判斷是否為 "新" 的指令
-    // 如果 trigger 沒有變 (例如從詳細頁返回，參數雖然還在，但 trigger 是舊的)，就不執行
+    // [修正] UI 層也保留一個簡單的防呆，確保 trigger 改變才動作
     var lastHandledTrigger by rememberSaveable { mutableLongStateOf(0L) }
 
-
     LaunchedEffect(planId, targetDate, trigger) {
-        if (planId != -1) {
-            // 將 trigger 傳入
-            viewModel.setViewingPlanId(planId, trigger)
-        } else if (targetDate != -1L) {
-            // 將 trigger 傳入
-            viewModel.switchToCalendarDate(targetDate, trigger)
+        // 只有當 trigger 是新的，才執行
+        if (trigger > 0L && trigger != lastHandledTrigger) {
+
+            if (planId != -1) {
+                // [修正] 傳入 trigger 給 ViewModel 做雙重檢查
+                viewModel.setViewingPlanId(planId, trigger)
+            } else if (targetDate != -1L) {
+                viewModel.switchToCalendarDate(targetDate, trigger)
+            }
+
+            // 更新 UI 記錄
+            lastHandledTrigger = trigger
+
+            // [關鍵修正] 執行完畢後，立刻通知 MainActivity 清除參數 (覆寫為 -1)
+            // 這能確保下次返回時，參數已經乾淨了，不會再次觸發任何邏輯
+            onConsumeNavigationArgs()
         }
     }
 
@@ -179,9 +187,8 @@ fun DashboardScreen(
     var settingsBtnCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
     var cardCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
 
-    LaunchedEffect(initialPlanId) {
-        if (initialPlanId != null && initialPlanId != -1) viewModel.selectPlanById(initialPlanId)
-    }
+    // ❌ [已刪除] 這裡原本有一個 LaunchedEffect(initialPlanId) 會繞過防呆直接跳轉
+    // 現在已經移除，確保所有的跳轉都必須經過上面的 trigger 檢查
 
     LaunchedEffect(isTutorialMode, uiState.activePlan) {
         if (isTutorialMode && uiState.activePlan != null) {
@@ -196,6 +203,7 @@ fun DashboardScreen(
         }
     }
 
+    // ... (Scaffold 及其後的內容保持不變，請直接複製您原本的 UI 代碼) ...
     Scaffold(
         containerColor = AppTheme.colors.background,
         topBar = {
@@ -470,7 +478,6 @@ fun DashboardScreen(
         }
     }
 
-    // ... CoachMark 與下方共用 Composable 保持不變 ...
     if (isTutorialMode && isTutorialReady && coachMarkStep > 0) {
         val target = when (coachMarkStep) {
             1 -> focusToggleBtnCoords?.let { CoachMarkTarget(it,
@@ -532,7 +539,7 @@ fun DashboardScreen(
     }
 }
 
-// [修正] 優化後的 RollingNumberText
+// ... RollingNumberText 與其他 Composable 保持不變，可以直接使用您原本的 ...
 @Composable
 fun RollingNumberText(
     targetValue: Int,
@@ -540,24 +547,17 @@ fun RollingNumberText(
     fontWeight: FontWeight,
     color: Color
 ) {
-    // 初始值直接設為 targetValue，避免第一次進入時從 -1 或 0 開始跳
     var lastValue by rememberSaveable { mutableIntStateOf(targetValue) }
-
     val animatable = remember { Animatable(lastValue.toFloat()) }
 
     LaunchedEffect(targetValue) {
-        // [關鍵] 只有當數值 "真的不一樣" 時，才執行動畫
         if (targetValue != lastValue) {
             animatable.animateTo(
                 targetValue = targetValue.toFloat(),
-                animationSpec = tween(
-                    durationMillis = 800,
-                    easing = FastOutSlowInEasing
-                )
+                animationSpec = tween(durationMillis = 800, easing = FastOutSlowInEasing)
             )
             lastValue = targetValue
         } else {
-            // 如果數值一樣 (例如返回頁面時)，直接設為目標值，不跑動畫
             animatable.snapTo(targetValue.toFloat())
         }
     }
