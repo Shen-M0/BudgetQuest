@@ -337,11 +337,37 @@ fun DashboardScreen(
                 FloatingActionButton(
                     onClick = {
                         debounce {
-                            val targetDate = if (uiState.activePlan != null && uiState.isExpired) {
-                                uiState.activePlan!!.startDate
-                            } else {
-                                System.currentTimeMillis()
+                            // [優化] 智慧日期選擇邏輯
+                            val plan = uiState.activePlan!!
+
+                            // 1. 取得目前 Dashboard 顯示月份的第一天 (基準日)
+                            val viewCal = Calendar.getInstance().apply {
+                                set(Calendar.YEAR, uiState.currentYear)
+                                set(Calendar.MONTH, uiState.currentMonth)
+                                set(Calendar.DAY_OF_MONTH, 1)
+                                set(Calendar.HOUR_OF_DAY, 0)
+                                set(Calendar.MINUTE, 0)
+                                set(Calendar.SECOND, 0)
+                                set(Calendar.MILLISECOND, 0)
                             }
+                            val viewMonthStart = viewCal.timeInMillis
+
+                            // 2. 決定預設日期：
+                            // 規則 A: 優先使用 "檢視月份的第一天"
+                            // 規則 B: 如果第一天早於 "計畫開始日"，則使用 "計畫開始日" (確保不早於計畫)
+                            // 規則 C: 確保不晚於 "計畫結束日"
+
+                            // Step 1: 取 (檢視月1號) 與 (計畫開始日) 的最大值
+                            // 範例：計畫 9/10~11/20
+                            //  - 檢視 9月: max(9/1, 9/10) -> 9/10 (符合需求：選最早有效日)
+                            //  - 檢視 10月: max(10/1, 9/10) -> 10/1 (符合需求：當月1號)
+                            var targetDate = maxOf(viewMonthStart, plan.startDate)
+
+                            // Step 2: 取 (Step 1結果) 與 (計畫結束日) 的最小值
+                            //  - 檢視 11月: min(11/1, 11/20) -> 11/1
+                            //  - 檢視 12月(若有): min(12/1, 11/20) -> 11/20 (修正回計畫結束日)
+                            targetDate = minOf(targetDate, plan.endDate)
+
                             onAddExpenseClick(targetDate)
                         }
                     },

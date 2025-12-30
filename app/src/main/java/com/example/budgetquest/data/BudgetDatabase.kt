@@ -53,17 +53,18 @@ abstract class BudgetDatabase : RoomDatabase() {
         private suspend fun populateDatabase(dao: BudgetDao) {
             // 分類
             val categories = listOf(
+                CategoryEntity(name = "娛樂", iconKey = "ENTERTAINMENT", colorHex = "#5C6BC0", resourceKey = "cat_entertainment"),
+                CategoryEntity(name = "帳單", iconKey = "BILLS", colorHex = "#26C6DA", resourceKey = "cat_bills"),
+                CategoryEntity(name = "居家", iconKey = "HOME", colorHex = "#7E57C2", resourceKey = "cat_home"),
                 CategoryEntity(name = "飲食", iconKey = "FOOD", colorHex = "#EF5350", resourceKey = "cat_food"),
                 CategoryEntity(name = "購物", iconKey = "SHOPPING", colorHex = "#EC407A", resourceKey = "cat_shopping"),
                 CategoryEntity(name = "交通", iconKey = "TRANSPORT", colorHex = "#AB47BC", resourceKey = "cat_transport"),
-                CategoryEntity(name = "居家", iconKey = "HOME", colorHex = "#7E57C2", resourceKey = "cat_home"),
-                CategoryEntity(name = "娛樂", iconKey = "ENTERTAINMENT", colorHex = "#5C6BC0", resourceKey = "cat_entertainment"),
                 CategoryEntity(name = "醫療", iconKey = "MEDICAL", colorHex = "#42A5F5", resourceKey = "cat_medical"),
                 CategoryEntity(name = "教育", iconKey = "EDUCATION", colorHex = "#29B6F6", resourceKey = "cat_education"),
-                CategoryEntity(name = "帳單", iconKey = "BILLS", colorHex = "#26C6DA", resourceKey = "cat_bills"),
                 CategoryEntity(name = "投資", iconKey = "INVESTMENT", colorHex = "#26A69A", resourceKey = "cat_investment"),
-                CategoryEntity(name = "其他", iconKey = "OTHER", colorHex = "#66BB6A", resourceKey = "cat_other"),
-                CategoryEntity(name = "旅遊", iconKey = "TRAVEL", colorHex = "#FFA726", resourceKey = "cat_travel")
+                CategoryEntity(name = "旅遊", iconKey = "TRAVEL", colorHex = "#FFA726", resourceKey = "cat_travel") ,
+                CategoryEntity(name = "其他", iconKey = "OTHER", colorHex = "#66BB6A", resourceKey = "cat_other")
+
             )
             categories.forEach { dao.insertCategory(it) }
 
@@ -84,15 +85,6 @@ abstract class BudgetDatabase : RoomDatabase() {
 
             // 訂閱標籤 (可選，邏輯相同)
             val subTags = listOf(
-                // 生活類
-                SubscriptionTagEntity(name = "房租", resourceKey = "sub_rent"),
-                SubscriptionTagEntity(name = "電話費", resourceKey = "sub_phone"),
-                SubscriptionTagEntity(name = "網路費", resourceKey = "sub_internet"),
-                SubscriptionTagEntity(name = "水電瓦斯", resourceKey = "sub_utilities"),
-                SubscriptionTagEntity(name = "管理費", resourceKey = "sub_management_fee"),
-                SubscriptionTagEntity(name = "保險", resourceKey = "sub_insurance"),
-                SubscriptionTagEntity(name = "健身房", resourceKey = "sub_gym"),
-
                 // 數位服務類 (雖然大多是英文，但設定 resourceKey 可讓日文版顯示片假名，或未來方便修改)
                 SubscriptionTagEntity(name = "Netflix", resourceKey = "sub_netflix"),
                 SubscriptionTagEntity(name = "Spotify", resourceKey = "sub_spotify"),
@@ -101,7 +93,18 @@ abstract class BudgetDatabase : RoomDatabase() {
                 SubscriptionTagEntity(name = "Disney+", resourceKey = "sub_disney"),
                 SubscriptionTagEntity(name = "iCloud", resourceKey = "sub_icloud"),
                 SubscriptionTagEntity(name = "Google One", resourceKey = "sub_google_one"),
-                SubscriptionTagEntity(name = "ChatGPT", resourceKey = "sub_chatgpt")
+                SubscriptionTagEntity(name = "ChatGPT", resourceKey = "sub_chatgpt"),
+
+                // 生活類
+                SubscriptionTagEntity(name = "房租", resourceKey = "sub_rent"),
+                SubscriptionTagEntity(name = "電話費", resourceKey = "sub_phone"),
+                SubscriptionTagEntity(name = "網路費", resourceKey = "sub_internet"),
+                SubscriptionTagEntity(name = "水電瓦斯", resourceKey = "sub_utilities"),
+                SubscriptionTagEntity(name = "管理費", resourceKey = "sub_management_fee"),
+                SubscriptionTagEntity(name = "保險", resourceKey = "sub_insurance"),
+                SubscriptionTagEntity(name = "健身房", resourceKey = "sub_gym")
+
+
             )
             subTags.forEach { dao.insertSubTag(it) }
         }
