@@ -364,21 +364,26 @@ fun DashboardScreen(
                         WeekHeader()
                     }
 
+                    // 這裡檢查是否為空狀態
                     if (uiState.dailyStates.isEmpty() && uiState.activePlan == null) {
-                        Box(modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth(),
+                            contentAlignment = Alignment.Center
+                        ) {
                             if (uiState.viewMode == ViewMode.Focus && uiState.activePlan == null) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text(stringResource(R.string.msg_no_active_plan), color = AppTheme.colors.textSecondary)
-                                    Spacer(modifier = Modifier.height(16.dp))
-                                    Button(
-                                        onClick = { debounce { onEmptyDateClick(System.currentTimeMillis(), System.currentTimeMillis() + 86400000L * 30) } },
-                                        colors = ButtonDefaults.buttonColors(containerColor = AppTheme.colors.accent)
-                                    ) {
-                                        Text(stringResource(R.string.btn_create_plan), color = Color.White)
+                                // [修正] 使用新的 DashboardEmptyState 元件
+                                DashboardEmptyState(
+                                    onCreateClick = {
+                                        debounce {
+                                            onEmptyDateClick(
+                                                System.currentTimeMillis(),
+                                                System.currentTimeMillis() + 86400000L * 30
+                                            )
+                                        }
                                     }
-                                }
+                                )
                             } else {
                                 CircularProgressIndicator(color = AppTheme.colors.accent)
                             }
@@ -677,6 +682,87 @@ fun JapaneseDayGridItem(
                 fontSize = 10.sp,
                 color = textColor,
                 maxLines = 1
+            )
+        }
+    }
+}
+
+@Composable
+fun DashboardEmptyState(
+    onCreateClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(32.dp), // 增加邊距
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        // 1. 視覺圖示 (大圓底 + Icon)
+        Box(
+            modifier = Modifier
+                .size(120.dp)
+                .background(
+                    color = AppTheme.colors.accent.copy(alpha = 0.1f), // 淡淡的強調色背景
+                    shape = CircleShape
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.DateRange, // 使用月曆圖示
+                contentDescription = null,
+                modifier = Modifier.size(56.dp),
+                tint = AppTheme.colors.accent // 圖示使用強調色
+            )
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        // 2. 標題
+        Text(
+            text = stringResource(R.string.msg_no_active_plan),
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Bold,
+            color = AppTheme.colors.textPrimary,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // 3. 副標題 (引導文字)
+        // 這裡您可以之後抽換成 stringResource，目前先用範例文字
+        Text(
+            text = "建立您的第一個計畫\n開始追蹤每日支出與目標",
+            fontSize = 15.sp,
+            color = AppTheme.colors.textSecondary,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            lineHeight = 22.sp
+        )
+
+        Spacer(modifier = Modifier.height(40.dp))
+
+        // 4. 強化版行動按鈕
+        Button(
+            onClick = onCreateClick,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = AppTheme.colors.accent,
+                contentColor = Color.White
+            ),
+            shape = RoundedCornerShape(50), // 全圓角
+            modifier = Modifier
+                .fillMaxWidth(0.7f) // 寬度設為 70%，不要太寬
+                .height(56.dp), // 加高按鈕，更好點擊
+            elevation = ButtonDefaults.buttonElevation(
+                defaultElevation = 6.dp, // 加入陰影增加立體感
+                pressedElevation = 2.dp
+            )
+        ) {
+            Icon(Icons.Default.Add, null, modifier = Modifier.size(20.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = stringResource(R.string.btn_create_plan),
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold
             )
         }
     }
