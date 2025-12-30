@@ -50,7 +50,9 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.Calendar
-
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.ui.graphics.graphicsLayer
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun DashboardScreen(
@@ -446,52 +448,110 @@ fun DashboardScreen(
                                 userScrollEnabled = true,
                                 modifier = Modifier.fillMaxSize()
                             ){ page ->
-                                LazyVerticalGrid(
-                                    columns = GridCells.Fixed(7),
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(horizontal = 12.dp),
-                                    contentPadding = PaddingValues(bottom = 64.dp),
-                                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    itemsIndexed(
-                                        uiState.dailyStates,
-                                        key = { index, dayState ->
-                                            if (dayState.status == DayStatus.Empty) {
-                                                "empty_$index"
-                                            } else {
-                                                "${dayState.date}_${dayState.status}"
+                                // [新增] 計算這一頁 "應該" 是哪一年哪一月
+                                // 我們使用 remember 避免重複計算，但 key 設為 page 確保每頁獨立
+                                val pageTargetDate = remember(page, startCalForPager) {
+                                    (startCalForPager.clone() as Calendar).apply {
+                                        add(Calendar.MONTH, page)
+                                    }
+                                }
+                                val pageYear = pageTargetDate.get(Calendar.YEAR)
+                                val pageMonth = pageTargetDate.get(Calendar.MONTH)
+
+                                // [新增] 關鍵檢查：只有當 "頁面月份" 等於 "ViewModel 當前資料月份" 時才顯示內容
+                                // 這能防止新頁面在資料更新前，錯誤地顯示舊月份的殘影
+                                val isDataReady = pageYear == uiState.currentYear && pageMonth == uiState.currentMonth
+
+                                if (isDataReady) {
+                                    LazyVerticalGrid(
+                                        columns = GridCells.Fixed(7),
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(horizontal = 12.dp),
+                                        contentPadding = PaddingValues(bottom = 64.dp),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        itemsIndexed(
+                                            uiState.dailyStates,
+                                            key = { index, dayState ->
+                                                if (dayState.status == DayStatus.Empty) {
+                                                    "empty_$index"
+                                                } else {
+                                                    "${dayState.date}_${dayState.status}"
+                                                }
                                             }
-                                        }
-                                    ) { index, dayState ->
-                                        if (dayState.status == DayStatus.Empty) {
-                                            Box(modifier = Modifier.aspectRatio(1f))
-                                        } else {
-                                            JapaneseDayGridItem(
-                                                dayState = dayState,
-                                                showBalance = uiState.viewMode == ViewMode.Focus,
-                                                onClick = { date ->
-                                                    debounce {
-                                                        if (uiState.viewMode == ViewMode.Calendar) {
-                                                            if (dayState.baseLimit > 0 || dayState.status == DayStatus.Success || dayState.status == DayStatus.Fail) {
-                                                                viewModel.selectPlanByDate(date)
-                                                            } else {
-                                                                scope.launch {
-                                                                    val (start, end) = viewModel.calculateSmartDates(date)
-                                                                    onEmptyDateClick(start, end)
-                                                                }
-                                                            }
-                                                        } else {
-                                                            if (dayState.status != DayStatus.Neutral) {
-                                                                onDayClick(date)
-                                                            }
-                                                        }
+                                        ) { index, dayState ->
+                                            if (dayState.status == DayStatus.Empty) {
+                                                Box(modifier = Modifier.aspectRatio(1f))
+                                            } else {
+
+                                                val scale = remember(dayState.date) { Animatable(0.92f) } // 從 92% 開始，不要太小
+                                                val alpha = remember(dayState.date) { Animatable(0f) }
+
+                                                LaunchedEffect(dayState.date) {
+                                                    // 1. 強制重置狀態
+                                                    scale.snapTo(0.92f)
+                                                    alpha.snapTo(0f)
+
+                                                    // 2. 完全不加 delay，追求極速
+                                                    // 或者加上極短的 10-20ms 讓畫面緩衝一下，避免過於生硬
+                                                    //delay(10)
+
+                                                    launch {
+                                                        scale.animateTo(
+                                                            1f,
+                                                            animationSpec = tween(
+                                                                durationMillis = 250, // 稍微慢一點點的 tween，質感較好
+                                                                easing = FastOutSlowInEasing
+                                                            )
+                                                        )
+                                                    }
+                                                    launch {
+                                                        alpha.animateTo(
+                                                            1f,
+                                                            animationSpec = tween(200)
+                                                        )
                                                     }
                                                 }
-                                            )
+
+                                                Box(
+                                                    modifier = Modifier.graphicsLayer {
+                                                        scaleX = scale.value
+                                                        scaleY = scale.value
+                                                        this.alpha = alpha.value
+                                                    }
+                                                ) {
+                                                    JapaneseDayGridItem(
+                                                        dayState = dayState,
+                                                        showBalance = uiState.viewMode == ViewMode.Focus,
+                                                        onClick = { date ->
+                                                            debounce {
+                                                                if (uiState.viewMode == ViewMode.Calendar) {
+                                                                    if (dayState.baseLimit > 0 || dayState.status == DayStatus.Success || dayState.status == DayStatus.Fail) {
+                                                                        viewModel.selectPlanByDate(date)
+                                                                    } else {
+                                                                        scope.launch {
+                                                                            val (start, end) = viewModel.calculateSmartDates(date)
+                                                                            onEmptyDateClick(start, end)
+                                                                        }
+                                                                    }
+                                                                } else {
+                                                                    if (dayState.status != DayStatus.Neutral) {
+                                                                        onDayClick(date)
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    )
+                                                }
+                                            }
                                         }
                                     }
+                                } else {
+                                    // [新增] 如果資料還沒對上，顯示空白 (防止閃爍)
+                                    // 這裡也可以放一個輕量的 Loading Indicator，但空白通常視覺上更乾淨
+                                    Box(modifier = Modifier.fillMaxSize())
                                 }
                             }
 
