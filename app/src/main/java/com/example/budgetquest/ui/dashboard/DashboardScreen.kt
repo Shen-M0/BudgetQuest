@@ -243,6 +243,7 @@ fun DashboardScreen(
                 actions = {
                     val iconTint = AppTheme.colors.textSecondary
                     if (uiState.viewMode == ViewMode.Focus) {
+                        // [切換模式按鈕] 無論是否空狀態都顯示，保持位置固定
                         IconButton(
                             onClick = { debounce { viewModel.toggleViewMode() } },
                             modifier = Modifier.onGloballyPositioned { focusToggleBtnCoords = it }
@@ -250,19 +251,20 @@ fun DashboardScreen(
                             Icon(Icons.Default.DateRange,
                                 stringResource(R.string.action_switch_to_calendar), tint = iconTint)
                         }
-                        IconButton(
-                            onClick = {
-                                debounce {
-                                    val plan = uiState.activePlan
-                                    if (plan != null) onSubscriptionClick(plan.id, plan.startDate, plan.endDate)
-                                }
-                            },
-                            modifier = Modifier.onGloballyPositioned { subBtnCoords = it }
-                        ) {
-                            Icon(Icons.Default.Star,
-                                stringResource(R.string.action_subscribe), tint = iconTint)
-                        }
+
                         if (uiState.activePlan != null) {
+                            // [有計畫] 顯示正常按鈕群：訂閱、編輯、列表
+                            IconButton(
+                                onClick = {
+                                    debounce {
+                                        val plan = uiState.activePlan
+                                        if (plan != null) onSubscriptionClick(plan.id, plan.startDate, plan.endDate)
+                                    }
+                                },
+                                modifier = Modifier.onGloballyPositioned { subBtnCoords = it }
+                            ) {
+                                Icon(Icons.Default.Star, stringResource(R.string.action_subscribe), tint = iconTint)
+                            }
                             IconButton(
                                 onClick = { debounce { onEditPlanClick(uiState.activePlan?.id) } },
                                 modifier = Modifier.onGloballyPositioned { editBtnCoords = it }
@@ -274,6 +276,27 @@ fun DashboardScreen(
                                 modifier = Modifier.onGloballyPositioned { listBtnCoords = it }
                             ) {
                                 Icon(Icons.AutoMirrored.Filled.List, stringResource(R.string.action_view_list), tint = iconTint)
+                            }
+                        } else {
+                            // [空狀態] 為了美觀與對齊，顯示 歷史紀錄、裝飾Icon、設定
+                            // 1. 歷史紀錄 (實用功能)
+                            IconButton(
+                                onClick = { debounce { onHistoryClick() } }
+                            ) {
+                                Icon(Icons.Default.History, stringResource(R.string.action_view_history), tint = iconTint)
+                            }
+                            // 2. 裝飾性圖示 (美化用，淡淡的顏色)
+                            IconButton(
+                                onClick = {},
+                                enabled = false
+                            ) {
+                                Icon(Icons.Default.Favorite, null, tint = AppTheme.colors.accent.copy(alpha = 0.3f))
+                            }
+                            // 3. 設定 (實用功能)
+                            IconButton(
+                                onClick = { debounce { onSettingsClick() } }
+                            ) {
+                                Icon(Icons.Default.Settings, stringResource(R.string.action_settings), tint = iconTint)
                             }
                         }
                     } else {
@@ -309,23 +332,26 @@ fun DashboardScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = {
-                    debounce {
-                        val targetDate = if (uiState.activePlan != null && uiState.isExpired) {
-                            uiState.activePlan!!.startDate
-                        } else {
-                            System.currentTimeMillis()
+            // [修正] 只有在「有進行中計畫」時才顯示新增消費的 FAB
+            if (uiState.activePlan != null) {
+                FloatingActionButton(
+                    onClick = {
+                        debounce {
+                            val targetDate = if (uiState.activePlan != null && uiState.isExpired) {
+                                uiState.activePlan!!.startDate
+                            } else {
+                                System.currentTimeMillis()
+                            }
+                            onAddExpenseClick(targetDate)
                         }
-                        onAddExpenseClick(targetDate)
-                    }
-                },
-                containerColor = AppTheme.colors.accent,
-                contentColor = Color.White,
-                shape = CircleShape,
-                modifier = Modifier.onGloballyPositioned { fabCoords = it }
-            ) {
-                Icon(Icons.Default.Add, null)
+                    },
+                    containerColor = AppTheme.colors.accent,
+                    contentColor = Color.White,
+                    shape = CircleShape,
+                    modifier = Modifier.onGloballyPositioned { fabCoords = it }
+                ) {
+                    Icon(Icons.Default.Add, null)
+                }
             }
         }
     ) { innerPadding ->
@@ -373,7 +399,7 @@ fun DashboardScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             if (uiState.viewMode == ViewMode.Focus && uiState.activePlan == null) {
-                                // [修正] 使用新的 DashboardEmptyState 元件
+                                // 使用專用的 DashboardEmptyState
                                 DashboardEmptyState(
                                     onCreateClick = {
                                         debounce {

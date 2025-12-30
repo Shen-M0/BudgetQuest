@@ -127,11 +127,13 @@ class DashboardViewModel(
         val year = calState.year
         val month = calState.month
 
+        // [關鍵修正] 修改這裡的邏輯
         val dailyStates = if (mode == ViewMode.Focus) {
             if (activePlan != null) {
                 generateFocusModeDays(activePlan, expenses, year, month)
             } else {
-                generateEmptyCalendarDays(year, month)
+                // ✅ 修正：直接回傳空列表，讓 UI 層的 isEmpty() 判斷生效，進而顯示空狀態頁面
+                emptyList()
             }
         } else {
             generateCalendarModeDays(year, month, allPlans, expenses)
