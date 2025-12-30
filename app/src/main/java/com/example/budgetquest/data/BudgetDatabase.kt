@@ -84,8 +84,24 @@ abstract class BudgetDatabase : RoomDatabase() {
 
             // 訂閱標籤 (可選，邏輯相同)
             val subTags = listOf(
-                SubscriptionTagEntity(name = "Netflix", resourceKey = null), // 範例
-                SubscriptionTagEntity(name = "Spotify", resourceKey = null)
+                // 生活類
+                SubscriptionTagEntity(name = "房租", resourceKey = "sub_rent"),
+                SubscriptionTagEntity(name = "電話費", resourceKey = "sub_phone"),
+                SubscriptionTagEntity(name = "網路費", resourceKey = "sub_internet"),
+                SubscriptionTagEntity(name = "水電瓦斯", resourceKey = "sub_utilities"),
+                SubscriptionTagEntity(name = "管理費", resourceKey = "sub_management_fee"),
+                SubscriptionTagEntity(name = "保險", resourceKey = "sub_insurance"),
+                SubscriptionTagEntity(name = "健身房", resourceKey = "sub_gym"),
+
+                // 數位服務類 (雖然大多是英文，但設定 resourceKey 可讓日文版顯示片假名，或未來方便修改)
+                SubscriptionTagEntity(name = "Netflix", resourceKey = "sub_netflix"),
+                SubscriptionTagEntity(name = "Spotify", resourceKey = "sub_spotify"),
+                SubscriptionTagEntity(name = "YouTube Premium", resourceKey = "sub_youtube_premium"),
+                SubscriptionTagEntity(name = "YouTube Music", resourceKey = "sub_youtube_music"),
+                SubscriptionTagEntity(name = "Disney+", resourceKey = "sub_disney"),
+                SubscriptionTagEntity(name = "iCloud", resourceKey = "sub_icloud"),
+                SubscriptionTagEntity(name = "Google One", resourceKey = "sub_google_one"),
+                SubscriptionTagEntity(name = "ChatGPT", resourceKey = "sub_chatgpt")
             )
             subTags.forEach { dao.insertSubTag(it) }
         }

@@ -48,7 +48,7 @@ class SubscriptionViewModel(private val repository: BudgetRepository) : ViewMode
 
             amount = "",
             note = "",
-            category = "娛樂",
+            category = "",
             frequency = "MONTH",
             customDays = "30"
         )
@@ -184,7 +184,7 @@ class SubscriptionViewModel(private val repository: BudgetRepository) : ViewMode
 data class SubscriptionUiState(
     val amount: String = "",
     val note: String = "",
-    val category: String = "娛樂",
+    val category: String = "",
     val startDate: Long = System.currentTimeMillis(),
     val frequency: String = "MONTH",
     val customDays: String = "30",

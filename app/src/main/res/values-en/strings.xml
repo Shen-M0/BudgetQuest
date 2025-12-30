@@ -218,4 +218,22 @@
     <string name="note_game">Game</string>
     <string name="note_daily_use">Daily Needs</string>
 
+    <string name="msg_empty_state_subtitle">Create your first plan\nStart tracking daily expenses and goals</string>
+
+    <string name="sub_rent">Rent</string>
+    <string name="sub_phone">Phone Bill</string>
+    <string name="sub_internet">Internet</string>
+    <string name="sub_utilities">Utilities</string>
+    <string name="sub_management_fee">HOA Fee</string>
+    <string name="sub_insurance">Insurance</string>
+    <string name="sub_gym">Gym</string>
+    <string name="sub_netflix">Netflix</string>
+    <string name="sub_spotify">Spotify</string>
+    <string name="sub_youtube_premium">YouTube Premium</string>
+    <string name="sub_youtube_music">YouTube Music</string>
+    <string name="sub_disney">Disney+</string>
+    <string name="sub_icloud">iCloud</string>
+    <string name="sub_google_one">Google One</string>
+    <string name="sub_chatgpt">ChatGPT</string>
+
 </resources>

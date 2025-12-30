@@ -260,6 +260,22 @@
     <string name="note_movie">電影</string>
     <string name="note_game">遊戲</string>
     <string name="note_daily_use">日用品</string>
+    <string name="msg_empty_state_subtitle">建立您的第一個計畫\n開始追蹤每日支出與目標</string>
 
+    <string name="sub_rent">房租</string>
+    <string name="sub_phone">電話費</string>
+    <string name="sub_internet">網路費</string>
+    <string name="sub_utilities">水電瓦斯</string>
+    <string name="sub_management_fee">管理費</string>
+    <string name="sub_insurance">保險</string>
+    <string name="sub_gym">健身房</string>
+    <string name="sub_netflix">Netflix</string>
+    <string name="sub_spotify">Spotify</string>
+    <string name="sub_youtube_premium">YouTube Premium</string>
+    <string name="sub_youtube_music">YouTube Music</string>
+    <string name="sub_disney">Disney+</string>
+    <string name="sub_icloud">iCloud</string>
+    <string name="sub_google_one">Google One</string>
+    <string name="sub_chatgpt">ChatGPT</string>
 
 </resources>

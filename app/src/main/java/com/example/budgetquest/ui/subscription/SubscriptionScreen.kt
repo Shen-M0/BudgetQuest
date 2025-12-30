@@ -193,12 +193,17 @@ fun SubscriptionScreen(
 
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(subTags, key = { it.id }) { tag ->
-                            // [套用 Helper] 智慧備註名稱 (Tag)
+                            // [關鍵修正] 使用 getSmartTagName 並傳入 resourceKey
+                            // 這樣會自動去 strings.xml 抓對應語言的字串
+                            val displayName = getSmartTagName(tag.name, tag.resourceKey)
+
                             JapaneseCompactChip(
-                                label = getSmartTagName(tag.name),
-                                selected = uiState.note == tag.name
+                                label = displayName,
+                                // 比對時使用顯示名稱，確保選中狀態正確
+                                selected = uiState.note == displayName
                             ) {
-                                viewModel.updateUiState(note = tag.name)
+                                // 點擊時，將在地化後的名稱填入輸入框
+                                viewModel.updateUiState(note = displayName)
                             }
                         }
                         item { EditButton { debounce { showSubTagManager = true } } }

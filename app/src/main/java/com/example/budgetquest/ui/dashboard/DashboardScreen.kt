@@ -285,12 +285,12 @@ fun DashboardScreen(
                             ) {
                                 Icon(Icons.Default.History, stringResource(R.string.action_view_history), tint = iconTint)
                             }
-                            // 2. 裝飾性圖示 (美化用，淡淡的顏色)
+
+                            // 2. [修改] 將原本的裝飾圖示，換成 "新增計畫" 按鈕
                             IconButton(
-                                onClick = {},
-                                enabled = false
+                                onClick = { debounce { onEditPlanClick(null) } } // null 代表新增
                             ) {
-                                Icon(Icons.Default.Favorite, null, tint = AppTheme.colors.accent.copy(alpha = 0.3f))
+                                Icon(Icons.Default.Add, stringResource(R.string.action_add_plan), tint = iconTint)
                             }
                             // 3. 設定 (實用功能)
                             IconButton(
@@ -403,10 +403,9 @@ fun DashboardScreen(
                                 DashboardEmptyState(
                                     onCreateClick = {
                                         debounce {
-                                            onEmptyDateClick(
-                                                System.currentTimeMillis(),
-                                                System.currentTimeMillis() + 86400000L * 30
-                                            )
+                                            // 改為傳入 -1L，告訴系統 "我沒有指定日期"
+                                            // 這樣 PlanViewModel.initDates 就會自動計算 "今天" 到 "本月最後一天"
+                                            onEmptyDateClick(-1L, -1L)
                                         }
                                     }
                                 )
@@ -758,7 +757,7 @@ fun DashboardEmptyState(
         // 3. 副標題 (引導文字)
         // 這裡您可以之後抽換成 stringResource，目前先用範例文字
         Text(
-            text = "建立您的第一個計畫\n開始追蹤每日支出與目標",
+            text = stringResource(R.string.msg_empty_state_subtitle),
             fontSize = 15.sp,
             color = AppTheme.colors.textSecondary,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,

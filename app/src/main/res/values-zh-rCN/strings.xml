@@ -218,4 +218,23 @@
     <string name="note_game">游戏</string>
     <string name="note_daily_use">日用品</string>
 
+    <string name="msg_empty_state_subtitle">建立您的第一个计划\n开始追踪每日支出与目标</string>
+
+    <string name="sub_rent">房租</string>
+    <string name="sub_phone">话费</string>
+    <string name="sub_internet">网费</string>
+    <string name="sub_utilities">水电煤</string>
+    <string name="sub_management_fee">物业费</string>
+    <string name="sub_insurance">保险</string>
+    <string name="sub_gym">健身房</string>
+    <string name="sub_netflix">Netflix</string>
+    <string name="sub_spotify">Spotify</string>
+    <string name="sub_youtube_premium">YouTube Premium</string>
+    <string name="sub_youtube_music">YouTube Music</string>
+    <string name="sub_disney">Disney+</string>
+    <string name="sub_icloud">iCloud</string>
+    <string name="sub_google_one">Google One</string>
+    <string name="sub_chatgpt">ChatGPT</string>
+
+
 </resources>
