@@ -403,7 +403,7 @@ fun JapaneseExpenseItem(expense: ExpenseEntity, onDelete: () -> Unit) {
                 )
             }
             Spacer(modifier = Modifier.height(4.dp))
-            Text(text = expense.note, color = AppTheme.colors.textPrimary, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(text = getSmartTagName(expense.note), color = AppTheme.colors.textPrimary, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         Spacer(modifier = Modifier.width(8.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {

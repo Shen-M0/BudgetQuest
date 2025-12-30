@@ -56,6 +56,9 @@ import com.example.budgetquest.ui.theme.AppTheme
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.example.budgetquest.ui.common.getSmartCategoryName // [需確認有引用]
+import com.example.budgetquest.ui.common.getSmartTagName // [需確認有引用]
+import androidx.compose.ui.text.style.TextOverflow // [補上遺漏的 import]
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -208,14 +211,21 @@ fun JapaneseDetailItem(
             Box(modifier = Modifier.size(10.dp).background(getCategoryColorDot(expense.category), CircleShape))
             Spacer(modifier = Modifier.width(16.dp))
             Column {
-                Text(expense.category, color = AppTheme.colors.textSecondary, fontSize = 11.sp)
-                Spacer(modifier = Modifier.height(2.dp))
+                // [關鍵修改] 套用多語言 Helper：分類名稱
                 Text(
-                    expense.note,
+                    text = getSmartCategoryName(expense.category),
+                    color = AppTheme.colors.textSecondary,
+                    fontSize = 11.sp
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                // [關鍵修改] 套用多語言 Helper：備註名稱
+                Text(
+                    text = getSmartTagName(expense.note),
                     color = AppTheme.colors.textPrimary,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Medium,
-                    maxLines = 1
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }

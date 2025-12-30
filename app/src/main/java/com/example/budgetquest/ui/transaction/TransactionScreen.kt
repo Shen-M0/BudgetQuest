@@ -235,8 +235,17 @@ fun TransactionScreen(
 
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(tags, key = { it.id }) { tag ->
-                            // [套用 Helper] 智慧備註名稱
-                            JapaneseCompactChip(getSmartTagName(tag.name, tag.resourceKey), uiState.note == tag.name) { viewModel.updateNote(tag.name) }
+                            // [關鍵修改] 讓備註標籤也顯示智慧名稱 (多語言)
+                            val displayName = getSmartTagName(tag.name, tag.resourceKey)
+
+                            JapaneseCompactChip(
+                                label = displayName,
+                                // 選中判斷改為比對 displayName，這樣即使語言切換也能保持選中狀態
+                                selected = uiState.note == displayName
+                            ) {
+                                // 點擊時填入翻譯後的名稱，這會讓輸入框也顯示翻譯後的文字
+                                viewModel.updateNote(displayName)
+                            }
                         }
                         item {
                             EditButton { debounce { showTagManager = true } }

@@ -69,10 +69,10 @@ abstract class BudgetDatabase : RoomDatabase() {
 
             // 備註
             val tags = listOf(
+                TagEntity(name = "早餐", resourceKey = "note_breakfast"),
                 TagEntity(name = "午餐", resourceKey = "note_lunch"),
                 TagEntity(name = "晚餐", resourceKey = "note_dinner"),
                 TagEntity(name = "飲料", resourceKey = "note_drink"),
-                TagEntity(name = "早餐", resourceKey = "note_breakfast"),
                 TagEntity(name = "公車", resourceKey = "note_bus"),
                 TagEntity(name = "捷運", resourceKey = "note_mrt"),
                 TagEntity(name = "加油", resourceKey = "note_gas"),
