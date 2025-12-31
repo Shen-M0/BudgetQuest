@@ -110,7 +110,7 @@
     <string name="label_daily_available">每日可用</string>
     <string name="label_advanced_options">进阶选项</string>
     <string name="dialog_title_delete_plan">删除计划</string>
-    <string name="dialog_msg_delete_plan">确定要删除此计划吗？删除后无法恢复。</string>
+    <string name="dialog_msg_delete_plan">确定要删除此计划吗？此操作无法恢复。\n\n注意：删除计划“不会”清空期间内的消费记录。若要删除记录，请使用“清空计划内消费记录”功能。</string>
     <string name="format_currency">$ %d</string>
     <string name="format_date_short">MM/dd</string>
     <string name="error_empty_plan_fields">请输入计划名称与预算</string>
@@ -235,6 +235,16 @@
     <string name="sub_icloud">iCloud</string>
     <string name="sub_google_one">Google One</string>
     <string name="sub_chatgpt">ChatGPT</string>
+
+    <string name="btn_clear_expenses">清空计划内消费记录</string>
+    <string name="dialog_title_clear_expenses">清空消费记录</string>
+    <string name="dialog_msg_clear_expenses">此操作将永久删除此计划日期范围内的所有记账数据，且无法恢复。\n\n确定要执行吗？</string>
+
+    <string name="error_msg_amount">请填入金额</string>
+    <string name="error_msg_category">请选择分类</string>
+    <string name="error_msg_note">请输入备注</string>
+    <string name="error_msg_sub">请输入名称</string>
+    <string name="label_total">总计</string>
 
 
 </resources>

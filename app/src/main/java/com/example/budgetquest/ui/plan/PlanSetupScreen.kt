@@ -64,6 +64,8 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import androidx.compose.material.icons.filled.Refresh // [新增] 用於清空帳目的圖示
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -79,6 +81,8 @@ fun PlanSetupScreen(
     viewModel: PlanViewModel = viewModel(factory = AppViewModelProvider.Factory)
 ) {
 
+    // [新增] 清空帳目的確認框狀態
+    var showDeleteExpensesConfirmation by remember { mutableStateOf(false) }
     // [修正 1] 補上這行狀態宣告，紅色錯誤就會消失
     var showDeleteDialog by remember { mutableStateOf(false) }
 
@@ -127,35 +131,31 @@ fun PlanSetupScreen(
     }
 
     var isDeleteExpanded by remember { mutableStateOf(false) }
+    // 刪除計畫的確認框狀態
     var showDeleteConfirmation by remember { mutableStateOf(false) }
 
+
+    // [原本的] 刪除計畫 Dialog
     if (showDeleteConfirmation) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirmation = false },
-            // [提取] 刪除對話框標題
             title = { Text(stringResource(R.string.dialog_title_delete_plan)) },
-            // [提取] 刪除對話框內容
             text = { Text(stringResource(R.string.dialog_msg_delete_plan)) },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        // [關鍵修改] 刪除前，先記下當前計畫的開始日期
                         val targetDate = viewModel.planUiState.startDate
-
                         viewModel.deletePlan {
-                            showDeleteDialog = false
-                            // [關鍵修改] 將日期傳出去給 MainActivity
+                            showDeleteConfirmation = false
                             onDeleteClick(targetDate)
                         }
                     },
                     colors = ButtonDefaults.textButtonColors(contentColor = AppTheme.colors.fail)
                 ) {
-                    // [提取] 刪除按鈕 (共用 action_delete)
                     Text(stringResource(R.string.action_delete))
                 }
             },
             dismissButton = {
-                // [提取] 取消按鈕 (共用 action_cancel)
                 TextButton(onClick = { showDeleteConfirmation = false }) { Text(stringResource(R.string.action_cancel)) }
             },
             containerColor = AppTheme.colors.surface,
@@ -163,6 +163,36 @@ fun PlanSetupScreen(
             textContentColor = AppTheme.colors.textSecondary
         )
     }
+
+    // [新增] 清空帳目 Dialog
+    if (showDeleteExpensesConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showDeleteExpensesConfirmation = false },
+            // 這裡建議在 strings.xml 新增: dialog_title_clear_expenses
+            title = { Text(stringResource(R.string.dialog_title_clear_expenses)) },
+            // 這裡建議在 strings.xml 新增: dialog_msg_clear_expenses
+            text = { Text(stringResource(R.string.dialog_msg_clear_expenses)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        // [注意] 您需要在 PlanViewModel 中實作 clearPlanExpenses 函式
+                        viewModel.clearPlanExpenses()
+                        showDeleteExpensesConfirmation = false
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = AppTheme.colors.fail)
+                ) {
+                    Text(stringResource(R.string.action_delete))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteExpensesConfirmation = false }) { Text(stringResource(R.string.action_cancel)) }
+            },
+            containerColor = AppTheme.colors.surface,
+            titleContentColor = AppTheme.colors.textPrimary,
+            textContentColor = AppTheme.colors.textSecondary
+        )
+    }
+
 
     LaunchedEffect(planId, initialStartDate, initialEndDate) {
         if (planId != null && planId != -1) {
@@ -279,7 +309,9 @@ fun PlanSetupScreen(
                 elevation = CardDefaults.cardElevation(0.dp)
             ) {
                 Row(
-                    modifier = Modifier.padding(24.dp).fillMaxWidth(),
+                    modifier = Modifier
+                        .padding(24.dp)
+                        .fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -330,6 +362,27 @@ fun PlanSetupScreen(
 
                         AnimatedVisibility(visible = isDeleteExpanded) {
                             Column(modifier = Modifier.padding(top = 16.dp)) {
+                                // [新增] 清空帳目按鈕 (放在上方，作為次級破壞操作)
+                                Button(
+                                    onClick = { debounce { showDeleteExpensesConfirmation = true } },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = AppTheme.colors.fail.copy(alpha = 0.1f),
+                                        contentColor = AppTheme.colors.fail
+                                    ),
+                                    shape = RoundedCornerShape(12.dp),
+                                    elevation = ButtonDefaults.buttonElevation(0.dp)
+                                ) {
+                                    // 使用 Refresh 或 DeleteSweep 圖示代表「重置/清空」
+                                    Icon(Icons.Default.Refresh, null, modifier = Modifier.size(18.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    // 建議新增字串資源: btn_clear_expenses
+                                    Text(stringResource(R.string.btn_clear_expenses))
+                                }
+
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                // [原本的] 刪除計畫按鈕 (放在最底部，作為最終破壞操作)
                                 Button(
                                     onClick = { debounce { showDeleteConfirmation = true } },
                                     modifier = Modifier.fillMaxWidth(),
@@ -342,7 +395,6 @@ fun PlanSetupScreen(
                                 ) {
                                     Icon(Icons.Default.Delete, null, modifier = Modifier.size(18.dp))
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    // [提取] 刪除此計畫按鈕
                                     Text(stringResource(R.string.btn_delete_plan))
                                 }
                             }
@@ -361,7 +413,9 @@ fun PlanSetupScreen(
                         })
                     }
                 },
-                modifier = Modifier.fillMaxWidth().height(56.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = AppTheme.colors.accent)
             ) {
@@ -408,7 +462,9 @@ fun JapaneseDateCard(label: String, date: Long, onClick: () -> Unit, modifier: M
         modifier = modifier.clickable { onClick() }
     ) {
         Column(
-            modifier = Modifier.padding(vertical = 24.dp).fillMaxWidth(),
+            modifier = Modifier
+                .padding(vertical = 24.dp)
+                .fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(label, fontSize = 12.sp, color = AppTheme.colors.textSecondary)

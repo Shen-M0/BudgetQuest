@@ -53,6 +53,7 @@ import java.util.Calendar
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.ui.graphics.graphicsLayer
+import com.example.budgetquest.ui.common.AuroraBackground // [新增]
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun DashboardScreen(
@@ -701,6 +702,7 @@ fun DashboardStatusCard(todayAvailable: Int, isExpired: Boolean) {
             modifier = Modifier.padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+
             Text(
                 if (isExpired) stringResource(R.string.label_plan_balance) else stringResource(R.string.label_available_today),
                 fontSize = 14.sp,

@@ -134,5 +134,9 @@ interface BudgetDao {
     @Delete
     suspend fun deletePlan(plan: PlanEntity)
 
+    // [新增] 依據日期範圍刪除消費紀錄 (給 "清空帳目" 功能用)
+    @Query("DELETE FROM expense_table WHERE date >= :start AND date <= :end")
+    suspend fun deleteExpensesByRange(start: Long, end: Long)
+
 
 }

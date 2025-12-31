@@ -57,6 +57,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PaintingStyle.Companion.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -80,7 +81,9 @@ import com.example.budgetquest.ui.transaction.TagManagerDialog
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-
+import androidx.compose.ui.graphics.drawscope.Stroke // [新增] 用於繪製空心圓環
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SummaryScreen(
@@ -450,25 +453,100 @@ private fun getCategoryColorDot(category: String): Color {
 @Composable
 fun PieChart(data: List<CategoryStat>, modifier: Modifier = Modifier) {
     val total = data.sumOf { it.totalAmount }
+
+    // [新增] 百分比校正邏輯 🧮
+    // 1. 先計算每個項目的基礎百分比 (無條件捨去)
+    val rawPercentages = remember(data, total) {
+        data.map {
+            if (total > 0) (it.totalAmount.toFloat() / total * 100).toInt() else 0
+        }.toMutableList()
+    }
+
+    // 2. 檢查總和是否為 100
+    val sumPercentage = remember(rawPercentages) { rawPercentages.sum() }
+
+    // 3. 如果有少 (例如 99%)，加到金額最大的那一項
+    // 使用 remember 確保只在資料變動時重新計算
+    val correctedPercentages = remember(data, rawPercentages, sumPercentage) {
+        val diff = 100 - sumPercentage
+        if (diff > 0 && total > 0) {
+            // 找到金額最大的分類索引
+            val maxIndex = data.indices.maxByOrNull { data[it].totalAmount } ?: 0
+            rawPercentages[maxIndex] += diff
+        }
+        rawPercentages
+    }
+
     Row(modifier = modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-            Canvas(modifier = Modifier.size(150.dp)) {
+        // 左側：甜甜圈圖表
+        Box(
+            modifier = Modifier.weight(1f),
+            contentAlignment = Alignment.Center
+        ) {
+            Canvas(modifier = Modifier.size(160.dp)) {
+                val strokeWidth = 25.dp.toPx()
+                val gapAngle = if (data.size > 1) 3f else 0f
+
+                val innerRadius = (size.minDimension - strokeWidth) / 2
+                val halfSize = size / 2.0f
+                val topLeft = Offset(halfSize.width - innerRadius, halfSize.height - innerRadius)
+                val sizeObj = Size(innerRadius * 2, innerRadius * 2)
+
                 var startAngle = -90f
+
                 data.forEach { stat ->
                     val sweepAngle = (stat.totalAmount.toFloat() / total) * 360f
-                    drawArc(color = stat.color, startAngle = startAngle, sweepAngle = sweepAngle, useCenter = true)
+                    val adjustedSweep = if (sweepAngle > gapAngle) sweepAngle - gapAngle else sweepAngle
+
+                    drawArc(
+                        color = stat.color,
+                        startAngle = startAngle,
+                        sweepAngle = adjustedSweep,
+                        useCenter = false,
+                        topLeft = topLeft,
+                        size = sizeObj,
+                        style = Stroke(width = strokeWidth)
+                    )
                     startAngle += sweepAngle
                 }
             }
+
+            // 中間的總金額文字 (已在地化)
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    // [修改] 使用多語言資源
+                    text = stringResource(R.string.label_total),
+                    fontSize = 12.sp,
+                    color = AppTheme.colors.textSecondary
+                )
+                Text(
+                    text = "$total",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = AppTheme.colors.textPrimary
+                )
+            }
         }
-        Column(modifier = Modifier.weight(1f).padding(start = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            data.forEach { stat ->
+
+        // 右側：圖例 (使用校正後的百分比)
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            data.forEachIndexed { index, stat ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(modifier = Modifier.size(12.dp).background(stat.color, shape = CircleShape))
                     Spacer(modifier = Modifier.width(8.dp))
-                    // [套用 Helper] 圓餅圖分類顯示
                     Text(
-                        text = stringResource(R.string.format_pie_chart_legend, getSmartCategoryName(stat.name), stat.totalAmount, (stat.totalAmount.toFloat() / total * 100).toInt()),
+                        text = stringResource(
+                            R.string.format_pie_chart_legend,
+                            getSmartCategoryName(stat.name),
+                            stat.totalAmount,
+                            // [修改] 使用校正後的百分比陣列
+                            correctedPercentages.getOrElse(index) { 0 }
+                        ),
                         style = MaterialTheme.typography.bodyMedium.copy(color = AppTheme.colors.textPrimary)
                     )
                 }

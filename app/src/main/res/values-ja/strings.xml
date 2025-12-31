@@ -110,7 +110,7 @@
     <string name="label_daily_available">1日の予算</string>
     <string name="label_advanced_options">詳細設定</string>
     <string name="dialog_title_delete_plan">計画削除</string>
-    <string name="dialog_msg_delete_plan">削除してもよろしいですか？元に戻せません。</string>
+    <string name="dialog_msg_delete_plan">この計画を削除してもよろしいですか？この操作は元に戻せません。\n\n注意：計画を削除しても、期間内の記録は「削除されません」。記録を削除するには、「計画内の記録を消去」機能を使用してください。</string>
     <string name="format_currency">$ %d</string>
     <string name="format_date_short">MM/dd</string>
     <string name="error_empty_plan_fields">名前と予算を入力してください</string>
@@ -235,6 +235,15 @@
     <string name="sub_icloud">iCloud</string>
     <string name="sub_google_one">Google One</string>
     <string name="sub_chatgpt">ChatGPT</string>
+    <string name="btn_clear_expenses">計画内の記録を消去</string>
+    <string name="dialog_title_clear_expenses">記録を消去</string>
+    <string name="dialog_msg_clear_expenses">この操作は、計画期間内のすべての家計簿データを完全に削除します。元に戻すことはできません。\n\n実行してもよろしいですか？</string>
+
+    <string name="error_msg_amount">金額を入力してください</string>
+    <string name="error_msg_category">カテゴリを選択してください</string>
+    <string name="error_msg_note">メモを入力してください</string>
+    <string name="error_msg_sub">名前を入力してください</string>
+    <string name="label_total">合計</string>
 
 
 </resources>

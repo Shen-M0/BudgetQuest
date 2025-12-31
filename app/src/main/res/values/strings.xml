@@ -191,7 +191,7 @@
     <string name="label_advanced_options">進階選項</string>
 
     <string name="dialog_title_delete_plan">刪除計畫</string>
-    <string name="dialog_msg_delete_plan">確定要刪除此計畫嗎？刪除後無法復原。</string>
+    <string name="dialog_msg_delete_plan">確定要刪除此計畫嗎？此動作無法復原。\n\n注意：刪除計畫「不會」清空期間內的消費紀錄。若要刪除紀錄，請使用「清空計畫內消費紀錄」功能。</string>
     <string name="action_delete">刪除</string>
 
     <string name="format_currency">$ %d</string>
@@ -277,5 +277,14 @@
     <string name="sub_icloud">iCloud</string>
     <string name="sub_google_one">Google One</string>
     <string name="sub_chatgpt">ChatGPT</string>
+    <string name="dialog_title_clear_expenses">清空消費紀錄</string>
+    <string name="dialog_msg_clear_expenses">此動作將永久刪除此計畫日期範圍內的所有記帳資料，且無法復原。\n\n確定要執行嗎？</string>
+    <string name="btn_clear_expenses">清空計畫內消費紀錄</string>
+
+    <string name="error_msg_amount">請填入金額</string>
+    <string name="error_msg_category">請選擇分類</string>
+    <string name="error_msg_note">請輸入備註</string>
+    <string name="error_msg_sub">請輸入名稱</string>
+    <string name="label_total">總計</string>
 
 </resources>

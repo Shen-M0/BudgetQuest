@@ -56,7 +56,8 @@ interface BudgetRepository {
     // 在 BudgetRepository 介面中加入
     suspend fun deletePlan(plan: PlanEntity)
 
-
+    // [新增] 定義介面
+    suspend fun deleteExpensesByRange(start: Long, end: Long)
 
 }
 
@@ -200,6 +201,9 @@ class OfflineBudgetRepository(private val budgetDao: BudgetDao) : BudgetReposito
     // 在 OfflineBudgetRepository 類別中加入
     override suspend fun deletePlan(plan: PlanEntity) = budgetDao.deletePlan(plan)
 
-
+    // [新增] 實作功能
+    override suspend fun deleteExpensesByRange(start: Long, end: Long) = withContext(Dispatchers.IO) {
+        budgetDao.deleteExpensesByRange(start, end)
+    }
 
 }

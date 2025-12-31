@@ -177,4 +177,19 @@ class PlanViewModel(private val repository: BudgetRepository) : ViewModel() {
             }
         }
     }
+
+    // [新增] 清空目前計畫範圍內的所有消費紀錄
+    fun clearPlanExpenses() {
+        val start = planUiState.startDate
+        val end = planUiState.endDate
+
+        viewModelScope.launch {
+            repository.deleteExpensesByRange(start, end)
+            // 這裡不需要額外的 onSuccess callback，因為刪除後 UI 不會跳轉
+            // 且因為 Repository 使用 Flow，相關的觀察者 (如月曆頁面) 會自動更新
+        }
+    }
+
+
+
 }

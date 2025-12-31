@@ -10,7 +10,7 @@ import com.example.budgetquest.ui.plan.PlanViewModel
 import com.example.budgetquest.ui.subscription.SubscriptionViewModel
 import com.example.budgetquest.ui.summary.SummaryViewModel
 import com.example.budgetquest.ui.transaction.TransactionViewModel
-import com.example.budgetquest.ui.history.PlanHistoryViewModel // [新增 import]
+import com.example.budgetquest.ui.history.PlanHistoryViewModel
 import com.example.budgetquest.ui.transaction.DailyDetailViewModel
 
 object AppViewModelProvider {

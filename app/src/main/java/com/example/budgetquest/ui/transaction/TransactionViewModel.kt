@@ -2,6 +2,7 @@ package com.example.budgetquest.ui.transaction
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.budgetquest.R
 import com.example.budgetquest.data.BudgetRepository
 import com.example.budgetquest.data.CategoryEntity
 import com.example.budgetquest.data.ExpenseEntity
@@ -14,8 +15,10 @@ data class TransactionUiState(
     val id: Long = 0,
     val amount: String = "",
     val note: String = "",
-    val category: String = "飲食", // 預設分類
-    val date: Long = System.currentTimeMillis()
+    val category: String = "", // 預設分類
+    val date: Long = System.currentTimeMillis(),
+    // [新增] 錯誤訊息 ID
+    val errorMessageId: Int? = null
 )
 
 class TransactionViewModel(private val repository: BudgetRepository) : ViewModel() {
@@ -42,10 +45,15 @@ class TransactionViewModel(private val repository: BudgetRepository) : ViewModel
 
     // --- 表單操作 ---
 
+    // [新增] 清除錯誤訊息的輔助函式
+    fun clearError() {
+        _uiState.update { it.copy(errorMessageId = null) }
+    }
+
     fun updateAmount(newAmount: String) {
-        // 只允許輸入數字
         if (newAmount.all { it.isDigit() }) {
-            _uiState.update { it.copy(amount = newAmount) }
+            // [修改] 輸入時同時清除錯誤
+            _uiState.update { it.copy(amount = newAmount, errorMessageId = null) }
         }
     }
 
@@ -83,13 +91,28 @@ class TransactionViewModel(private val repository: BudgetRepository) : ViewModel
         }
     }
 
-    // [關鍵修正] 接收 onSuccess callback
+    // [修改] 新增防呆驗證邏輯
     fun saveExpense(onSuccess: () -> Unit) {
         val state = _uiState.value
         val amountInt = state.amount.toIntOrNull() ?: 0
 
-        // 簡單驗證：金額必須大於 0
-        if (amountInt <= 0) return
+        // 1. 檢查金額
+        if (amountInt <= 0) {
+            _uiState.update { it.copy(errorMessageId = R.string.error_msg_amount) }
+            return
+        }
+
+        // 2. 檢查分類 (因為取消了預設值，這裡必須檢查)
+        if (state.category.isBlank()) {
+            _uiState.update { it.copy(errorMessageId = R.string.error_msg_category) }
+            return
+        }
+
+        // 3. 檢查備註
+        if (state.note.isBlank()) {
+            _uiState.update { it.copy(errorMessageId = R.string.error_msg_note) }
+            return
+        }
 
         viewModelScope.launch {
             val expense = ExpenseEntity(
@@ -98,7 +121,6 @@ class TransactionViewModel(private val repository: BudgetRepository) : ViewModel
                 note = state.note,
                 date = state.date,
                 category = state.category
-                // [移除] type = "EXPENSE" (您的資料庫實體中沒有這個欄位，所以刪除它)
             )
 
             if (currentEditingId == -1L) {
@@ -107,7 +129,6 @@ class TransactionViewModel(private val repository: BudgetRepository) : ViewModel
                 repository.updateExpense(expense)
             }
 
-            // 儲存完成後才執行跳轉
             onSuccess()
         }
     }

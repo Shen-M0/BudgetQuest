@@ -54,6 +54,22 @@ fun SubscriptionScreen(
     val list by viewModel.recurringList.collectAsState()
     val context = LocalContext.current
 
+    // [新增] Snackbar 狀態
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // [新增] 監聽錯誤訊息
+    LaunchedEffect(uiState.errorMessageId) {
+        uiState.errorMessageId?.let { errorId ->
+            snackbarHostState.showSnackbar(
+                message = context.getString(errorId),
+                duration = SnackbarDuration.Short
+            )
+            viewModel.clearError()
+        }
+    }
+
+
+
     val periodsMap = mapOf(
         "MONTH" to R.string.freq_month,
         "WEEK" to R.string.freq_week,
@@ -136,6 +152,19 @@ fun SubscriptionScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = AppTheme.colors.background)
+            )
+        },
+        // [新增] SnackbarHost
+        snackbarHost = {
+            SnackbarHost(
+                hostState = snackbarHostState,
+                snackbar = { data ->
+                    Snackbar(
+                        snackbarData = data,
+                        containerColor = AppTheme.colors.fail,
+                        contentColor = Color.White
+                    )
+                }
             )
         }
     ) { innerPadding ->

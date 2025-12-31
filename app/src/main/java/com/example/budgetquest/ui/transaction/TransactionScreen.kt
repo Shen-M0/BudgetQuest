@@ -32,6 +32,10 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -84,6 +88,22 @@ fun TransactionScreen(
     var showCategoryManager by remember { mutableStateOf(false) }
     var showTagManager by remember { mutableStateOf(false) }
 
+    // [新增] Snackbar 狀態
+    val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
+
+    // [新增] 監聽錯誤訊息並顯示 Snackbar
+    LaunchedEffect(uiState.errorMessageId) {
+        uiState.errorMessageId?.let { errorId ->
+            snackbarHostState.showSnackbar(
+                message = context.getString(errorId),
+                duration = SnackbarDuration.Short
+            )
+            // 顯示後清除 ViewModel 中的錯誤狀態
+            viewModel.clearError()
+        }
+    }
+
     var lastClickTime by remember { mutableLongStateOf(0L) }
     fun debounce(action: () -> Unit) {
         val now = System.currentTimeMillis()
@@ -115,7 +135,7 @@ fun TransactionScreen(
         )
     }
 
-    val context = LocalContext.current
+
     val calendar = remember { Calendar.getInstance() }
 
     LaunchedEffect(uiState.date) {
@@ -171,6 +191,19 @@ fun TransactionScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = AppTheme.colors.background)
+            )
+        },
+        // [新增] SnackbarHost
+        snackbarHost = {
+            SnackbarHost(
+                hostState = snackbarHostState,
+                snackbar = { data ->
+                    Snackbar(
+                        snackbarData = data,
+                        containerColor = AppTheme.colors.fail, // 使用錯誤色 (紅色)
+                        contentColor = Color.White
+                    )
+                }
             )
         }
     ) { innerPadding ->

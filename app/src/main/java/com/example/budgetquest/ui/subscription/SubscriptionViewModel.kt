@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.budgetquest.R
 import com.example.budgetquest.data.BudgetRepository
 import com.example.budgetquest.data.RecurringExpenseEntity
 import kotlinx.coroutines.flow.*
@@ -28,6 +29,13 @@ class SubscriptionViewModel(private val repository: BudgetRepository) : ViewMode
     var uiState by mutableStateOf(SubscriptionUiState())
         private set
 
+
+    // [新增] 清除錯誤
+    fun clearError() {
+        uiState = uiState.copy(errorMessageId = null)
+    }
+
+
     fun initialize(planId: Int, defaultDate: Long, defaultEndDate: Long) {
         _currentPlanId.value = planId
 
@@ -50,7 +58,8 @@ class SubscriptionViewModel(private val repository: BudgetRepository) : ViewMode
             note = "",
             category = "",
             frequency = "MONTH",
-            customDays = "30"
+            customDays = "30",
+            errorMessageId = null // 重置錯誤
         )
     }
 
@@ -70,59 +79,60 @@ class SubscriptionViewModel(private val repository: BudgetRepository) : ViewMode
             startDate = startDate ?: uiState.startDate,
             frequency = frequency ?: uiState.frequency,
             customDays = customDays ?: uiState.customDays,
-            endDate = if (endDate != null) endDate else uiState.endDate
+            endDate = if (endDate != null) endDate else uiState.endDate,
+            errorMessageId = null // 輸入時清除錯誤
         )
     }
 
+    // [修改] 新增防呆驗證與錯誤訊息
     fun addSubscription(onSuccess: () -> Unit) {
         val amountInt = uiState.amount.toIntOrNull()
         val customDaysInt = uiState.customDays.toIntOrNull() ?: 0
 
-        if (amountInt != null && amountInt > 0 && uiState.note.isNotBlank()) {
-            viewModelScope.launch {
+        // 1. 檢查金額
+        if (amountInt == null || amountInt <= 0) {
+            uiState = uiState.copy(errorMessageId = R.string.error_msg_amount)
+            return
+        }
 
-                // [防呆機制 1] 處理開始日期：不能早於計畫開始日
-                val safeStartDate = if (uiState.startDate < uiState.limitStartDate) {
-                    uiState.limitStartDate
-                } else {
-                    uiState.startDate
-                }
+        // 2. 檢查分類
+        if (uiState.category.isBlank()) {
+            uiState = uiState.copy(errorMessageId = R.string.error_msg_category)
+            return
+        }
 
-                // [防呆機制 2] 處理結束日期：不能晚於計畫結束日
-                // 如果用戶選 null (無限期) 或者 選的日期 > 計畫結束日 -> 強制設為計畫結束日
-                val safeEndDate = if (uiState.endDate == null || uiState.endDate!! > uiState.limitEndDate) {
-                    uiState.limitEndDate
-                } else {
-                    uiState.endDate
-                }
+        // 3. 檢查備註/名稱
+        if (uiState.note.isBlank()) {
+            uiState = uiState.copy(errorMessageId = R.string.error_msg_sub)
+            return
+        }
 
-                // 再次確認：如果校正後的開始日 > 結束日，則不儲存 (邏輯錯誤)
-                if (safeStartDate > safeEndDate!!) {
-                    // 這裡可以選擇顯示錯誤，或者直接 return，視需求而定
-                    // 目前簡單處理：不做動作
-                    return@launch
-                }
+        viewModelScope.launch {
+            val safeStartDate = if (uiState.startDate < uiState.limitStartDate) uiState.limitStartDate else uiState.startDate
+            val safeEndDate = if (uiState.endDate == null || uiState.endDate!! > uiState.limitEndDate) uiState.limitEndDate else uiState.endDate
 
-                val initialLastGenerated = calculateInitialLastGeneratedDate(safeStartDate, uiState.frequency, customDaysInt)
+            if (safeStartDate > safeEndDate!!) return@launch
 
-                repository.addRecurring(
-                    RecurringExpenseEntity(
-                        amount = amountInt,
-                        note = uiState.note,
-                        category = uiState.category,
-                        startDate = safeStartDate, // 使用校正後的日期
-                        endDate = safeEndDate,     // 使用校正後的日期
-                        frequency = uiState.frequency,
-                        customDays = customDaysInt,
-                        lastGeneratedDate = initialLastGenerated,
-                        planId = uiState.planId
-                    )
+            val initialLastGenerated = calculateInitialLastGeneratedDate(safeStartDate, uiState.frequency, customDaysInt)
+
+            repository.addRecurring(
+                RecurringExpenseEntity(
+                    amount = amountInt,
+                    note = uiState.note,
+                    category = uiState.category,
+                    startDate = safeStartDate,
+                    endDate = safeEndDate,
+                    frequency = uiState.frequency,
+                    customDays = customDaysInt,
+                    lastGeneratedDate = initialLastGenerated,
+                    planId = uiState.planId
                 )
+            )
 
-                repository.checkAndGenerateRecurringExpenses()
-                uiState = uiState.copy(amount = "", note = "")
-                onSuccess()
-            }
+            repository.checkAndGenerateRecurringExpenses()
+            // 新增成功後清除欄位與錯誤
+            uiState = uiState.copy(amount = "", note = "", errorMessageId = null)
+            onSuccess()
         }
     }
 
@@ -192,5 +202,7 @@ data class SubscriptionUiState(
     val planId: Int = -1,
     // [新增] 記錄當前計畫的邊界，用於防呆
     val limitStartDate: Long = 0L,
-    val limitEndDate: Long = Long.MAX_VALUE
+    val limitEndDate: Long = Long.MAX_VALUE,
+    val errorMessageId: Int? = null
 )
+
