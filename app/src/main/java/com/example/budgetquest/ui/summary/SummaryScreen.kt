@@ -71,8 +71,8 @@ import com.example.budgetquest.data.TagEntity
 import com.example.budgetquest.ui.AppViewModelProvider
 import com.example.budgetquest.ui.common.JapaneseBudgetProgressBar
 import com.example.budgetquest.ui.common.getIconByKey
-import com.example.budgetquest.ui.common.getSmartCategoryName // [新增]
-import com.example.budgetquest.ui.common.getSmartTagName // [新增]
+import com.example.budgetquest.ui.common.getSmartCategoryName
+import com.example.budgetquest.ui.common.getSmartTagName
 import com.example.budgetquest.ui.theme.AppTheme
 import com.example.budgetquest.ui.transaction.CategoryManagerDialog
 import com.example.budgetquest.ui.transaction.EditButton
@@ -135,66 +135,87 @@ fun SummaryScreen(
             )
         }
     ) { innerPadding ->
-        Column(
+        // [修正] 改用 LazyColumn 包覆所有內容，解決滑動問題
+        LazyColumn(
             modifier = Modifier
                 .padding(innerPadding)
                 .padding(horizontal = 20.dp)
                 .fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+            // 設定列表項目間距為 12dp
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(bottom = 24.dp)
         ) {
+            // 1. 預算卡片 (Header)
             if (uiState.plan != null) {
-                // [提取] 狀態訊息
-                val message = when (uiState.budgetStatus) {
-                    BudgetStatus.Achieved -> stringResource(R.string.msg_goal_achieved)
-                    BudgetStatus.Exceeded -> stringResource(R.string.msg_budget_exceeded)
-                    BudgetStatus.None -> stringResource(R.string.msg_no_plan_data)
-                }
+                item {
+                    val message = when (uiState.budgetStatus) {
+                        BudgetStatus.Achieved -> stringResource(R.string.msg_goal_achieved)
+                        BudgetStatus.Exceeded -> stringResource(R.string.msg_budget_exceeded)
+                        BudgetStatus.None -> stringResource(R.string.msg_no_plan_data)
+                    }
 
-                MinimalBudgetCard(
-                    totalBudget = uiState.plan!!.totalBudget,
-                    totalSpent = uiState.totalSpent,
-                    message = message
+                    MinimalBudgetCard(
+                        totalBudget = uiState.plan!!.totalBudget,
+                        totalSpent = uiState.totalSpent,
+                        message = message
+                    )
+                }
+                // 補償間距：12dp (預設) + 8dp = 20dp (原本的設計)
+                item { Spacer(modifier = Modifier.height(8.dp)) }
+            }
+
+            // 2. 圓餅圖 (Header)
+            if (uiState.totalSpent > 0) {
+                item {
+                    CollapsiblePieChart(data = uiState.categoryStats)
+                }
+                item { Spacer(modifier = Modifier.height(8.dp)) }
+            }
+
+            // 3. 篩選卡片 (Header)
+            item {
+                JapaneseFilterCard(
+                    searchQuery = searchQuery,
+                    onSearchQueryChanged = viewModel::updateSearchQuery,
+                    selectedCategory = selectedCategory,
+                    onCategorySelect = viewModel::toggleCategoryFilter,
+                    selectedTag = selectedTag,
+                    onTagSelect = viewModel::toggleTagFilter,
+                    categories = categories,
+                    tags = tags,
+                    onEditCategory = { debounce { showCategoryManager = true } },
+                    onEditTag = { debounce { showTagManager = true } }
                 )
             }
+            item { Spacer(modifier = Modifier.height(8.dp)) }
 
-            if (uiState.totalSpent > 0) {
-                CollapsiblePieChart(data = uiState.categoryStats)
-            }
-
-            JapaneseFilterCard(
-                searchQuery = searchQuery,
-                onSearchQueryChanged = viewModel::updateSearchQuery,
-                selectedCategory = selectedCategory,
-                onCategorySelect = viewModel::toggleCategoryFilter,
-                selectedTag = selectedTag,
-                onTagSelect = viewModel::toggleTagFilter,
-                categories = categories,
-                tags = tags,
-                onEditCategory = { debounce { showCategoryManager = true } },
-                onEditTag = { debounce { showTagManager = true } }
-            )
-
+            // 4. 消費列表 (List Items)
             if (uiState.filteredExpenses.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize().weight(1f), contentAlignment = Alignment.Center) {
-                    Text(stringResource(R.string.msg_no_records_found), color = AppTheme.colors.textSecondary, fontSize = 14.sp)
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 40.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(stringResource(R.string.msg_no_records_found), color = AppTheme.colors.textSecondary, fontSize = 14.sp)
+                    }
                 }
             } else {
-                LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    contentPadding = PaddingValues(bottom = 24.dp),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    items(uiState.filteredExpenses, key = { it.id }) { expense ->
-                        JapaneseExpenseItem(
-                            expense = expense,
-                            onDelete = { debounce { viewModel.deleteExpense(expense) } }
-                        )
-                    }
+                items(uiState.filteredExpenses, key = { it.id }) { expense ->
+                    JapaneseExpenseItem(
+                        expense = expense,
+                        onDelete = { debounce { viewModel.deleteExpense(expense) } }
+                    )
                 }
             }
         }
     }
 }
+
+// ... 以下 Composable (MinimalBudgetCard, CollapsiblePieChart, JapaneseFilterCard, JapaneseExpenseItem, PieChart) 保持不變 ...
+// 為節省篇幅，這裡省略重複的程式碼，請保留您原本 summaryscreen.kt 後半段的所有 Composable 函式定義。
+// 您只需要替換 SummaryScreen 函式本體即可。
 
 @Composable
 fun MinimalBudgetCard(totalBudget: Int, totalSpent: Int, message: String) {
