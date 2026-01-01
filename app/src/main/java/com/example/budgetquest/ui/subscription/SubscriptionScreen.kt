@@ -2,6 +2,7 @@ package com.example.budgetquest.ui.subscription
 
 import android.app.DatePickerDialog
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -12,14 +13,34 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material3.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -31,14 +52,114 @@ import com.example.budgetquest.R
 import com.example.budgetquest.data.RecurringExpenseEntity
 import com.example.budgetquest.ui.AppViewModelProvider
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 import com.example.budgetquest.ui.transaction.CategoryManagerDialog
 import com.example.budgetquest.ui.transaction.SubTagManagerDialog
-import com.example.budgetquest.ui.transaction.EditButton
 import com.example.budgetquest.ui.common.getIconByKey
-import com.example.budgetquest.ui.common.getSmartCategoryName // [新增]
-import com.example.budgetquest.ui.common.getSmartTagName // [新增]
+import com.example.budgetquest.ui.common.getSmartCategoryName
+import com.example.budgetquest.ui.common.getSmartTagName
 import com.example.budgetquest.ui.theme.AppTheme
+
+// [美術] 定義玻璃筆刷
+@Composable
+private fun getGlassBrush(): Brush {
+    return Brush.verticalGradient(
+        colors = listOf(
+            AppTheme.colors.surface.copy(alpha = 0.65f),
+            AppTheme.colors.surface.copy(alpha = 0.35f)
+        )
+    )
+}
+
+@Composable
+private fun getBorderBrush(): Brush {
+    return Brush.linearGradient(
+        colors = listOf(
+            AppTheme.colors.textPrimary.copy(alpha = 0.25f),
+            AppTheme.colors.textPrimary.copy(alpha = 0.10f)
+        )
+    )
+}
+
+// [美術] 1. 玻璃圓形按鈕容器 (TopBar 用)
+@Composable
+fun GlassIconContainer(
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    val glassBrush = getGlassBrush()
+    val borderBrush = getBorderBrush()
+
+    Box(
+        modifier = modifier
+            .size(40.dp)
+            .clip(CircleShape)
+            .background(glassBrush)
+            .border(1.dp, borderBrush, CircleShape),
+        contentAlignment = Alignment.Center
+    ) {
+        content()
+    }
+}
+
+// [美術] 2. 極光漸層主要按鈕 (用於加入清單)
+@Composable
+fun AuroraPrimaryButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val gradientBrush = Brush.horizontalGradient(
+        colors = listOf(
+            AppTheme.colors.accent,
+            AppTheme.colors.accent.copy(alpha = 0.7f)
+        )
+    )
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .shadow(8.dp, RoundedCornerShape(16.dp), ambientColor = AppTheme.colors.accent, spotColor = AppTheme.colors.accent)
+            .clip(RoundedCornerShape(16.dp))
+            .background(gradientBrush)
+            .clickable { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.White
+        )
+    }
+}
+
+// [美術] 3. 玻璃編輯按鈕 (小圓鈕)
+@Composable
+fun GlassSmallEditButton(onClick: () -> Unit) {
+    val glassBrush = getGlassBrush()
+    val borderBrush = getBorderBrush()
+
+    Box(
+        modifier = Modifier
+            .size(32.dp)
+            .clip(CircleShape)
+            .background(glassBrush)
+            .border(1.dp, borderBrush, CircleShape)
+            .clickable { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = Icons.Default.Add,
+            contentDescription = stringResource(R.string.desc_edit_button),
+            tint = AppTheme.colors.textSecondary,
+            modifier = Modifier.size(16.dp)
+        )
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,10 +175,8 @@ fun SubscriptionScreen(
     val list by viewModel.recurringList.collectAsState()
     val context = LocalContext.current
 
-    // [新增] Snackbar 狀態
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // [新增] 監聽錯誤訊息
     LaunchedEffect(uiState.errorMessageId) {
         uiState.errorMessageId?.let { errorId ->
             snackbarHostState.showSnackbar(
@@ -67,8 +186,6 @@ fun SubscriptionScreen(
             viewModel.clearError()
         }
     }
-
-
 
     val periodsMap = mapOf(
         "MONTH" to R.string.freq_month,
@@ -141,20 +258,29 @@ fun SubscriptionScreen(
         SubTagManagerDialog(allSubTags, { showSubTagManager = false }, viewModel::addSubTag, viewModel::toggleSubTagVisibility, viewModel::deleteSubTag)
     }
 
+    // [美術] 取得筆刷
+    val glassBrush = getGlassBrush()
+    val borderBrush = getBorderBrush()
+
     Scaffold(
-        containerColor = AppTheme.colors.background,
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.title_fixed_expenses), color = AppTheme.colors.textPrimary, fontSize = 18.sp) },
                 navigationIcon = {
-                    IconButton(onClick = { debounce(onBackClick) }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back), tint = AppTheme.colors.textPrimary)
+                    // [美術] 優化：使用玻璃圓鈕
+                    Box(modifier = Modifier.padding(start = 12.dp).clip(CircleShape).clickable { debounce(onBackClick) }) {
+                        GlassIconContainer(modifier = Modifier.size(40.dp)) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back), tint = AppTheme.colors.textPrimary, modifier = Modifier.size(20.dp))
+                        }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = AppTheme.colors.background)
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = AppTheme.colors.surface.copy(alpha = 0.8f)
+                )
             )
         },
-        // [新增] SnackbarHost
         snackbarHost = {
             SnackbarHost(
                 hostState = snackbarHostState,
@@ -172,12 +298,16 @@ fun SubscriptionScreen(
             modifier = Modifier.padding(innerPadding).padding(horizontal = 20.dp).fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = AppTheme.colors.surface),
-                shape = RoundedCornerShape(24.dp),
-                elevation = CardDefaults.cardElevation(0.dp)
+            // [美術] 輸入區塊 (玻璃 Box)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(glassBrush)
+                    .border(1.dp, borderBrush, RoundedCornerShape(24.dp))
+                    .padding(20.dp)
             ) {
-                Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         JapaneseDateButton(stringResource(R.string.label_date_start), dateFormatter.format(Date(uiState.startDate))) {
                             debounce { startDatePickerDialog.show() }
@@ -204,61 +334,51 @@ fun SubscriptionScreen(
                         JapaneseTextField(value = uiState.customDays, onValueChange = { viewModel.updateUiState(customDays = it) }, label = stringResource(R.string.label_interval_days), isNumber = true)
                     }
 
-                    HorizontalDivider(color = AppTheme.colors.divider)
+                    HorizontalDivider(color = AppTheme.colors.divider, thickness = 1.dp)
 
                     Text(stringResource(R.string.label_category_name), fontSize = 12.sp, color = AppTheme.colors.textSecondary)
 
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(categories, key = { it.id }) { category ->
-                            // [套用 Helper] 智慧分類名稱
                             JapaneseCompactChip(
                                 label = getSmartCategoryName(category.name),
                                 selected = uiState.category == category.name,
                                 icon = getIconByKey(category.iconKey)
                             ) { viewModel.updateUiState(category = category.name) }
                         }
-                        item { EditButton { debounce { showCategoryManager = true } } }
+                        // [美術] 優化：使用玻璃小圓鈕
+                        item { GlassSmallEditButton { debounce { showCategoryManager = true } } }
                     }
 
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(subTags, key = { it.id }) { tag ->
-                            // [關鍵修正] 使用 getSmartTagName 並傳入 resourceKey
-                            // 這樣會自動去 strings.xml 抓對應語言的字串
                             val displayName = getSmartTagName(tag.name, tag.resourceKey)
-
                             JapaneseCompactChip(
                                 label = displayName,
-                                // 比對時使用顯示名稱，確保選中狀態正確
                                 selected = uiState.note == displayName
                             ) {
-                                // 點擊時，將在地化後的名稱填入輸入框
                                 viewModel.updateUiState(note = displayName)
                             }
                         }
-                        item { EditButton { debounce { showSubTagManager = true } } }
+                        // [美術] 優化：使用玻璃小圓鈕
+                        item { GlassSmallEditButton { debounce { showSubTagManager = true } } }
                     }
 
-                    // [套用 Helper] 讓輸入框也顯示智慧名稱
-                    // 如果 uiState.note 是 "午餐"，這裡會顯示 "Lunch" (方便閱讀)
-                    // 如果用戶修改，onValueChange 會更新為新值
                     JapaneseTextField(
                         value = getSmartTagName(uiState.note),
                         onValueChange = { viewModel.updateUiState(note = it) },
                         label = stringResource(R.string.hint_subscription_name)
                     )
 
-                    Button(
+                    // [美術] 優化：使用極光漸層按鈕
+                    AuroraPrimaryButton(
+                        text = stringResource(R.string.btn_add_to_list),
                         onClick = {
                             debounce {
                                 viewModel.addSubscription { onSaveSuccess() }
                             }
-                        },
-                        modifier = Modifier.fillMaxWidth().height(50.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = AppTheme.colors.accent),
-                        shape = RoundedCornerShape(16.dp)
-                    ) {
-                        Text(stringResource(R.string.btn_add_to_list), color = Color.White)
-                    }
+                        }
+                    )
                 }
             }
 
@@ -282,7 +402,7 @@ fun SubscriptionScreen(
     }
 }
 
-// ... 下方共用元件保持不變 ...
+// ... 下方共用元件 ...
 
 @Composable
 fun JapaneseTextField(value: String, onValueChange: (String) -> Unit, label: String, isNumber: Boolean = false) {
@@ -295,8 +415,8 @@ fun JapaneseTextField(value: String, onValueChange: (String) -> Unit, label: Str
         colors = OutlinedTextFieldDefaults.colors(
             unfocusedBorderColor = Color.Transparent,
             focusedBorderColor = AppTheme.colors.accent,
-            unfocusedContainerColor = AppTheme.colors.background,
-            focusedContainerColor = AppTheme.colors.background,
+            unfocusedContainerColor = AppTheme.colors.background.copy(alpha = 0.5f),
+            focusedContainerColor = AppTheme.colors.background.copy(alpha = 0.7f),
             focusedTextColor = AppTheme.colors.textPrimary,
             unfocusedTextColor = AppTheme.colors.textPrimary
         ),
@@ -314,9 +434,9 @@ fun JapaneseDateButton(label: String, value: String, onClick: () -> Unit) {
 }
 
 @Composable
-fun JapaneseCompactChip(label: String, selected: Boolean, icon: androidx.compose.ui.graphics.vector.ImageVector? = null, onClick: () -> Unit) {
+fun JapaneseCompactChip(label: String, selected: Boolean, icon: ImageVector? = null, onClick: () -> Unit) {
     Surface(
-        color = if (selected) AppTheme.colors.accent else AppTheme.colors.background,
+        color = if (selected) AppTheme.colors.accent else AppTheme.colors.background.copy(alpha = 0.5f),
         contentColor = if (selected) Color.White else AppTheme.colors.textSecondary,
         shape = RoundedCornerShape(8.dp),
         modifier = Modifier.clickable { onClick() }
@@ -341,19 +461,22 @@ fun JapaneseSubscriptionItem(
     onDelete: () -> Unit
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(AppTheme.colors.surface).padding(20.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(AppTheme.colors.surface.copy(alpha = 0.7f))
+            .padding(20.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Surface(shape = CircleShape, color = AppTheme.colors.background, modifier = Modifier.size(48.dp)) {
+            Surface(shape = CircleShape, color = AppTheme.colors.background.copy(alpha = 0.5f), modifier = Modifier.size(48.dp)) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(Icons.Default.Star, null, tint = AppTheme.colors.accent, modifier = Modifier.size(24.dp))
                 }
             }
             Spacer(modifier = Modifier.width(16.dp))
             Column {
-                // [套用 Helper] 列表顯示智慧名稱
                 Text(getSmartTagName(item.note), fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = AppTheme.colors.textPrimary)
                 Text(
                     stringResource(R.string.format_subscription_price, item.amount, frequencyLabel),

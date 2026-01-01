@@ -14,10 +14,13 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.CircleShape // [新增]
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -35,6 +38,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -55,6 +60,76 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.TimeUnit
+
+// [美術] 定義全域一致的玻璃筆刷
+@Composable
+private fun getGlassBrush(): Brush {
+    return Brush.verticalGradient(
+        colors = listOf(
+            AppTheme.colors.surface.copy(alpha = 0.65f),
+            AppTheme.colors.surface.copy(alpha = 0.35f)
+        )
+    )
+}
+
+@Composable
+private fun getBorderBrush(): Brush {
+    return Brush.linearGradient(
+        colors = listOf(
+            AppTheme.colors.textPrimary.copy(alpha = 0.25f),
+            AppTheme.colors.textPrimary.copy(alpha = 0.10f)
+        )
+    )
+}
+
+// [美術] 1. 玻璃圓形按鈕容器 (TopBar 用)
+@Composable
+fun GlassIconContainer(
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    val glassBrush = getGlassBrush()
+    val borderBrush = getBorderBrush()
+
+    Box(
+        modifier = modifier
+            .size(40.dp)
+            .clip(CircleShape)
+            .background(glassBrush)
+            .border(1.dp, borderBrush, CircleShape),
+        contentAlignment = Alignment.Center
+    ) {
+        content()
+    }
+}
+
+// [美術] 2. 玻璃功能按鈕 (用於 Backup/Restore/Test)
+@Composable
+fun GlassSimpleButton(
+    text: String,
+    icon: ImageVector,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val glassBrush = getGlassBrush()
+    val borderBrush = getBorderBrush()
+
+    Box(
+        modifier = modifier
+            .height(50.dp)
+            .clip(RoundedCornerShape(12.dp)) // 先裁切形狀
+            .background(glassBrush)          // 再上背景
+            .border(1.dp, borderBrush, RoundedCornerShape(12.dp)) // 再畫框
+            .clickable { onClick() },        // 最後才是點擊 (確保水波紋被 clip 限制住)
+        contentAlignment = Alignment.Center
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, null, tint = AppTheme.colors.textPrimary, modifier = Modifier.size(18.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(text, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = AppTheme.colors.textPrimary)
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -85,7 +160,6 @@ fun SettingsScreen(
         }
     }
 
-    // 語言選擇對話框
     if (showLanguageDialog) {
         LanguageSelectionDialog(
             onDismiss = { showLanguageDialog = false },
@@ -175,16 +249,28 @@ fun SettingsScreen(
     )
 
     Scaffold(
-        containerColor = AppTheme.colors.background,
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.title_settings), color = AppTheme.colors.textPrimary, fontSize = 18.sp) },
                 navigationIcon = {
-                    IconButton(onClick = { debounce(onBackClick) }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back), tint = AppTheme.colors.textPrimary)
+                    // [美術] 返回按鈕：確保圓形水波紋
+                    // 關鍵順序：1. clip(CircleShape) -> 2. clickable
+                    Box(
+                        modifier = Modifier
+                            .padding(start = 12.dp)
+                            .clip(CircleShape) // 1. 先裁切成圓形
+                            .clickable { debounce(onBackClick) } // 2. 再設定點擊，水波紋就會被限縮在圓形內
+                    ) {
+                        GlassIconContainer {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back), tint = AppTheme.colors.textPrimary)
+                        }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = AppTheme.colors.background)
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = AppTheme.colors.surface.copy(alpha = 0.8f)
+                )
             )
         }
     ) { innerPadding ->
@@ -296,23 +382,28 @@ fun LanguageCard(onClick: () -> Unit) {
     val currentLocales = AppCompatDelegate.getApplicationLocales()
     val currentTag = if (!currentLocales.isEmpty) currentLocales[0]?.toLanguageTag() else ""
 
-    // [新增] 支援 zh-CN
     val displayLanguage = when (currentTag) {
         "zh-TW" -> stringResource(R.string.language_zh_tw)
-        "zh-CN" -> stringResource(R.string.language_zh_cn) // [新增]
+        "zh-CN" -> stringResource(R.string.language_zh_cn)
         "en" -> stringResource(R.string.language_en)
         "ja" -> stringResource(R.string.language_ja)
         else -> stringResource(R.string.language_system)
     }
 
-    Card(
-        colors = CardDefaults.cardColors(containerColor = AppTheme.colors.surface),
-        shape = RoundedCornerShape(24.dp),
-        elevation = CardDefaults.cardElevation(0.dp),
-        modifier = Modifier.fillMaxWidth().clickable { onClick() }
+    val glassBrush = getGlassBrush()
+    val borderBrush = getBorderBrush()
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp)) // 1. 先裁切
+            .background(glassBrush)
+            .border(1.dp, borderBrush, RoundedCornerShape(24.dp))
+            .clickable { onClick() }         // 2. 再點擊 (圓角矩形水波紋)
+            .padding(20.dp)
     ) {
         Row(
-            modifier = Modifier.padding(20.dp).fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -342,11 +433,10 @@ fun LanguageSelectionDialog(
     onDismiss: () -> Unit,
     onLanguageSelected: (String) -> Unit
 ) {
-    // [新增] 支援 zh-CN
     val languages = listOf(
         "" to stringResource(R.string.language_system),
         "zh-TW" to stringResource(R.string.language_zh_tw),
-        "zh-CN" to stringResource(R.string.language_zh_cn), // [新增]
+        "zh-CN" to stringResource(R.string.language_zh_cn),
         "en" to stringResource(R.string.language_en),
         "ja" to stringResource(R.string.language_ja)
     )
@@ -384,24 +474,28 @@ fun LanguageSelectionDialog(
     )
 }
 
-// ... CloudBackupCard, NotificationSettingsCard, SettingsSwitchItem, SettingsActionItem, AppearanceCard, SettingsItem ...
-// 這些共用元件保持不變
 @Composable
 fun CloudBackupCard(
     onBackupClick: () -> Unit,
     onRestoreClick: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val glassBrush = getGlassBrush()
+    val borderBrush = getBorderBrush()
 
-    Card(
-        colors = CardDefaults.cardColors(containerColor = AppTheme.colors.surface),
-        shape = RoundedCornerShape(24.dp),
-        elevation = CardDefaults.cardElevation(0.dp),
-        modifier = Modifier.fillMaxWidth()
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .background(glassBrush)
+            .border(1.dp, borderBrush, RoundedCornerShape(24.dp))
     ) {
-        Column(modifier = Modifier.padding(20.dp)) {
+        Column {
             Row(
-                modifier = Modifier.fillMaxWidth().clickable { expanded = !expanded },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded } // 圓角矩形水波紋 (因為父層有 clip)
+                    .padding(20.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -418,10 +512,11 @@ fun CloudBackupCard(
             }
 
             AnimatedVisibility(visible = expanded) {
-                Column(modifier = Modifier.padding(top = 16.dp)) {
-                    HorizontalDivider(color = AppTheme.colors.divider, thickness = 1.dp)
-                    Spacer(modifier = Modifier.height(16.dp))
-
+                Column(
+                    modifier = Modifier
+                        .background(AppTheme.colors.surface.copy(alpha = 0.3f))
+                        .padding(20.dp)
+                ) {
                     Text(
                         stringResource(R.string.desc_cloud_backup),
                         fontSize = 12.sp,
@@ -430,33 +525,20 @@ fun CloudBackupCard(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Button(
+                        // [美術] 使用玻璃按鈕
+                        GlassSimpleButton(
+                            text = stringResource(R.string.btn_backup),
+                            icon = Icons.Default.Upload,
                             onClick = onBackupClick,
-                            modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = AppTheme.colors.background,
-                                contentColor = AppTheme.colors.textPrimary
-                            ),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Icon(Icons.Default.Upload, null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(stringResource(R.string.btn_backup), fontSize = 14.sp)
-                        }
+                            modifier = Modifier.weight(1f)
+                        )
 
-                        Button(
+                        GlassSimpleButton(
+                            text = stringResource(R.string.btn_restore),
+                            icon = Icons.Default.Download,
                             onClick = onRestoreClick,
-                            modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = AppTheme.colors.background,
-                                contentColor = AppTheme.colors.textPrimary
-                            ),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Icon(Icons.Default.Download, null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(stringResource(R.string.btn_restore), fontSize = 14.sp)
-                        }
+                            modifier = Modifier.weight(1f)
+                        )
                     }
                 }
             }
@@ -475,16 +557,22 @@ fun NotificationSettingsCard(
     onTestNotificationClick: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val glassBrush = getGlassBrush()
+    val borderBrush = getBorderBrush()
 
-    Card(
-        colors = CardDefaults.cardColors(containerColor = AppTheme.colors.surface),
-        shape = RoundedCornerShape(24.dp),
-        elevation = CardDefaults.cardElevation(0.dp),
-        modifier = Modifier.fillMaxWidth()
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .background(glassBrush)
+            .border(1.dp, borderBrush, RoundedCornerShape(24.dp))
     ) {
-        Column(modifier = Modifier.padding(20.dp)) {
+        Column {
             Row(
-                modifier = Modifier.fillMaxWidth().clickable { expanded = !expanded },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded }
+                    .padding(20.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -505,10 +593,11 @@ fun NotificationSettingsCard(
                 enter = expandVertically() + fadeIn(),
                 exit = shrinkVertically() + fadeOut()
             ) {
-                Column(modifier = Modifier.padding(top = 16.dp)) {
-                    HorizontalDivider(color = AppTheme.colors.divider, thickness = 1.dp)
-                    Spacer(modifier = Modifier.height(16.dp))
-
+                Column(
+                    modifier = Modifier
+                        .background(AppTheme.colors.surface.copy(alpha = 0.3f))
+                        .padding(20.dp)
+                ) {
                     SettingsSwitchItem(title = stringResource(R.string.label_daily_reminder), checked = dailyReminder, onCheckedChange = onDailyReminderChange)
 
                     if (dailyReminder) {
@@ -519,20 +608,14 @@ fun NotificationSettingsCard(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    Button(
+                    // [美術] 使用玻璃按鈕
+                    GlassSimpleButton(
+                        text = stringResource(R.string.btn_test_notification),
+                        icon = Icons.Default.Notifications,
                         onClick = onTestNotificationClick,
-                        modifier = Modifier.fillMaxWidth().height(50.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = AppTheme.colors.background,
-                            contentColor = AppTheme.colors.textPrimary
-                        ),
-                        shape = RoundedCornerShape(16.dp),
-                        elevation = ButtonDefaults.buttonElevation(0.dp)
-                    ) {
-                        Icon(Icons.Default.Notifications, null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.btn_test_notification), fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                    }
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         stringResource(R.string.msg_check_notification_permission),
@@ -553,7 +636,7 @@ fun SettingsSwitchItem(title: String, subtitle: String? = null, checked: Boolean
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column {
+        Column(modifier = Modifier.weight(1f)) {
             Text(title, fontSize = 15.sp, color = AppTheme.colors.textPrimary)
             if (subtitle != null) Text(subtitle, fontSize = 11.sp, color = AppTheme.colors.textSecondary)
         }
@@ -563,7 +646,7 @@ fun SettingsSwitchItem(title: String, subtitle: String? = null, checked: Boolean
             colors = SwitchDefaults.colors(
                 checkedTrackColor = AppTheme.colors.accent,
                 checkedThumbColor = Color.White,
-                uncheckedTrackColor = AppTheme.colors.background,
+                uncheckedTrackColor = AppTheme.colors.background.copy(alpha = 0.5f),
                 uncheckedBorderColor = Color.Transparent
             )
         )
@@ -579,7 +662,7 @@ fun SettingsActionItem(title: String, value: String, onClick: () -> Unit) {
     ) {
         Text(title, fontSize = 15.sp, color = AppTheme.colors.textPrimary)
         Surface(
-            color = AppTheme.colors.background,
+            color = AppTheme.colors.background.copy(alpha = 0.5f),
             shape = RoundedCornerShape(8.dp)
         ) {
             Text(
@@ -595,14 +678,19 @@ fun SettingsActionItem(title: String, value: String, onClick: () -> Unit) {
 
 @Composable
 fun AppearanceCard(isDarkMode: Boolean, onToggle: (Boolean) -> Unit) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = AppTheme.colors.surface),
-        shape = RoundedCornerShape(24.dp),
-        elevation = CardDefaults.cardElevation(0.dp),
-        modifier = Modifier.fillMaxWidth()
+    val glassBrush = getGlassBrush()
+    val borderBrush = getBorderBrush()
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .background(glassBrush)
+            .border(1.dp, borderBrush, RoundedCornerShape(24.dp))
+            .padding(20.dp)
     ) {
         Row(
-            modifier = Modifier.padding(20.dp).fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -623,7 +711,7 @@ fun AppearanceCard(isDarkMode: Boolean, onToggle: (Boolean) -> Unit) {
                 onCheckedChange = onToggle,
                 colors = SwitchDefaults.colors(
                     checkedTrackColor = AppTheme.colors.accent,
-                    uncheckedTrackColor = AppTheme.colors.background
+                    uncheckedTrackColor = AppTheme.colors.background.copy(alpha = 0.5f)
                 )
             )
         }
@@ -641,6 +729,9 @@ fun SettingsItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            // [美術] 增加點擊回饋的圓角
+            // 這裡也需要先 clip 再 clickable，才能有圓角矩形水波紋，而非方框
+            .clip(RoundedCornerShape(16.dp))
             .clickable(enabled = onClick != null) { onClick?.invoke() }
             .padding(horizontal = 20.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically

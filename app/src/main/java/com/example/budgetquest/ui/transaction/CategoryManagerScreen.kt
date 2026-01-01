@@ -16,7 +16,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush // [新增]
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -27,9 +29,31 @@ import com.example.budgetquest.data.CategoryEntity
 import com.example.budgetquest.data.TagEntity
 import com.example.budgetquest.data.SubscriptionTagEntity
 import com.example.budgetquest.ui.common.getIconByKey
-import com.example.budgetquest.ui.common.getSmartCategoryName // [新增]
-import com.example.budgetquest.ui.common.getSmartTagName // [新增]
+import com.example.budgetquest.ui.common.getSmartCategoryName
+import com.example.budgetquest.ui.common.getSmartTagName
 import com.example.budgetquest.ui.theme.AppTheme
+
+// [美術] 玻璃筆刷 (區域性定義，或可抽離)
+@Composable
+private fun getDialogGlassBrush(): Brush {
+    // Dialog 需要稍微不透明一點，以免內容太雜
+    return Brush.verticalGradient(
+        colors = listOf(
+            AppTheme.colors.surface.copy(alpha = 0.85f),
+            AppTheme.colors.surface.copy(alpha = 0.65f)
+        )
+    )
+}
+
+@Composable
+private fun getDialogBorderBrush(): Brush {
+    return Brush.linearGradient(
+        colors = listOf(
+            AppTheme.colors.textPrimary.copy(alpha = 0.25f),
+            AppTheme.colors.textPrimary.copy(alpha = 0.10f)
+        )
+    )
+}
 
 val PRESET_COLORS = listOf(
     "#EF5350", "#EC407A", "#AB47BC", "#7E57C2",
@@ -70,13 +94,21 @@ fun CategoryManagerDialog(
     val iconList = remember { PRESET_ICONS }
     val colorList = remember { PRESET_COLORS }
 
+    val glassBrush = getDialogGlassBrush()
+    val borderBrush = getDialogBorderBrush()
+
     Dialog(onDismissRequest = onDismiss) {
-        Card(
-            colors = CardDefaults.cardColors(containerColor = AppTheme.colors.background),
-            shape = RoundedCornerShape(24.dp),
-            modifier = Modifier.fillMaxWidth().heightIn(max = 650.dp)
+        // [美術] 改用 Box + 玻璃質感
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 650.dp)
+                .clip(RoundedCornerShape(24.dp))
+                .background(glassBrush)
+                .border(1.dp, borderBrush, RoundedCornerShape(24.dp))
+                .padding(20.dp)
         ) {
-            Column(modifier = Modifier.padding(20.dp)) {
+            Column {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -92,7 +124,8 @@ fun CategoryManagerDialog(
                     Column(
                         modifier = Modifier
                             .clip(RoundedCornerShape(16.dp))
-                            .background(AppTheme.colors.surface)
+                            // [美術] 新增區塊半透明
+                            .background(AppTheme.colors.surface.copy(alpha = 0.5f))
                             .padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
@@ -103,8 +136,8 @@ fun CategoryManagerDialog(
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
                             colors = OutlinedTextFieldDefaults.colors(
-                                unfocusedContainerColor = AppTheme.colors.background,
-                                focusedContainerColor = AppTheme.colors.background,
+                                unfocusedContainerColor = AppTheme.colors.background.copy(alpha = 0.5f),
+                                focusedContainerColor = AppTheme.colors.background.copy(alpha = 0.7f),
                                 unfocusedBorderColor = Color.Transparent,
                                 focusedBorderColor = AppTheme.colors.accent,
                                 focusedTextColor = AppTheme.colors.textPrimary,
@@ -187,7 +220,7 @@ fun CategoryManagerDialog(
                                     selectedColor = PRESET_COLORS[0]
                                 },
                                 modifier = Modifier.weight(1f).height(40.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = AppTheme.colors.background, contentColor = AppTheme.colors.textPrimary),
+                                colors = ButtonDefaults.buttonColors(containerColor = AppTheme.colors.background.copy(alpha = 0.5f), contentColor = AppTheme.colors.textPrimary),
                                 elevation = ButtonDefaults.buttonElevation(0.dp)
                             ) {
                                 Text(stringResource(R.string.action_cancel), fontSize = 14.sp)
@@ -216,7 +249,7 @@ fun CategoryManagerDialog(
                     Button(
                         onClick = { isAdding = true },
                         modifier = Modifier.fillMaxWidth().height(48.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = AppTheme.colors.surface, contentColor = AppTheme.colors.accent),
+                        colors = ButtonDefaults.buttonColors(containerColor = AppTheme.colors.surface.copy(alpha = 0.7f), contentColor = AppTheme.colors.accent),
                         elevation = ButtonDefaults.buttonElevation(0.dp),
                         shape = RoundedCornerShape(16.dp)
                     ) {
@@ -234,7 +267,8 @@ fun CategoryManagerDialog(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(AppTheme.colors.surface)
+                                // [美術] 列表項目背景微透明
+                                .background(AppTheme.colors.surface.copy(alpha = 0.7f))
                                 .padding(horizontal = 12.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
@@ -257,7 +291,6 @@ fun CategoryManagerDialog(
                                     )
                                 }
                                 Spacer(modifier = Modifier.width(12.dp))
-                                // [套用 Helper] 顯示智慧分類名稱
                                 Text(getSmartCategoryName(item.name, item.resourceKey), color = if (item.isVisible) AppTheme.colors.textPrimary else AppTheme.colors.textSecondary, fontSize = 14.sp)
                             }
 
@@ -302,13 +335,20 @@ fun TagManagerDialog(
         }
     }
 
+    val glassBrush = getDialogGlassBrush()
+    val borderBrush = getDialogBorderBrush()
+
     Dialog(onDismissRequest = onDismiss) {
-        Card(
-            colors = CardDefaults.cardColors(containerColor = AppTheme.colors.background),
-            shape = RoundedCornerShape(24.dp),
-            modifier = Modifier.fillMaxWidth().heightIn(max = 600.dp)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 600.dp)
+                .clip(RoundedCornerShape(24.dp))
+                .background(glassBrush)
+                .border(1.dp, borderBrush, RoundedCornerShape(24.dp))
+                .padding(20.dp)
         ) {
-            Column(modifier = Modifier.padding(20.dp)) {
+            Column {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Text(stringResource(R.string.title_manage_tags), fontSize = 18.sp, fontWeight = FontWeight.Bold, color = AppTheme.colors.textPrimary)
                     IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, null, tint = AppTheme.colors.textSecondary) }
@@ -320,7 +360,7 @@ fun TagManagerDialog(
                     Column(
                         modifier = Modifier
                             .clip(RoundedCornerShape(16.dp))
-                            .background(AppTheme.colors.surface)
+                            .background(AppTheme.colors.surface.copy(alpha = 0.5f))
                             .padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
@@ -331,8 +371,8 @@ fun TagManagerDialog(
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
                             colors = OutlinedTextFieldDefaults.colors(
-                                unfocusedContainerColor = AppTheme.colors.background,
-                                focusedContainerColor = AppTheme.colors.background,
+                                unfocusedContainerColor = AppTheme.colors.background.copy(alpha = 0.5f),
+                                focusedContainerColor = AppTheme.colors.background.copy(alpha = 0.7f),
                                 unfocusedBorderColor = Color.Transparent,
                                 focusedBorderColor = AppTheme.colors.accent,
                                 focusedTextColor = AppTheme.colors.textPrimary,
@@ -345,7 +385,7 @@ fun TagManagerDialog(
                             Button(
                                 onClick = { isAdding = false; newName = "" },
                                 modifier = Modifier.weight(1f),
-                                colors = ButtonDefaults.buttonColors(containerColor = AppTheme.colors.background, contentColor = AppTheme.colors.textPrimary),
+                                colors = ButtonDefaults.buttonColors(containerColor = AppTheme.colors.background.copy(alpha = 0.5f), contentColor = AppTheme.colors.textPrimary),
                                 elevation = ButtonDefaults.buttonElevation(0.dp)
                             ) {
                                 Text(stringResource(R.string.action_cancel))
@@ -372,7 +412,7 @@ fun TagManagerDialog(
                     Button(
                         onClick = { isAdding = true },
                         modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = AppTheme.colors.surface, contentColor = AppTheme.colors.accent),
+                        colors = ButtonDefaults.buttonColors(containerColor = AppTheme.colors.surface.copy(alpha = 0.7f), contentColor = AppTheme.colors.accent),
                         elevation = ButtonDefaults.buttonElevation(0.dp),
                         shape = RoundedCornerShape(16.dp)
                     ) {
@@ -390,12 +430,11 @@ fun TagManagerDialog(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(AppTheme.colors.surface)
+                                .background(AppTheme.colors.surface.copy(alpha = 0.7f))
                                 .padding(horizontal = 12.dp, vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            // [套用 Helper] 顯示智慧標籤名稱
                             Text(getSmartTagName(item.name, item.resourceKey), color = if(item.isVisible) AppTheme.colors.textPrimary else AppTheme.colors.textSecondary)
                             Row {
                                 IconButton(onClick = { debounce { onToggleVisibility(item) } }, modifier = Modifier.size(32.dp)) {
@@ -433,13 +472,20 @@ fun SubTagManagerDialog(
         }
     }
 
+    val glassBrush = getDialogGlassBrush()
+    val borderBrush = getDialogBorderBrush()
+
     Dialog(onDismissRequest = onDismiss) {
-        Card(
-            colors = CardDefaults.cardColors(containerColor = AppTheme.colors.background),
-            shape = RoundedCornerShape(24.dp),
-            modifier = Modifier.fillMaxWidth().heightIn(max = 600.dp)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 600.dp)
+                .clip(RoundedCornerShape(24.dp))
+                .background(glassBrush)
+                .border(1.dp, borderBrush, RoundedCornerShape(24.dp))
+                .padding(20.dp)
         ) {
-            Column(modifier = Modifier.padding(20.dp)) {
+            Column {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Text(stringResource(R.string.title_manage_subscriptions), fontSize = 18.sp, fontWeight = FontWeight.Bold, color = AppTheme.colors.textPrimary)
                     IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, null, tint = AppTheme.colors.textSecondary) }
@@ -451,7 +497,7 @@ fun SubTagManagerDialog(
                     Column(
                         modifier = Modifier
                             .clip(RoundedCornerShape(16.dp))
-                            .background(AppTheme.colors.surface)
+                            .background(AppTheme.colors.surface.copy(alpha = 0.5f))
                             .padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
@@ -462,8 +508,8 @@ fun SubTagManagerDialog(
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
                             colors = OutlinedTextFieldDefaults.colors(
-                                unfocusedContainerColor = AppTheme.colors.background,
-                                focusedContainerColor = AppTheme.colors.background,
+                                unfocusedContainerColor = AppTheme.colors.background.copy(alpha = 0.5f),
+                                focusedContainerColor = AppTheme.colors.background.copy(alpha = 0.7f),
                                 unfocusedBorderColor = Color.Transparent,
                                 focusedBorderColor = AppTheme.colors.accent,
                                 focusedTextColor = AppTheme.colors.textPrimary,
@@ -476,7 +522,7 @@ fun SubTagManagerDialog(
                             Button(
                                 onClick = { isAdding = false; newName = "" },
                                 modifier = Modifier.weight(1f),
-                                colors = ButtonDefaults.buttonColors(containerColor = AppTheme.colors.background, contentColor = AppTheme.colors.textPrimary),
+                                colors = ButtonDefaults.buttonColors(containerColor = AppTheme.colors.background.copy(alpha = 0.5f), contentColor = AppTheme.colors.textPrimary),
                                 elevation = ButtonDefaults.buttonElevation(0.dp)
                             ) {
                                 Text(stringResource(R.string.action_cancel))
@@ -503,7 +549,7 @@ fun SubTagManagerDialog(
                     Button(
                         onClick = { isAdding = true },
                         modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = AppTheme.colors.surface, contentColor = AppTheme.colors.accent),
+                        colors = ButtonDefaults.buttonColors(containerColor = AppTheme.colors.surface.copy(alpha = 0.7f), contentColor = AppTheme.colors.accent),
                         elevation = ButtonDefaults.buttonElevation(0.dp),
                         shape = RoundedCornerShape(16.dp)
                     ) {
@@ -521,12 +567,11 @@ fun SubTagManagerDialog(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(AppTheme.colors.surface)
+                                .background(AppTheme.colors.surface.copy(alpha = 0.7f))
                                 .padding(horizontal = 12.dp, vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            // [套用 Helper] 顯示智慧分類名稱
                             Text(getSmartCategoryName(item.name, item.resourceKey), color = if(item.isVisible) AppTheme.colors.textPrimary else AppTheme.colors.textSecondary)
                             Row {
                                 IconButton(onClick = { debounce { onToggleVisibility(item) } }, modifier = Modifier.size(32.dp)) {

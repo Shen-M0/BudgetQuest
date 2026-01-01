@@ -245,5 +245,10 @@
     <string name="error_msg_sub">名前を入力してください</string>
     <string name="label_total">合計</string>
 
+    <string name="action_add_expense">支出を追加</string>
+    <string name="label_total_expense">支出合計</string>
+
+    <string name="suffix_auto_deduction">(自動引落)</string>
+
 
 </resources>

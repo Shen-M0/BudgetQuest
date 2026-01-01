@@ -2,6 +2,7 @@ package com.example.budgetquest.ui.onboarding
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -15,7 +16,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush // [新增]
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -25,12 +28,32 @@ import com.example.budgetquest.R
 import com.example.budgetquest.ui.theme.AppTheme
 import kotlinx.coroutines.launch
 
+// [美術] 定義玻璃筆刷 (圓形專用)
+@Composable
+private fun getCircleGlassBrush(): Brush {
+    return Brush.verticalGradient(
+        colors = listOf(
+            AppTheme.colors.surface.copy(alpha = 0.5f),
+            AppTheme.colors.surface.copy(alpha = 0.2f)
+        )
+    )
+}
+
+@Composable
+private fun getCircleBorderBrush(): Brush {
+    return Brush.linearGradient(
+        colors = listOf(
+            AppTheme.colors.textPrimary.copy(alpha = 0.3f),
+            AppTheme.colors.textPrimary.copy(alpha = 0.1f)
+        )
+    )
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun OnboardingScreen(
     onFinish: () -> Unit
 ) {
-    // [提取] 先將字串資源讀取出來 (stringResource 必須在 Composable 作用域內呼叫)
     val title1 = stringResource(R.string.onboarding_page1_title)
     val desc1 = stringResource(R.string.onboarding_page1_desc)
     val title2 = stringResource(R.string.onboarding_page2_title)
@@ -38,7 +61,6 @@ fun OnboardingScreen(
     val title3 = stringResource(R.string.onboarding_page3_title)
     val desc3 = stringResource(R.string.onboarding_page3_desc)
 
-    // [優化] 使用 remember 快取頁面資料 (將讀取到的字串傳入 key 以便更新)
     val pages = remember(title1, desc1, title2, desc2, title3, desc3) {
         listOf(
             OnboardingPage(title = title1, description = desc1),
@@ -59,10 +81,15 @@ fun OnboardingScreen(
         }
     }
 
+    // [美術] 取得筆刷
+    val glassBrush = getCircleGlassBrush()
+    val borderBrush = getCircleBorderBrush()
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(AppTheme.colors.background)
+            // [美術] 移除背景色，讓底層極光透出來
+            // .background(AppTheme.colors.background)
             .padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -76,17 +103,20 @@ fun OnboardingScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
+                // [美術] 圓形圖示改為玻璃擬態
                 Box(
                     modifier = Modifier
                         .size(200.dp)
-                        .background(AppTheme.colors.surface, CircleShape),
+                        .clip(CircleShape)
+                        .background(glassBrush)
+                        .border(1.dp, borderBrush, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = "${index + 1}",
                         fontSize = 80.sp,
                         fontWeight = FontWeight.Bold,
-                        color = AppTheme.colors.accent.copy(alpha = 0.5f)
+                        color = AppTheme.colors.accent.copy(alpha = 0.8f) // 加深一點顏色以增加對比
                     )
                 }
 
@@ -118,7 +148,7 @@ fun OnboardingScreen(
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 repeat(pages.size) { iteration ->
-                    val color = if (pagerState.currentPage == iteration) AppTheme.colors.accent else AppTheme.colors.divider
+                    val color = if (pagerState.currentPage == iteration) AppTheme.colors.accent else AppTheme.colors.textSecondary.copy(alpha = 0.3f)
                     Box(
                         modifier = Modifier
                             .clip(CircleShape)
@@ -139,12 +169,15 @@ fun OnboardingScreen(
                     }
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = AppTheme.colors.accent),
-                shape = RoundedCornerShape(16.dp)
+                shape = RoundedCornerShape(16.dp),
+                elevation = ButtonDefaults.buttonElevation(
+                    defaultElevation = 6.dp, // [美術] 增加陰影，讓按鈕更立體
+                    pressedElevation = 2.dp
+                )
             ) {
                 if (pagerState.currentPage < pages.size - 1) {
                     Icon(Icons.Default.ArrowForward, null, tint = Color.White)
                 } else {
-                    // [提取] 開始使用按鈕
                     Text(stringResource(R.string.btn_get_started), color = Color.White)
                     Spacer(modifier = Modifier.width(8.dp))
                     Icon(Icons.Default.Check, null, tint = Color.White)

@@ -246,5 +246,12 @@
     <string name="error_msg_sub">Please enter a name</string>
     <string name="label_total">Total</string>
 
+    <string name="action_add_expense">Add Expense</string>
+    <string name="label_total_expense">Total Expense</string>
+
+    <string name="suffix_auto_deduction">(Auto)</string>
+
+
+
 
 </resources>

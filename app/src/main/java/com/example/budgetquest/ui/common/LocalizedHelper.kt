@@ -1,13 +1,31 @@
 package com.example.budgetquest.ui.common
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.rounded.DirectionsBus
+import androidx.compose.material.icons.rounded.Fastfood
+import androidx.compose.material.icons.rounded.Flight
+import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.LocalHospital
+import androidx.compose.material.icons.rounded.LocalMall
+import androidx.compose.material.icons.rounded.MoreHoriz
+import androidx.compose.material.icons.rounded.Receipt
+import androidx.compose.material.icons.rounded.School
+import androidx.compose.material.icons.rounded.ShowChart
+import androidx.compose.material.icons.rounded.SportsEsports
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import com.example.budgetquest.R
 
+/**
+ * 智慧分類名稱解析
+ * 優先使用 resourceKey，若無則嘗試反查多語言字串。
+ */
 @Composable
 fun getSmartCategoryName(rawName: String, resourceKey: String? = null): String {
-    // 1. 優先使用 resourceKey (如果有存的話)
-    if (resourceKey != null) {
+    // 1. 優先使用 resourceKey
+    if (resourceKey != null && resourceKey.isNotEmpty()) {
         return when (resourceKey) {
             "cat_food" -> stringResource(R.string.cat_food)
             "cat_shopping" -> stringResource(R.string.cat_shopping)
@@ -24,16 +42,15 @@ fun getSmartCategoryName(rawName: String, resourceKey: String? = null): String {
         }
     }
 
-    // 2. 多語言文字反查 (支援 繁中/英文/日文/簡中)
-    // 只要 rawName 符合任一種語言的預設值，就回傳當前語言的 stringResource
+    // 2. 多語言文字反查 (Fallback)
     return when (rawName) {
         "飲食", "Food", "食事", "饮食" -> stringResource(R.string.cat_food)
         "購物", "Shopping", "買い物", "购物" -> stringResource(R.string.cat_shopping)
-        "交通", "Transport", "交通" -> stringResource(R.string.cat_transport) // 日/簡/繁 交通相同
+        "交通", "Transport", "交通" -> stringResource(R.string.cat_transport)
         "居家", "Home", "住まい", "居家" -> stringResource(R.string.cat_home)
         "娛樂", "Entertainment", "娯楽", "娱乐" -> stringResource(R.string.cat_entertainment)
         "醫療", "Medical", "医療", "医疗" -> stringResource(R.string.cat_medical)
-        "教育", "Education", "教育" -> stringResource(R.string.cat_education) // 日/簡/繁 教育相同
+        "教育", "Education", "教育" -> stringResource(R.string.cat_education)
         "帳單", "Bills", "請求書", "账单" -> stringResource(R.string.cat_bills)
         "投資", "Investment", "投資", "投资" -> stringResource(R.string.cat_investment)
         "其他", "Other", "その他", "其他" -> stringResource(R.string.cat_other)
@@ -42,10 +59,14 @@ fun getSmartCategoryName(rawName: String, resourceKey: String? = null): String {
     }
 }
 
+/**
+ * 智慧標籤/備註名稱解析
+ * 優先使用 resourceKey，若無則嘗試反查多語言字串。
+ */
 @Composable
 fun getSmartTagName(rawName: String, resourceKey: String? = null): String {
     // 1. 優先使用 resourceKey
-    if (resourceKey != null) {
+    if (resourceKey != null && resourceKey.isNotEmpty()) {
         return when (resourceKey) {
             // 一般備註
             "note_breakfast" -> stringResource(R.string.note_breakfast)
@@ -79,9 +100,8 @@ fun getSmartTagName(rawName: String, resourceKey: String? = null): String {
         }
     }
 
-    // 2. 多語言文字反查 (支援 繁中/英文/日文/簡中)
+    // 2. 多語言文字反查
     return when (rawName) {
-        // --- 一般備註 ---
         "早餐", "Breakfast", "朝食", "早餐" -> stringResource(R.string.note_breakfast)
         "午餐", "Lunch", "昼食", "午餐" -> stringResource(R.string.note_lunch)
         "晚餐", "Dinner", "夕食", "晚餐" -> stringResource(R.string.note_dinner)
@@ -93,7 +113,6 @@ fun getSmartTagName(rawName: String, resourceKey: String? = null): String {
         "遊戲", "Game", "ゲーム", "游戏" -> stringResource(R.string.note_game)
         "日用品", "Daily Necessities", "日用品", "日用品" -> stringResource(R.string.note_daily_use)
 
-        // --- 固定扣款/訂閱 ---
         "房租", "Rent", "家賃", "房租" -> stringResource(R.string.sub_rent)
         "電話費", "Phone Bill", "携帯代", "话费" -> stringResource(R.string.sub_phone)
         "網路費", "Internet", "ネット回線", "网费" -> stringResource(R.string.sub_internet)
@@ -102,7 +121,6 @@ fun getSmartTagName(rawName: String, resourceKey: String? = null): String {
         "保險", "Insurance", "保険", "保险" -> stringResource(R.string.sub_insurance)
         "健身房", "Gym", "ジム", "健身房" -> stringResource(R.string.sub_gym)
 
-        // 數位服務 (通常各國語言都一樣，但為了保險起見還是列出)
         "Netflix" -> stringResource(R.string.sub_netflix)
         "Spotify" -> stringResource(R.string.sub_spotify)
         "YouTube Premium" -> stringResource(R.string.sub_youtube_premium)
@@ -113,5 +131,66 @@ fun getSmartTagName(rawName: String, resourceKey: String? = null): String {
         "ChatGPT" -> stringResource(R.string.sub_chatgpt)
 
         else -> rawName
+    }
+}
+
+/**
+ * 智慧顯示備註 (進階版)
+ * 專門處理包含 "(自動扣款)" 等後綴的字串。
+ * 1. 偵測並移除舊有的語言後綴。
+ * 2. 嘗試翻譯核心名稱 (呼叫 getSmartTagName)。
+ * 3. 根據當前語言重新加上正確的後綴。
+ */
+@Composable
+fun getSmartNote(rawNote: String, resourceKey: String? = null): String {
+    // 定義所有可能的「自動扣款」後綴 (需與 strings.xml 中的 suffix_auto_deduction 對應)
+    // 這裡硬編碼是為了能識別歷史資料中可能存在的各種語言版本
+    val knownSuffixes = listOf(
+        "(自動扣款)", "(自动扣款)", "(Auto)", "(Automatic)", "(自動引落)"
+    )
+
+    var cleanNote = rawNote
+    var hasAutoSuffix = false
+
+    // 1. 剝離後綴
+    for (suffix in knownSuffixes) {
+        if (cleanNote.endsWith(suffix)) {
+            cleanNote = cleanNote.removeSuffix(suffix).trim()
+            hasAutoSuffix = true
+            break
+        }
+    }
+
+    // 2. 翻譯核心名稱
+    val translatedCore = getSmartTagName(cleanNote, resourceKey)
+
+    // 3. 重組
+    return if (hasAutoSuffix) {
+        // suffix_auto_deduction 應該在您的 strings.xml 中定義
+        // 例如: <string name="suffix_auto_deduction">(自動扣款)</string>
+        "$translatedCore ${stringResource(R.string.suffix_auto_deduction)}"
+    } else {
+        translatedCore
+    }
+}
+
+/**
+ * 取得分類對應的圖示
+ * 集中管理 Icon Key 與 ImageVector 的對應關係。
+ */
+fun getIconByKey(iconKey: String?): ImageVector {
+    return when (iconKey) {
+        "icon_food" -> Icons.Rounded.Fastfood
+        "icon_shopping" -> Icons.Rounded.LocalMall
+        "icon_transport" -> Icons.Rounded.DirectionsBus
+        "icon_home" -> Icons.Rounded.Home
+        "icon_entertainment" -> Icons.Rounded.SportsEsports
+        "icon_medical" -> Icons.Rounded.LocalHospital
+        "icon_education" -> Icons.Rounded.School
+        "icon_bills" -> Icons.Rounded.Receipt
+        "icon_investment" -> Icons.Rounded.ShowChart
+        "icon_other" -> Icons.Rounded.MoreHoriz
+        "icon_travel" -> Icons.Rounded.Flight
+        else -> Icons.Default.Category // 預設圖示
     }
 }

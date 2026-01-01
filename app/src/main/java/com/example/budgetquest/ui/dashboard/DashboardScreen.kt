@@ -7,6 +7,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -28,7 +29,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
@@ -50,10 +54,99 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.Calendar
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
-import androidx.compose.ui.graphics.graphicsLayer
-import com.example.budgetquest.ui.common.AuroraBackground // [新增]
+
+// [美術] 定義玻璃筆刷
+@Composable
+private fun getGlassBrush(): Brush {
+    return Brush.verticalGradient(
+        colors = listOf(
+            AppTheme.colors.surface.copy(alpha = 0.65f),
+            AppTheme.colors.surface.copy(alpha = 0.35f)
+        )
+    )
+}
+
+@Composable
+private fun getBorderBrush(): Brush {
+    return Brush.linearGradient(
+        colors = listOf(
+            AppTheme.colors.textPrimary.copy(alpha = 0.25f),
+            AppTheme.colors.textPrimary.copy(alpha = 0.10f)
+        )
+    )
+}
+
+// [美術] 玻璃按鈕容器 (用於 TopBar Actions)
+@Composable
+fun GlassActionIcon(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    val glassBrush = getGlassBrush()
+    val borderBrush = getBorderBrush()
+
+    Box(
+        modifier = modifier
+            .size(38.dp)
+            .clip(CircleShape)
+            .background(glassBrush)
+            .border(1.dp, borderBrush, CircleShape)
+            .clickable { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        content()
+    }
+}
+
+// [美術] 極光懸浮按鈕 (Aurora FAB)
+@Composable
+fun AuroraFloatingActionButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isDark = isSystemInDarkTheme()
+
+    val gradientColors = if (isDark) {
+        listOf(
+            AppTheme.colors.accent.copy(alpha = 0.4f),
+            AppTheme.colors.accent.copy(alpha = 0.7f)
+        )
+    } else {
+        listOf(
+            AppTheme.colors.accent.copy(alpha = 0.8f),
+            AppTheme.colors.accent
+        )
+    }
+
+    val gradientBrush = Brush.linearGradient(colors = gradientColors)
+    val shadowColor = AppTheme.colors.accent.copy(alpha = if (isDark) 0.5f else 1f)
+
+    FloatingActionButton(
+        onClick = onClick,
+        containerColor = Color.Transparent,
+        elevation = FloatingActionButtonDefaults.elevation(0.dp),
+        modifier = modifier
+            .size(56.dp)
+            .shadow(
+                elevation = if (isDark) 8.dp else 12.dp,
+                shape = CircleShape,
+                ambientColor = shadowColor,
+                spotColor = shadowColor
+            )
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(gradientBrush, CircleShape)
+                .border(1.dp, Color.White.copy(alpha = if (isDark) 0.15f else 0.3f), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.Default.Add, null, tint = Color.White.copy(alpha = if (isDark) 0.9f else 1f), modifier = Modifier.size(28.dp))
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun DashboardScreen(
@@ -61,7 +154,7 @@ fun DashboardScreen(
     planId: Int = -1,
     targetDate: Long = -1L,
     trigger: Long = 0L,
-    onConsumeNavigationArgs: () -> Unit = {}, // 確保這個函式被呼叫
+    onConsumeNavigationArgs: () -> Unit = {},
     isTutorialMode: Boolean = false,
     onTutorialFinished: () -> Unit = {},
     onAddExpenseClick: (Long) -> Unit,
@@ -77,25 +170,16 @@ fun DashboardScreen(
     val uiState by viewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
 
-    // [修正] UI 層也保留一個簡單的防呆，確保 trigger 改變才動作
     var lastHandledTrigger by rememberSaveable { mutableLongStateOf(0L) }
 
     LaunchedEffect(planId, targetDate, trigger) {
-        // 只有當 trigger 是新的，才執行
         if (trigger > 0L && trigger != lastHandledTrigger) {
-
             if (planId != -1) {
-                // [修正] 傳入 trigger 給 ViewModel 做雙重檢查
                 viewModel.setViewingPlanId(planId, trigger)
             } else if (targetDate != -1L) {
                 viewModel.switchToCalendarDate(targetDate, trigger)
             }
-
-            // 更新 UI 記錄
             lastHandledTrigger = trigger
-
-            // [關鍵修正] 執行完畢後，立刻通知 MainActivity 清除參數 (覆寫為 -1)
-            // 這能確保下次返回時，參數已經乾淨了，不會再次觸發任何邏輯
             onConsumeNavigationArgs()
         }
     }
@@ -190,9 +274,6 @@ fun DashboardScreen(
     var settingsBtnCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
     var cardCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
 
-    // ❌ [已刪除] 這裡原本有一個 LaunchedEffect(initialPlanId) 會繞過防呆直接跳轉
-    // 現在已經移除，確保所有的跳轉都必須經過上面的 trigger 檢查
-
     LaunchedEffect(isTutorialMode, uiState.activePlan) {
         if (isTutorialMode && uiState.activePlan != null) {
             snapshotFlow { uiState.activePlan }.filterNotNull().first()
@@ -206,9 +287,11 @@ fun DashboardScreen(
         }
     }
 
-    // ... (Scaffold 及其後的內容保持不變，請直接複製您原本的 UI 代碼) ...
+    val glassBrush = getGlassBrush()
+    val borderBrush = getBorderBrush()
+
     Scaffold(
-        containerColor = AppTheme.colors.background,
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = {
@@ -245,105 +328,96 @@ fun DashboardScreen(
                 },
                 actions = {
                     val iconTint = AppTheme.colors.textSecondary
-                    if (uiState.viewMode == ViewMode.Focus) {
-                        // [切換模式按鈕] 無論是否空狀態都顯示，保持位置固定
-                        IconButton(
-                            onClick = { debounce { viewModel.toggleViewMode() } },
-                            modifier = Modifier.onGloballyPositioned { focusToggleBtnCoords = it }
-                        ) {
-                            Icon(Icons.Default.DateRange,
-                                stringResource(R.string.action_switch_to_calendar), tint = iconTint)
-                        }
+                    Row(modifier = Modifier.padding(end = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (uiState.viewMode == ViewMode.Focus) {
+                            GlassActionIcon(
+                                onClick = { debounce { viewModel.toggleViewMode() } },
+                                modifier = Modifier.onGloballyPositioned { focusToggleBtnCoords = it }
+                            ) {
+                                Icon(Icons.Default.DateRange, stringResource(R.string.action_switch_to_calendar), tint = iconTint, modifier = Modifier.size(20.dp))
+                            }
 
-                        if (uiState.activePlan != null) {
-                            // [有計畫] 顯示正常按鈕群：訂閱、編輯、列表
-                            IconButton(
-                                onClick = {
-                                    debounce {
-                                        val plan = uiState.activePlan
-                                        if (plan != null) onSubscriptionClick(plan.id, plan.startDate, plan.endDate)
-                                    }
-                                },
-                                modifier = Modifier.onGloballyPositioned { subBtnCoords = it }
-                            ) {
-                                Icon(Icons.Default.Star, stringResource(R.string.action_subscribe), tint = iconTint)
-                            }
-                            IconButton(
-                                onClick = { debounce { onEditPlanClick(uiState.activePlan?.id) } },
-                                modifier = Modifier.onGloballyPositioned { editBtnCoords = it }
-                            ) {
-                                Icon(Icons.Default.Edit, stringResource(R.string.action_edit_plan), tint = iconTint)
-                            }
-                            IconButton(
-                                onClick = { debounce { onSummaryClick(uiState.activePlan?.id) } },
-                                modifier = Modifier.onGloballyPositioned { listBtnCoords = it }
-                            ) {
-                                Icon(Icons.AutoMirrored.Filled.List, stringResource(R.string.action_view_list), tint = iconTint)
+                            if (uiState.activePlan != null) {
+                                GlassActionIcon(
+                                    onClick = {
+                                        debounce {
+                                            val plan = uiState.activePlan
+                                            if (plan != null) onSubscriptionClick(plan.id, plan.startDate, plan.endDate)
+                                        }
+                                    },
+                                    modifier = Modifier.onGloballyPositioned { subBtnCoords = it }
+                                ) {
+                                    Icon(Icons.Default.Star, stringResource(R.string.action_subscribe), tint = iconTint, modifier = Modifier.size(20.dp))
+                                }
+                                GlassActionIcon(
+                                    onClick = { debounce { onEditPlanClick(uiState.activePlan?.id) } },
+                                    modifier = Modifier.onGloballyPositioned { editBtnCoords = it }
+                                ) {
+                                    Icon(Icons.Default.Edit, stringResource(R.string.action_edit_plan), tint = iconTint, modifier = Modifier.size(20.dp))
+                                }
+                                GlassActionIcon(
+                                    onClick = { debounce { onSummaryClick(uiState.activePlan?.id) } },
+                                    modifier = Modifier.onGloballyPositioned { listBtnCoords = it }
+                                ) {
+                                    Icon(Icons.AutoMirrored.Filled.List, stringResource(R.string.action_view_list), tint = iconTint, modifier = Modifier.size(20.dp))
+                                }
+                            } else {
+                                GlassActionIcon(
+                                    onClick = { debounce { onHistoryClick() } }
+                                ) {
+                                    Icon(Icons.Default.History, stringResource(R.string.action_view_history), tint = iconTint, modifier = Modifier.size(20.dp))
+                                }
+                                GlassActionIcon(
+                                    onClick = { debounce { onEditPlanClick(null) } }
+                                ) {
+                                    Icon(Icons.Default.Add, stringResource(R.string.action_add_plan), tint = iconTint, modifier = Modifier.size(20.dp))
+                                }
+                                GlassActionIcon(
+                                    onClick = { debounce { onSettingsClick() } }
+                                ) {
+                                    Icon(Icons.Default.Settings, stringResource(R.string.action_settings), tint = iconTint, modifier = Modifier.size(20.dp))
+                                }
                             }
                         } else {
-                            // [空狀態] 為了美觀與對齊，顯示 歷史紀錄、裝飾Icon、設定
-                            // 1. 歷史紀錄 (實用功能)
-                            IconButton(
-                                onClick = { debounce { onHistoryClick() } }
+                            GlassActionIcon(
+                                onClick = { debounce { viewModel.toggleViewMode() } },
+                                modifier = Modifier.onGloballyPositioned { calendarToggleBtnCoords = it }
                             ) {
-                                Icon(Icons.Default.History, stringResource(R.string.action_view_history), tint = iconTint)
+                                Icon(Icons.Default.Face, stringResource(R.string.action_switch_to_focus), tint = iconTint, modifier = Modifier.size(20.dp))
                             }
-
-                            // 2. [修改] 將原本的裝飾圖示，換成 "新增計畫" 按鈕
-                            IconButton(
-                                onClick = { debounce { onEditPlanClick(null) } } // null 代表新增
+                            GlassActionIcon(
+                                onClick = { debounce { onHistoryClick() } },
+                                modifier = Modifier.onGloballyPositioned { historyBtnCoords = it }
                             ) {
-                                Icon(Icons.Default.Add, stringResource(R.string.action_add_plan), tint = iconTint)
+                                Icon(Icons.Default.History, stringResource(R.string.action_view_history), tint = iconTint, modifier = Modifier.size(20.dp))
                             }
-                            // 3. 設定 (實用功能)
-                            IconButton(
-                                onClick = { debounce { onSettingsClick() } }
+                            GlassActionIcon(
+                                onClick = { debounce { onEditPlanClick(null) } },
+                                modifier = Modifier.onGloballyPositioned { addPlanBtnCoords = it }
                             ) {
-                                Icon(Icons.Default.Settings, stringResource(R.string.action_settings), tint = iconTint)
+                                Icon(Icons.Default.Add, stringResource(R.string.action_add_plan), tint = iconTint, modifier = Modifier.size(20.dp))
                             }
-                        }
-                    } else {
-                        IconButton(
-                            onClick = { debounce { viewModel.toggleViewMode() } },
-                            modifier = Modifier.onGloballyPositioned { calendarToggleBtnCoords = it }
-                        ) {
-                            Icon(Icons.Default.Face,
-                                stringResource(R.string.action_switch_to_focus), tint = iconTint)
-                        }
-                        IconButton(
-                            onClick = { debounce { onHistoryClick() } },
-                            modifier = Modifier.onGloballyPositioned { historyBtnCoords = it }
-                        ) {
-                            Icon(Icons.Default.History,
-                                stringResource(R.string.action_view_history), tint = iconTint)
-                        }
-                        IconButton(
-                            onClick = { debounce { onEditPlanClick(null) } },
-                            modifier = Modifier.onGloballyPositioned { addPlanBtnCoords = it }
-                        ) {
-                            Icon(Icons.Default.Add, stringResource(R.string.action_add_plan), tint = iconTint)
-                        }
-                        IconButton(
-                            onClick = { debounce { onSettingsClick() } },
-                            modifier = Modifier.onGloballyPositioned { settingsBtnCoords = it }
-                        ) {
-                            Icon(Icons.Default.Settings, stringResource(R.string.action_settings), tint = iconTint)
+                            GlassActionIcon(
+                                onClick = { debounce { onSettingsClick() } },
+                                modifier = Modifier.onGloballyPositioned { settingsBtnCoords = it }
+                            ) {
+                                Icon(Icons.Default.Settings, stringResource(R.string.action_settings), tint = iconTint, modifier = Modifier.size(20.dp))
+                            }
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = AppTheme.colors.background)
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = AppTheme.colors.surface.copy(alpha = 0.8f)
+                )
             )
         },
         floatingActionButton = {
-            // [修正] 只有在「有進行中計畫」時才顯示新增消費的 FAB
             if (uiState.activePlan != null) {
-                FloatingActionButton(
+                AuroraFloatingActionButton(
                     onClick = {
                         debounce {
-                            // [優化] 智慧日期選擇邏輯
                             val plan = uiState.activePlan!!
-
-                            // 1. 取得目前 Dashboard 顯示月份的第一天 (基準日)
                             val viewCal = Calendar.getInstance().apply {
                                 set(Calendar.YEAR, uiState.currentYear)
                                 set(Calendar.MONTH, uiState.currentMonth)
@@ -354,33 +428,14 @@ fun DashboardScreen(
                                 set(Calendar.MILLISECOND, 0)
                             }
                             val viewMonthStart = viewCal.timeInMillis
-
-                            // 2. 決定預設日期：
-                            // 規則 A: 優先使用 "檢視月份的第一天"
-                            // 規則 B: 如果第一天早於 "計畫開始日"，則使用 "計畫開始日" (確保不早於計畫)
-                            // 規則 C: 確保不晚於 "計畫結束日"
-
-                            // Step 1: 取 (檢視月1號) 與 (計畫開始日) 的最大值
-                            // 範例：計畫 9/10~11/20
-                            //  - 檢視 9月: max(9/1, 9/10) -> 9/10 (符合需求：選最早有效日)
-                            //  - 檢視 10月: max(10/1, 9/10) -> 10/1 (符合需求：當月1號)
                             var targetDate = maxOf(viewMonthStart, plan.startDate)
-
-                            // Step 2: 取 (Step 1結果) 與 (計畫結束日) 的最小值
-                            //  - 檢視 11月: min(11/1, 11/20) -> 11/1
-                            //  - 檢視 12月(若有): min(12/1, 11/20) -> 11/20 (修正回計畫結束日)
                             targetDate = minOf(targetDate, plan.endDate)
 
                             onAddExpenseClick(targetDate)
                         }
                     },
-                    containerColor = AppTheme.colors.accent,
-                    contentColor = Color.White,
-                    shape = CircleShape,
                     modifier = Modifier.onGloballyPositioned { fabCoords = it }
-                ) {
-                    Icon(Icons.Default.Add, null)
-                }
+                )
             }
         }
     ) { innerPadding ->
@@ -393,22 +448,24 @@ fun DashboardScreen(
                 Box(modifier = Modifier.onGloballyPositioned { statusCardCoords = it }) {
                     DashboardStatusCard(
                         todayAvailable = uiState.todayAvailable,
-                        isExpired = uiState.isExpired
+                        isExpired = uiState.isExpired,
+                        glassBrush = glassBrush,
+                        borderBrush = borderBrush
                     )
                 }
             } else {
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
-            Card(
+            Box(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp)
-                    .padding(bottom = 16.dp),
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = AppTheme.colors.surface),
-                elevation = CardDefaults.cardElevation(0.dp)
+                    .padding(bottom = 16.dp)
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(glassBrush)
+                    .border(1.dp, borderBrush, RoundedCornerShape(24.dp))
             ) {
                 Column(
                     modifier = Modifier
@@ -419,7 +476,6 @@ fun DashboardScreen(
                         WeekHeader()
                     }
 
-                    // 這裡檢查是否為空狀態
                     if (uiState.dailyStates.isEmpty() && uiState.activePlan == null) {
                         Box(
                             modifier = Modifier
@@ -428,15 +484,8 @@ fun DashboardScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             if (uiState.viewMode == ViewMode.Focus && uiState.activePlan == null) {
-                                // 使用專用的 DashboardEmptyState
                                 DashboardEmptyState(
-                                    onCreateClick = {
-                                        debounce {
-                                            // 改為傳入 -1L，告訴系統 "我沒有指定日期"
-                                            // 這樣 PlanViewModel.initDates 就會自動計算 "今天" 到 "本月最後一天"
-                                            onEmptyDateClick(-1L, -1L)
-                                        }
-                                    }
+                                    onCreateClick = { debounce { onEmptyDateClick(-1L, -1L) } }
                                 )
                             } else {
                                 CircularProgressIndicator(color = AppTheme.colors.accent)
@@ -449,18 +498,11 @@ fun DashboardScreen(
                                 userScrollEnabled = true,
                                 modifier = Modifier.fillMaxSize()
                             ){ page ->
-                                // [新增] 計算這一頁 "應該" 是哪一年哪一月
-                                // 我們使用 remember 避免重複計算，但 key 設為 page 確保每頁獨立
                                 val pageTargetDate = remember(page, startCalForPager) {
-                                    (startCalForPager.clone() as Calendar).apply {
-                                        add(Calendar.MONTH, page)
-                                    }
+                                    (startCalForPager.clone() as Calendar).apply { add(Calendar.MONTH, page) }
                                 }
                                 val pageYear = pageTargetDate.get(Calendar.YEAR)
                                 val pageMonth = pageTargetDate.get(Calendar.MONTH)
-
-                                // [新增] 關鍵檢查：只有當 "頁面月份" 等於 "ViewModel 當前資料月份" 時才顯示內容
-                                // 這能防止新頁面在資料更新前，錯誤地顯示舊月份的殘影
                                 val isDataReady = pageYear == uiState.currentYear && pageMonth == uiState.currentMonth
 
                                 if (isDataReady) {
@@ -476,44 +518,19 @@ fun DashboardScreen(
                                         itemsIndexed(
                                             uiState.dailyStates,
                                             key = { index, dayState ->
-                                                if (dayState.status == DayStatus.Empty) {
-                                                    "empty_$index"
-                                                } else {
-                                                    "${dayState.date}_${dayState.status}"
-                                                }
+                                                if (dayState.status == DayStatus.Empty) "empty_$index" else "${dayState.date}_${dayState.status}"
                                             }
                                         ) { index, dayState ->
                                             if (dayState.status == DayStatus.Empty) {
                                                 Box(modifier = Modifier.aspectRatio(1f))
                                             } else {
-
-                                                val scale = remember(dayState.date) { Animatable(0.92f) } // 從 92% 開始，不要太小
+                                                val scale = remember(dayState.date) { Animatable(0.92f) }
                                                 val alpha = remember(dayState.date) { Animatable(0f) }
-
                                                 LaunchedEffect(dayState.date) {
-                                                    // 1. 強制重置狀態
                                                     scale.snapTo(0.92f)
                                                     alpha.snapTo(0f)
-
-                                                    // 2. 完全不加 delay，追求極速
-                                                    // 或者加上極短的 10-20ms 讓畫面緩衝一下，避免過於生硬
-                                                    //delay(10)
-
-                                                    launch {
-                                                        scale.animateTo(
-                                                            1f,
-                                                            animationSpec = tween(
-                                                                durationMillis = 250, // 稍微慢一點點的 tween，質感較好
-                                                                easing = FastOutSlowInEasing
-                                                            )
-                                                        )
-                                                    }
-                                                    launch {
-                                                        alpha.animateTo(
-                                                            1f,
-                                                            animationSpec = tween(200)
-                                                        )
-                                                    }
+                                                    launch { scale.animateTo(1f, animationSpec = tween(250, easing = FastOutSlowInEasing)) }
+                                                    launch { alpha.animateTo(1f, animationSpec = tween(200)) }
                                                 }
 
                                                 Box(
@@ -550,8 +567,6 @@ fun DashboardScreen(
                                         }
                                     }
                                 } else {
-                                    // [新增] 如果資料還沒對上，顯示空白 (防止閃爍)
-                                    // 這裡也可以放一個輕量的 Loading Indicator，但空白通常視覺上更乾淨
                                     Box(modifier = Modifier.fillMaxSize())
                                 }
                             }
@@ -560,31 +575,17 @@ fun DashboardScreen(
                                 if (pagerState.currentPage > 0) {
                                     IconButton(
                                         onClick = { scope.launch { pagerState.animateScrollToPage(pagerState.currentPage - 1) } },
-                                        modifier = Modifier
-                                            .align(Alignment.CenterStart)
-                                            .offset(x = (-12).dp)
+                                        modifier = Modifier.align(Alignment.CenterStart).offset(x = (-12).dp)
                                     ) {
-                                        Icon(
-                                            Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                                            null,
-                                            tint = AppTheme.colors.textSecondary.copy(alpha = 0.5f),
-                                            modifier = Modifier.size(32.dp)
-                                        )
+                                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, null, tint = AppTheme.colors.textSecondary.copy(alpha = 0.5f), modifier = Modifier.size(32.dp))
                                     }
                                 }
                                 if (pagerState.currentPage < totalPageCount - 1) {
                                     IconButton(
                                         onClick = { scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) } },
-                                        modifier = Modifier
-                                            .align(Alignment.CenterEnd)
-                                            .offset(x = 12.dp)
+                                        modifier = Modifier.align(Alignment.CenterEnd).offset(x = 12.dp)
                                     ) {
-                                        Icon(
-                                            Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                            null,
-                                            tint = AppTheme.colors.textSecondary.copy(alpha = 0.5f),
-                                            modifier = Modifier.size(32.dp)
-                                        )
+                                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = AppTheme.colors.textSecondary.copy(alpha = 0.5f), modifier = Modifier.size(32.dp))
                                     }
                                 }
                             }
@@ -597,20 +598,13 @@ fun DashboardScreen(
 
     if (isTutorialMode && isTutorialReady && coachMarkStep > 0) {
         val target = when (coachMarkStep) {
-            1 -> focusToggleBtnCoords?.let { CoachMarkTarget(it,
-                stringResource(R.string.tutorial_title_mode), stringResource(R.string.tutorial_desc_to_calendar), position = CoachMarkPosition.Bottom) }
-            2 -> subBtnCoords?.let { CoachMarkTarget(it,
-                stringResource(R.string.tutorial_title_subscribe), stringResource(R.string.tutorial_desc_subscribe), position = CoachMarkPosition.Bottom) }
-            3 -> editBtnCoords?.let { CoachMarkTarget(it,
-                stringResource(R.string.tutorial_title_edit), stringResource(R.string.tutorial_desc_edit), position = CoachMarkPosition.Bottom) }
-            4 -> listBtnCoords?.let { CoachMarkTarget(it,
-                stringResource(R.string.tutorial_title_list), stringResource(R.string.tutorial_desc_list), position = CoachMarkPosition.Bottom) }
-            5 -> fabCoords?.let { CoachMarkTarget(it,
-                stringResource(R.string.tutorial_title_record), stringResource(R.string.tutorial_desc_record), position = CoachMarkPosition.Top) }
-            6 -> statusCardCoords?.let { CoachMarkTarget(it,
-                stringResource(R.string.tutorial_title_today), stringResource(R.string.tutorial_desc_today), isCircle = false, position = CoachMarkPosition.Bottom) }
-            7 -> cardCoords?.let { CoachMarkTarget(it,
-                stringResource(R.string.tutorial_title_status), stringResource(R.string.tutorial_desc_status), isCircle = false, position = CoachMarkPosition.Bottom, extraHeight = gridHeight) }
+            1 -> focusToggleBtnCoords?.let { CoachMarkTarget(it, stringResource(R.string.tutorial_title_mode), stringResource(R.string.tutorial_desc_to_calendar), position = CoachMarkPosition.Bottom) }
+            2 -> subBtnCoords?.let { CoachMarkTarget(it, stringResource(R.string.tutorial_title_subscribe), stringResource(R.string.tutorial_desc_subscribe), position = CoachMarkPosition.Bottom) }
+            3 -> editBtnCoords?.let { CoachMarkTarget(it, stringResource(R.string.tutorial_title_edit), stringResource(R.string.tutorial_desc_edit), position = CoachMarkPosition.Bottom) }
+            4 -> listBtnCoords?.let { CoachMarkTarget(it, stringResource(R.string.tutorial_title_list), stringResource(R.string.tutorial_desc_list), position = CoachMarkPosition.Bottom) }
+            5 -> fabCoords?.let { CoachMarkTarget(it, stringResource(R.string.tutorial_title_record), stringResource(R.string.tutorial_desc_record), position = CoachMarkPosition.Top) }
+            6 -> statusCardCoords?.let { CoachMarkTarget(it, stringResource(R.string.tutorial_title_today), stringResource(R.string.tutorial_desc_today), isCircle = false, position = CoachMarkPosition.Bottom) }
+            7 -> cardCoords?.let { CoachMarkTarget(it, stringResource(R.string.tutorial_title_status), stringResource(R.string.tutorial_desc_status), isCircle = false, position = CoachMarkPosition.Bottom, extraHeight = gridHeight) }
             8 -> {
                 LaunchedEffect(Unit) {
                     viewModel.toggleViewMode()
@@ -619,16 +613,11 @@ fun DashboardScreen(
                 }
                 null
             }
-            9 -> calendarToggleBtnCoords?.let { CoachMarkTarget(it,
-                stringResource(R.string.tutorial_title_mode), stringResource(R.string.tutorial_desc_to_focus), position = CoachMarkPosition.Bottom) }
-            10 -> historyBtnCoords?.let { CoachMarkTarget(it,
-                stringResource(R.string.tutorial_title_history), stringResource(R.string.tutorial_desc_history), position = CoachMarkPosition.Bottom) }
-            11 -> addPlanBtnCoords?.let { CoachMarkTarget(it,
-                stringResource(R.string.tutorial_title_new_plan), stringResource(R.string.tutorial_desc_new_plan), position = CoachMarkPosition.Bottom) }
-            12 -> settingsBtnCoords?.let { CoachMarkTarget(it,
-                stringResource(R.string.tutorial_title_settings), stringResource(R.string.tutorial_desc_settings), position = CoachMarkPosition.Bottom) }
-            13 -> cardCoords?.let { CoachMarkTarget(it,
-                stringResource(R.string.tutorial_title_calendar), stringResource(R.string.tutorial_desc_calendar), isCircle = false, position = CoachMarkPosition.Bottom, extraHeight = gridHeight) }
+            9 -> calendarToggleBtnCoords?.let { CoachMarkTarget(it, stringResource(R.string.tutorial_title_mode), stringResource(R.string.tutorial_desc_to_focus), position = CoachMarkPosition.Bottom) }
+            10 -> historyBtnCoords?.let { CoachMarkTarget(it, stringResource(R.string.tutorial_title_history), stringResource(R.string.tutorial_desc_history), position = CoachMarkPosition.Bottom) }
+            11 -> addPlanBtnCoords?.let { CoachMarkTarget(it, stringResource(R.string.tutorial_title_new_plan), stringResource(R.string.tutorial_desc_new_plan), position = CoachMarkPosition.Bottom) }
+            12 -> settingsBtnCoords?.let { CoachMarkTarget(it, stringResource(R.string.tutorial_title_settings), stringResource(R.string.tutorial_desc_settings), position = CoachMarkPosition.Bottom) }
+            13 -> cardCoords?.let { CoachMarkTarget(it, stringResource(R.string.tutorial_title_calendar), stringResource(R.string.tutorial_desc_calendar), isCircle = false, position = CoachMarkPosition.Bottom, extraHeight = gridHeight) }
             else -> null
         }
 
@@ -637,16 +626,12 @@ fun DashboardScreen(
         }
 
         if (target != null) {
-            CoachMarkOverlay(
-                target = target,
-                onNext = { coachMarkStep++ },
-                onSkip = {
-                    coachMarkStep = 0
-                    isTutorialReady = false
-                    if (uiState.viewMode == ViewMode.Calendar) viewModel.toggleViewMode()
-                    onTutorialFinished()
-                }
-            )
+            CoachMarkOverlay(target = target, onNext = { coachMarkStep++ }, onSkip = {
+                coachMarkStep = 0
+                isTutorialReady = false
+                if (uiState.viewMode == ViewMode.Calendar) viewModel.toggleViewMode()
+                onTutorialFinished()
+            })
         } else if (coachMarkStep > 13) {
             coachMarkStep = 0
             isTutorialReady = false
@@ -656,7 +641,6 @@ fun DashboardScreen(
     }
 }
 
-// ... RollingNumberText 與其他 Composable 保持不變，可以直接使用您原本的 ...
 @Composable
 fun RollingNumberText(
     targetValue: Int,
@@ -669,40 +653,37 @@ fun RollingNumberText(
 
     LaunchedEffect(targetValue) {
         if (targetValue != lastValue) {
-            animatable.animateTo(
-                targetValue = targetValue.toFloat(),
-                animationSpec = tween(durationMillis = 800, easing = FastOutSlowInEasing)
-            )
+            animatable.animateTo(targetValue.toFloat(), animationSpec = tween(800, easing = FastOutSlowInEasing))
             lastValue = targetValue
         } else {
             animatable.snapTo(targetValue.toFloat())
         }
     }
-
-    Text(
-        text = "$ ${animatable.value.toInt()}",
-        fontSize = fontSize,
-        fontWeight = fontWeight,
-        color = color
-    )
+    Text(text = "$ ${animatable.value.toInt()}", fontSize = fontSize, fontWeight = fontWeight, color = color)
 }
 
 @Composable
-fun DashboardStatusCard(todayAvailable: Int, isExpired: Boolean) {
-    Card(
+fun DashboardStatusCard(
+    todayAvailable: Int,
+    isExpired: Boolean,
+    glassBrush: Brush,
+    borderBrush: Brush
+) {
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
-            .padding(bottom = 16.dp),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = AppTheme.colors.surface),
-        elevation = CardDefaults.cardElevation(0.dp)
+            .padding(bottom = 16.dp)
+            .clip(RoundedCornerShape(24.dp))
+            .background(glassBrush)
+            .border(1.dp, borderBrush, RoundedCornerShape(24.dp))
     ) {
         Column(
-            modifier = Modifier.padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            modifier = Modifier
+                .padding(24.dp)
+                .fillMaxWidth(),
+            horizontalAlignment = Alignment.Start
         ) {
-
             Text(
                 if (isExpired) stringResource(R.string.label_plan_balance) else stringResource(R.string.label_available_today),
                 fontSize = 14.sp,
@@ -747,24 +728,56 @@ fun JapaneseDayGridItem(
     showBalance: Boolean,
     onClick: (Long) -> Unit
 ) {
-    val backgroundColor = when (dayState.status) {
-        DayStatus.Success -> AppTheme.colors.success.copy(alpha = 0.15f)
-        DayStatus.Fail -> AppTheme.colors.fail.copy(alpha = 0.15f)
-        DayStatus.Neutral -> Color.Gray.copy(alpha = 0.1f)
-        DayStatus.Future -> Color.Gray.copy(alpha = 0.1f)
-        else -> AppTheme.colors.surface
+    val isDark = isSystemInDarkTheme()
+
+    // [美術修正] 深色模式下的日期格子樣式
+    // 使用白色半透明漸層來模擬與淺色模式相同的「玻璃磚塊」重量感
+    val backgroundBrush = when (dayState.status) {
+        DayStatus.Success -> Brush.verticalGradient(
+            colors = listOf(
+                AppTheme.colors.success.copy(alpha = 0.3f),
+                AppTheme.colors.success.copy(alpha = 0.1f)
+            )
+        )
+        DayStatus.Fail -> Brush.verticalGradient(
+            colors = listOf(
+                AppTheme.colors.fail.copy(alpha = 0.3f),
+                AppTheme.colors.fail.copy(alpha = 0.1f)
+            )
+        )
+        DayStatus.Neutral, DayStatus.Future -> Brush.verticalGradient(
+            colors = if (isDark) {
+                // [關鍵修改] 深色模式：使用 10% -> 2% 白色，創造出明顯的玻璃方塊
+                listOf(Color.White.copy(alpha = 0.1f), Color.White.copy(alpha = 0.02f))
+            } else {
+                // 淺色模式：使用 4% 黑色
+                listOf(Color.Black.copy(alpha = 0.04f), Color.Transparent)
+            }
+        )
+        else -> Brush.linearGradient(listOf(Color.Transparent, Color.Transparent))
     }
 
     val textColor = when (dayState.status) {
         DayStatus.Success -> AppTheme.colors.success
         DayStatus.Fail -> AppTheme.colors.fail
-        DayStatus.Neutral -> AppTheme.colors.textSecondary.copy(alpha = 0.5f)
-        DayStatus.Future -> AppTheme.colors.textSecondary.copy(alpha = 0.5f)
+        DayStatus.Neutral -> if (isDark) {
+            // [關鍵修改] 深色模式：也使用 Primary + Alpha，保持一致性
+            AppTheme.colors.textPrimary.copy(alpha = 0.5f)
+        } else {
+            AppTheme.colors.textPrimary.copy(alpha = 0.5f)
+        }
+        DayStatus.Future -> if (isDark) {
+            AppTheme.colors.textPrimary.copy(alpha = 0.3f)
+        } else {
+            AppTheme.colors.textPrimary.copy(alpha = 0.3f)
+        }
         else -> AppTheme.colors.textSecondary
     }
 
     val borderModifier = if (dayState.isToday) {
-        Modifier.border(1.5.dp, AppTheme.colors.accent, RoundedCornerShape(12.dp))
+        Modifier.border(1.5.dp, AppTheme.colors.accent, RoundedCornerShape(14.dp))
+    } else if (dayState.status != DayStatus.Empty) {
+        Modifier.border(0.5.dp, AppTheme.colors.textSecondary.copy(alpha = 0.1f), RoundedCornerShape(14.dp))
     } else {
         Modifier
     }
@@ -774,8 +787,8 @@ fun JapaneseDayGridItem(
     Column(
         modifier = Modifier
             .aspectRatio(1f)
-            .clip(RoundedCornerShape(12.dp))
-            .background(backgroundColor)
+            .clip(RoundedCornerShape(14.dp))
+            .background(backgroundBrush)
             .then(borderModifier)
             .clickable(enabled = isClickable) { onClick(dayState.date) }
             .padding(4.dp),
@@ -785,7 +798,7 @@ fun JapaneseDayGridItem(
         Text(
             text = dayState.dayOfMonth.toString(),
             fontSize = 14.sp,
-            fontWeight = if (dayState.isToday) FontWeight.Bold else FontWeight.Normal,
+            fontWeight = if (dayState.isToday) FontWeight.Bold else FontWeight.Medium,
             color = if (dayState.isToday) AppTheme.colors.accent else textColor
         )
 
@@ -807,31 +820,29 @@ fun DashboardEmptyState(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(32.dp), // 增加邊距
+            .padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // 1. 視覺圖示 (大圓底 + Icon)
         Box(
             modifier = Modifier
                 .size(120.dp)
                 .background(
-                    color = AppTheme.colors.accent.copy(alpha = 0.1f), // 淡淡的強調色背景
+                    color = AppTheme.colors.accent.copy(alpha = 0.1f),
                     shape = CircleShape
                 ),
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                imageVector = Icons.Default.DateRange, // 使用月曆圖示
+                imageVector = Icons.Default.DateRange,
                 contentDescription = null,
                 modifier = Modifier.size(56.dp),
-                tint = AppTheme.colors.accent // 圖示使用強調色
+                tint = AppTheme.colors.accent
             )
         }
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // 2. 標題
         Text(
             text = stringResource(R.string.msg_no_active_plan),
             fontSize = 24.sp,
@@ -842,8 +853,6 @@ fun DashboardEmptyState(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // 3. 副標題 (引導文字)
-        // 這裡您可以之後抽換成 stringResource，目前先用範例文字
         Text(
             text = stringResource(R.string.msg_empty_state_subtitle),
             fontSize = 15.sp,
@@ -854,19 +863,18 @@ fun DashboardEmptyState(
 
         Spacer(modifier = Modifier.height(40.dp))
 
-        // 4. 強化版行動按鈕
         Button(
             onClick = onCreateClick,
             colors = ButtonDefaults.buttonColors(
                 containerColor = AppTheme.colors.accent,
                 contentColor = Color.White
             ),
-            shape = RoundedCornerShape(50), // 全圓角
+            shape = RoundedCornerShape(50),
             modifier = Modifier
-                .fillMaxWidth(0.7f) // 寬度設為 70%，不要太寬
-                .height(56.dp), // 加高按鈕，更好點擊
+                .fillMaxWidth(0.7f)
+                .height(56.dp),
             elevation = ButtonDefaults.buttonElevation(
-                defaultElevation = 6.dp, // 加入陰影增加立體感
+                defaultElevation = 6.dp,
                 pressedElevation = 2.dp
             )
         ) {

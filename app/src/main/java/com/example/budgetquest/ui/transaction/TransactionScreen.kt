@@ -1,6 +1,8 @@
 package com.example.budgetquest.ui.transaction
 
 import android.app.DatePickerDialog
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -50,6 +52,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush // [新增]
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -64,13 +68,34 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.budgetquest.R
 import com.example.budgetquest.ui.AppViewModelProvider
 import com.example.budgetquest.ui.common.getIconByKey
-import com.example.budgetquest.ui.common.getSmartCategoryName // [新增]
-import com.example.budgetquest.ui.common.getSmartTagName // [新增]
+import com.example.budgetquest.ui.common.getSmartCategoryName
+import com.example.budgetquest.ui.common.getSmartTagName
 import com.example.budgetquest.ui.theme.AppTheme
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+
+// [美術] 定義玻璃筆刷 (與 SummaryScreen 一致)
+@Composable
+private fun getGlassBrush(): Brush {
+    return Brush.verticalGradient(
+        colors = listOf(
+            AppTheme.colors.surface.copy(alpha = 0.65f),
+            AppTheme.colors.surface.copy(alpha = 0.35f)
+        )
+    )
+}
+
+@Composable
+private fun getBorderBrush(): Brush {
+    return Brush.linearGradient(
+        colors = listOf(
+            AppTheme.colors.textPrimary.copy(alpha = 0.25f),
+            AppTheme.colors.textPrimary.copy(alpha = 0.10f)
+        )
+    )
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -88,18 +113,15 @@ fun TransactionScreen(
     var showCategoryManager by remember { mutableStateOf(false) }
     var showTagManager by remember { mutableStateOf(false) }
 
-    // [新增] Snackbar 狀態
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
 
-    // [新增] 監聽錯誤訊息並顯示 Snackbar
     LaunchedEffect(uiState.errorMessageId) {
         uiState.errorMessageId?.let { errorId ->
             snackbarHostState.showSnackbar(
                 message = context.getString(errorId),
                 duration = SnackbarDuration.Short
             )
-            // 顯示後清除 ViewModel 中的錯誤狀態
             viewModel.clearError()
         }
     }
@@ -173,8 +195,13 @@ fun TransactionScreen(
         }
     }
 
+    // [美術] 取得筆刷
+    val glassBrush = getGlassBrush()
+    val borderBrush = getBorderBrush()
+
     Scaffold(
-        containerColor = AppTheme.colors.background,
+        // [美術] 背景透明
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = {
@@ -190,17 +217,20 @@ fun TransactionScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back), tint = AppTheme.colors.textPrimary)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = AppTheme.colors.background)
+                // [美術] 頂欄透明
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = AppTheme.colors.surface.copy(alpha = 0.8f)
+                )
             )
         },
-        // [新增] SnackbarHost
         snackbarHost = {
             SnackbarHost(
                 hostState = snackbarHostState,
                 snackbar = { data ->
                     Snackbar(
                         snackbarData = data,
-                        containerColor = AppTheme.colors.fail, // 使用錯誤色 (紅色)
+                        containerColor = AppTheme.colors.fail,
                         contentColor = Color.White
                     )
                 }
@@ -211,12 +241,16 @@ fun TransactionScreen(
             modifier = Modifier.padding(innerPadding).padding(20.dp).fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = AppTheme.colors.surface),
-                shape = RoundedCornerShape(24.dp),
-                elevation = CardDefaults.cardElevation(0.dp)
+            // [美術] 改用 Box + 玻璃質感 (日期與金額卡片)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(glassBrush)
+                    .border(1.dp, borderBrush, RoundedCornerShape(24.dp))
+                    .padding(20.dp)
             ) {
-                Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     Row(
                         modifier = Modifier.clickable { debounce { datePickerDialog.show() } },
                         verticalAlignment = Alignment.CenterVertically
@@ -240,17 +274,20 @@ fun TransactionScreen(
                 }
             }
 
-            Card(
-                colors = CardDefaults.cardColors(containerColor = AppTheme.colors.surface),
-                shape = RoundedCornerShape(24.dp),
-                elevation = CardDefaults.cardElevation(0.dp)
+            // [美術] 改用 Box + 玻璃質感 (分類與備註卡片)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(glassBrush)
+                    .border(1.dp, borderBrush, RoundedCornerShape(24.dp))
+                    .padding(20.dp)
             ) {
-                Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     Text(stringResource(R.string.label_category), fontSize = 12.sp, color = AppTheme.colors.textSecondary)
 
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(categories, key = { it.id }) { cat ->
-                            // [套用 Helper] 智慧分類名稱
                             JapaneseCompactChip(
                                 label = getSmartCategoryName(cat.name, cat.resourceKey),
                                 selected = uiState.category == cat.name,
@@ -268,15 +305,12 @@ fun TransactionScreen(
 
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(tags, key = { it.id }) { tag ->
-                            // [關鍵修改] 讓備註標籤也顯示智慧名稱 (多語言)
                             val displayName = getSmartTagName(tag.name, tag.resourceKey)
 
                             JapaneseCompactChip(
                                 label = displayName,
-                                // 選中判斷改為比對 displayName，這樣即使語言切換也能保持選中狀態
                                 selected = uiState.note == displayName
                             ) {
-                                // 點擊時填入翻譯後的名稱，這會讓輸入框也顯示翻譯後的文字
                                 viewModel.updateNote(displayName)
                             }
                         }
@@ -344,7 +378,8 @@ fun JapaneseTransparentInput(value: String, onValueChange: (String) -> Unit, pla
 @Composable
 fun JapaneseCompactChip(label: String, selected: Boolean, icon: ImageVector? = null, onClick: () -> Unit) {
     Surface(
-        color = if (selected) AppTheme.colors.accent else AppTheme.colors.background,
+        // [美術] 未選中時稍微透明
+        color = if (selected) AppTheme.colors.accent else AppTheme.colors.background.copy(alpha = 0.5f),
         contentColor = if (selected) Color.White else AppTheme.colors.textSecondary,
         shape = RoundedCornerShape(8.dp),
         modifier = Modifier.clickable { onClick() }
@@ -366,7 +401,7 @@ fun JapaneseCompactChip(label: String, selected: Boolean, icon: ImageVector? = n
 fun EditButton(onClick: () -> Unit) {
     Surface(
         shape = CircleShape,
-        color = AppTheme.colors.background,
+        color = AppTheme.colors.background.copy(alpha = 0.5f), // [美術] 稍微透明
         modifier = Modifier.size(32.dp).clickable { onClick() }
     ) {
         Box(contentAlignment = Alignment.Center) {

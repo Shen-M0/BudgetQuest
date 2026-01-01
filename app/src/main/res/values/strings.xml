@@ -287,4 +287,11 @@
     <string name="error_msg_sub">請輸入名稱</string>
     <string name="label_total">總計</string>
 
+    <string name="action_add_expense">新增消費</string>
+    <string name="label_total_expense">總支出</string>
+
+    <string name="suffix_auto_deduction">(自動扣款)</string>
+
+
+
 </resources>

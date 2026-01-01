@@ -7,6 +7,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,6 +28,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -56,14 +58,24 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.PaintingStyle.Companion.Stroke
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.graphics.ColorUtils
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.budgetquest.R
 import com.example.budgetquest.data.CategoryEntity
@@ -72,18 +84,73 @@ import com.example.budgetquest.data.TagEntity
 import com.example.budgetquest.ui.AppViewModelProvider
 import com.example.budgetquest.ui.common.JapaneseBudgetProgressBar
 import com.example.budgetquest.ui.common.getIconByKey
-import com.example.budgetquest.ui.common.getSmartCategoryName
-import com.example.budgetquest.ui.common.getSmartTagName
+import com.example.budgetquest.ui.common.getSmartCategoryName // [新增]
+import com.example.budgetquest.ui.common.getSmartTagName // [新增]
+import com.example.budgetquest.ui.common.getSmartNote // [新增]
 import com.example.budgetquest.ui.theme.AppTheme
 import com.example.budgetquest.ui.transaction.CategoryManagerDialog
-import com.example.budgetquest.ui.transaction.EditButton
 import com.example.budgetquest.ui.transaction.TagManagerDialog
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import androidx.compose.ui.graphics.drawscope.Stroke // [新增] 用於繪製空心圓環
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
+
+// [美術] 定義全域共用的玻璃筆刷
+@Composable
+private fun getGlassBrush(): Brush {
+    return Brush.verticalGradient(
+        colors = listOf(
+            AppTheme.colors.surface.copy(alpha = 0.65f),
+            AppTheme.colors.surface.copy(alpha = 0.35f)
+        )
+    )
+}
+
+@Composable
+private fun getBorderBrush(): Brush {
+    return Brush.linearGradient(
+        colors = listOf(
+            AppTheme.colors.textPrimary.copy(alpha = 0.25f),
+            AppTheme.colors.textPrimary.copy(alpha = 0.10f)
+        )
+    )
+}
+
+// [美術] 玻璃按鈕容器
+@Composable
+fun GlassIconContainer(
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    val glassBrush = getGlassBrush()
+    val borderBrush = getBorderBrush()
+
+    Box(
+        modifier = modifier
+            .size(40.dp)
+            .clip(CircleShape)
+            .background(glassBrush)
+            .border(1.dp, borderBrush, CircleShape),
+        contentAlignment = Alignment.Center
+    ) {
+        content()
+    }
+}
+
+// [美術] 文字陰影樣式
+@Composable
+fun getShadowTextStyle(fontSize: Int, fontWeight: FontWeight): TextStyle {
+    return TextStyle(
+        fontSize = fontSize.sp,
+        fontWeight = fontWeight,
+        color = AppTheme.colors.textPrimary,
+        shadow = Shadow(
+            color = Color.Black.copy(alpha = 0.1f),
+            offset = Offset(2f, 2f),
+            blurRadius = 4f
+        )
+    )
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SummaryScreen(
@@ -125,30 +192,43 @@ fun SummaryScreen(
     }
 
     Scaffold(
-        containerColor = AppTheme.colors.background,
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.title_summary), color = AppTheme.colors.textPrimary, fontSize = 18.sp) },
                 navigationIcon = {
-                    IconButton(onClick = { debounce(onBackClick) }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back), tint = AppTheme.colors.textPrimary)
+                    // [美術] TopBar 返回按鈕：Box (Padding) -> Clip -> Clickable -> Glass Container
+                    Box(
+                        modifier = Modifier
+                            .padding(start = 12.dp)
+                            .clip(CircleShape) // 確保水波紋是圓的
+                            .clickable { debounce(onBackClick) }
+                    ) {
+                        GlassIconContainer(modifier = Modifier.size(40.dp)) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(R.string.action_back),
+                                tint = AppTheme.colors.textPrimary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = AppTheme.colors.background)
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = AppTheme.colors.surface.copy(alpha = 0.8f)
+                )
             )
         }
     ) { innerPadding ->
-        // [修正] 改用 LazyColumn 包覆所有內容，解決滑動問題
         LazyColumn(
             modifier = Modifier
                 .padding(innerPadding)
                 .padding(horizontal = 20.dp)
                 .fillMaxSize(),
-            // 設定列表項目間距為 12dp
             verticalArrangement = Arrangement.spacedBy(12.dp),
             contentPadding = PaddingValues(bottom = 24.dp)
         ) {
-            // 1. 預算卡片 (Header)
             if (uiState.plan != null) {
                 item {
                     val message = when (uiState.budgetStatus) {
@@ -163,11 +243,9 @@ fun SummaryScreen(
                         message = message
                     )
                 }
-                // 補償間距：12dp (預設) + 8dp = 20dp (原本的設計)
                 item { Spacer(modifier = Modifier.height(8.dp)) }
             }
 
-            // 2. 圓餅圖 (Header)
             if (uiState.totalSpent > 0) {
                 item {
                     CollapsiblePieChart(data = uiState.categoryStats)
@@ -175,7 +253,6 @@ fun SummaryScreen(
                 item { Spacer(modifier = Modifier.height(8.dp)) }
             }
 
-            // 3. 篩選卡片 (Header)
             item {
                 JapaneseFilterCard(
                     searchQuery = searchQuery,
@@ -192,7 +269,6 @@ fun SummaryScreen(
             }
             item { Spacer(modifier = Modifier.height(8.dp)) }
 
-            // 4. 消費列表 (List Items)
             if (uiState.filteredExpenses.isEmpty()) {
                 item {
                     Box(
@@ -216,23 +292,26 @@ fun SummaryScreen(
     }
 }
 
-// ... 以下 Composable (MinimalBudgetCard, CollapsiblePieChart, JapaneseFilterCard, JapaneseExpenseItem, PieChart) 保持不變 ...
-// 為節省篇幅，這裡省略重複的程式碼，請保留您原本 summaryscreen.kt 後半段的所有 Composable 函式定義。
-// 您只需要替換 SummaryScreen 函式本體即可。
-
 @Composable
 fun MinimalBudgetCard(totalBudget: Int, totalSpent: Int, message: String) {
     val remaining = totalBudget - totalSpent
+    val glassBrush = getGlassBrush()
+    val borderBrush = getBorderBrush()
 
-    Card(
-        colors = CardDefaults.cardColors(containerColor = AppTheme.colors.surface),
-        elevation = CardDefaults.cardElevation(0.dp),
-        shape = RoundedCornerShape(20.dp),
-        modifier = Modifier.fillMaxWidth()
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(glassBrush)
+            .border(1.dp, borderBrush, RoundedCornerShape(20.dp))
+            .padding(24.dp)
     ) {
-        Column(modifier = Modifier.padding(24.dp)) {
+        Column {
             Row(verticalAlignment = Alignment.Bottom) {
-                Text(stringResource(R.string.amount_currency_format, remaining), fontSize = 32.sp, fontWeight = FontWeight.Light, color = AppTheme.colors.textPrimary)
+                Text(
+                    text = stringResource(R.string.amount_currency_format, remaining),
+                    style = getShadowTextStyle(fontSize = 32, fontWeight = FontWeight.Light)
+                )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(stringResource(R.string.label_remaining_budget), fontSize = 12.sp, color = AppTheme.colors.textSecondary, modifier = Modifier.padding(bottom = 6.dp))
             }
@@ -253,6 +332,8 @@ fun MinimalBudgetCard(totalBudget: Int, totalSpent: Int, message: String) {
 @Composable
 fun CollapsiblePieChart(data: List<CategoryStat>) {
     var expanded by remember { mutableStateOf(false) }
+    val glassBrush = getGlassBrush()
+    val borderBrush = getBorderBrush()
 
     var lastClickTime by remember { mutableLongStateOf(0L) }
     fun debounceToggle() {
@@ -267,7 +348,8 @@ fun CollapsiblePieChart(data: List<CategoryStat>) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
-            .background(AppTheme.colors.surface)
+            .background(glassBrush)
+            .border(1.dp, borderBrush, RoundedCornerShape(20.dp))
             .clickable { debounceToggle() }
             .padding(16.dp)
     ) {
@@ -298,6 +380,8 @@ fun JapaneseFilterCard(
     onEditTag: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val glassBrush = getGlassBrush()
+    val borderBrush = getBorderBrush()
 
     var lastClickTime by remember { mutableLongStateOf(0L) }
     fun debounceToggle() {
@@ -308,17 +392,21 @@ fun JapaneseFilterCard(
         }
     }
 
-    Card(
-        colors = CardDefaults.cardColors(containerColor = AppTheme.colors.surface),
-        shape = RoundedCornerShape(24.dp),
-        elevation = CardDefaults.cardElevation(0.dp),
-        modifier = Modifier.fillMaxWidth()
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .background(glassBrush)
+            .border(1.dp, borderBrush, RoundedCornerShape(24.dp))
+        // 移除 padding，避免點擊範圍被擠壓
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { debounceToggle() },
+                    // 標題列點擊邏輯：1. clickable -> 2. padding
+                    .clickable { debounceToggle() }
+                    .padding(16.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -336,23 +424,23 @@ fun JapaneseFilterCard(
                 exit = shrinkVertically() + fadeOut()
             ) {
                 Column(
-                    modifier = Modifier.padding(top = 16.dp),
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(categories) { cat ->
-                            // [套用 Helper] 分類篩選
+                            // [修正] 使用 getSmartCategoryName 進行翻譯
                             JapaneseCompactChip(getSmartCategoryName(cat.name, cat.resourceKey), selectedCategory == cat.name, getIconByKey(cat.iconKey)) { onCategorySelect(cat.name) }
                         }
-                        item { EditButton(onEditCategory) }
+                        item { JapaneseGlassEditButton(onEditCategory) }
                     }
 
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(tags) { tag ->
-                            // [套用 Helper] 備註篩選
+                            // [修正] 使用 getSmartTagName 進行翻譯
                             JapaneseCompactChip(getSmartTagName(tag.name, tag.resourceKey), selectedTag == tag.name) { onTagSelect(tag.name) }
                         }
-                        item { EditButton(onEditTag) }
+                        item { JapaneseGlassEditButton(onEditTag) }
                     }
 
                     OutlinedTextField(
@@ -366,8 +454,8 @@ fun JapaneseFilterCard(
                         colors = OutlinedTextFieldDefaults.colors(
                             unfocusedBorderColor = Color.Transparent,
                             focusedBorderColor = AppTheme.colors.accent,
-                            focusedContainerColor = AppTheme.colors.background,
-                            unfocusedContainerColor = AppTheme.colors.background,
+                            focusedContainerColor = AppTheme.colors.background.copy(alpha = 0.5f),
+                            unfocusedContainerColor = AppTheme.colors.background.copy(alpha = 0.3f),
                             focusedTextColor = AppTheme.colors.textPrimary,
                             unfocusedTextColor = AppTheme.colors.textPrimary
                         ),
@@ -377,29 +465,78 @@ fun JapaneseFilterCard(
             }
             if (!expanded && (selectedCategory != null || selectedTag != null || searchQuery.isNotEmpty())) {
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(stringResource(R.string.label_filter_applied), fontSize = 12.sp, color = AppTheme.colors.accent)
+                Text(
+                    stringResource(R.string.label_filter_applied),
+                    fontSize = 12.sp,
+                    color = AppTheme.colors.accent,
+                    modifier = Modifier.padding(start = 16.dp, bottom = 16.dp)
+                )
             }
         }
     }
 }
 
+// 獨立實作編輯按鈕 (修復水波紋尺寸)
+@Composable
+fun JapaneseGlassEditButton(onClick: () -> Unit) {
+    val glassBrush = getGlassBrush()
+    val borderBrush = getBorderBrush()
+
+    Box(
+        modifier = Modifier
+            .size(32.dp)
+            .clip(CircleShape)
+            .background(glassBrush)
+            .border(1.dp, borderBrush, CircleShape)
+            .clickable { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = Icons.Default.Add,
+            contentDescription = stringResource(R.string.desc_edit_button),
+            tint = AppTheme.colors.textSecondary,
+            modifier = Modifier.size(16.dp)
+        )
+    }
+}
+
 @Composable
 fun JapaneseCompactChip(label: String, selected: Boolean, icon: ImageVector? = null, onClick: () -> Unit) {
-    Surface(
-        color = if (selected) AppTheme.colors.accent else AppTheme.colors.background,
-        contentColor = if (selected) Color.White else AppTheme.colors.textSecondary,
-        shape = RoundedCornerShape(8.dp),
-        modifier = Modifier.clickable { onClick() }
+    val glassBrush = getGlassBrush()
+    val borderBrush = getBorderBrush()
+
+    val backgroundModifier = if (selected) {
+        Modifier.background(AppTheme.colors.accent, RoundedCornerShape(8.dp))
+    } else {
+        Modifier
+            .background(glassBrush, RoundedCornerShape(8.dp))
+            .border(1.dp, borderBrush, RoundedCornerShape(8.dp))
+    }
+
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .then(backgroundModifier)
+            .clickable { onClick() }
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
         ) {
             if (icon != null) {
-                Icon(icon, null, modifier = Modifier.size(14.dp))
+                Icon(
+                    icon,
+                    null,
+                    modifier = Modifier.size(14.dp),
+                    tint = if (selected) Color.White else AppTheme.colors.textSecondary
+                )
                 Spacer(modifier = Modifier.width(4.dp))
             }
-            Text(label, fontSize = 12.sp)
+            Text(
+                label,
+                fontSize = 12.sp,
+                color = if (selected) Color.White else AppTheme.colors.textSecondary
+            )
         }
     }
 }
@@ -410,15 +547,38 @@ fun JapaneseExpenseItem(expense: ExpenseEntity, onDelete: () -> Unit) {
     val dateFormatter = remember(dateFormat) { SimpleDateFormat(dateFormat, Locale.getDefault()) }
 
     Row(
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(AppTheme.colors.surface).padding(horizontal = 16.dp, vertical = 12.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(AppTheme.colors.surface.copy(alpha = 0.7f))
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Box(modifier = Modifier.size(10.dp).background(getCategoryColorDot(expense.category), CircleShape))
+        // [美術] 琉璃珠分類圓點
+        val categoryColor = getCategoryColorDot(expense.category)
+        Box(
+            modifier = Modifier
+                .size(12.dp)
+                .background(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            categoryColor.copy(alpha = 0.4f),
+                            categoryColor
+                        ),
+                        center = Offset.Unspecified,
+                        radius = Float.POSITIVE_INFINITY
+                    ),
+                    shape = CircleShape
+                )
+                .border(0.5.dp, Color.White.copy(alpha = 0.3f), CircleShape)
+        )
+
         Spacer(modifier = Modifier.width(16.dp))
+
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                // [套用 Helper] 列表分類顯示
+                // [修正] 使用智慧翻譯 (分類)
                 Text(text = getSmartCategoryName(expense.category), color = AppTheme.colors.textSecondary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
                 Text(
                     text = stringResource(R.string.format_category_date, " ", dateFormatter.format(Date(expense.date))),
@@ -427,25 +587,39 @@ fun JapaneseExpenseItem(expense: ExpenseEntity, onDelete: () -> Unit) {
                 )
             }
             Spacer(modifier = Modifier.height(4.dp))
-            Text(text = getSmartTagName(expense.note), color = AppTheme.colors.textPrimary, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            // [修正] 使用智慧翻譯 (備註+自動扣款)
+            Text(text = getSmartNote(expense.note), color = AppTheme.colors.textPrimary, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         Spacer(modifier = Modifier.width(8.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(text = stringResource(R.string.amount_negative_format, expense.amount), color = AppTheme.colors.textPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.width(12.dp))
-            IconButton(onClick = onDelete, modifier = Modifier.size(24.dp)) {
-                Icon(Icons.Default.Close, stringResource(R.string.content_desc_delete), tint = AppTheme.colors.textSecondary.copy(alpha = 0.5f), modifier = Modifier.size(18.dp))
+            // [修正] 圓形水波紋刪除按鈕
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .clickable { onDelete() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.Close,
+                    stringResource(R.string.content_desc_delete),
+                    tint = AppTheme.colors.textSecondary.copy(alpha = 0.5f),
+                    modifier = Modifier.size(18.dp)
+                )
             }
         }
     }
 }
 
 private fun getCategoryColorDot(category: String): Color {
+    // 這裡維持使用原始字串判斷，因為資料庫存的是 Key 或原始值，尚未翻譯
     return when(category) {
-        "飲食" -> Color(0xFFFFAB91)
-        "購物" -> Color(0xFF90CAF9)
-        "交通" -> Color(0xFFFFF59D)
-        "娛樂" -> Color(0xFFCE93D8)
+        "飲食", "餐饮", "Food", "食事", "cat_food" -> Color(0xFFFFAB91)
+        "購物", "购物", "Shopping", "買い物", "cat_shopping" -> Color(0xFF90CAF9)
+        "交通", "Transport", "cat_transport" -> Color(0xFFFFF59D)
+        "娛樂", "娱乐", "Entertainment", "エンタメ", "cat_entertainment" -> Color(0xFFCE93D8)
         else -> Color(0xFFE0E0E0)
     }
 }
@@ -454,23 +628,15 @@ private fun getCategoryColorDot(category: String): Color {
 fun PieChart(data: List<CategoryStat>, modifier: Modifier = Modifier) {
     val total = data.sumOf { it.totalAmount }
 
-    // [新增] 百分比校正邏輯 🧮
-    // 1. 先計算每個項目的基礎百分比 (無條件捨去)
     val rawPercentages = remember(data, total) {
         data.map {
             if (total > 0) (it.totalAmount.toFloat() / total * 100).toInt() else 0
         }.toMutableList()
     }
-
-    // 2. 檢查總和是否為 100
     val sumPercentage = remember(rawPercentages) { rawPercentages.sum() }
-
-    // 3. 如果有少 (例如 99%)，加到金額最大的那一項
-    // 使用 remember 確保只在資料變動時重新計算
     val correctedPercentages = remember(data, rawPercentages, sumPercentage) {
         val diff = 100 - sumPercentage
         if (diff > 0 && total > 0) {
-            // 找到金額最大的分類索引
             val maxIndex = data.indices.maxByOrNull { data[it].totalAmount } ?: 0
             rawPercentages[maxIndex] += diff
         }
@@ -478,77 +644,113 @@ fun PieChart(data: List<CategoryStat>, modifier: Modifier = Modifier) {
     }
 
     Row(modifier = modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        // 左側：甜甜圈圖表
         Box(
             modifier = Modifier.weight(1f),
             contentAlignment = Alignment.Center
         ) {
             Canvas(modifier = Modifier.size(160.dp)) {
-                val strokeWidth = 25.dp.toPx()
-                val gapAngle = if (data.size > 1) 3f else 0f
+                // ... (Canvas 繪圖邏輯維持不變) ...
+                val strokeWidth = 35.dp.toPx()
+                val gapAngle = if (data.size > 1) 2f else 0f
 
                 val innerRadius = (size.minDimension - strokeWidth) / 2
                 val halfSize = size / 2.0f
                 val topLeft = Offset(halfSize.width - innerRadius, halfSize.height - innerRadius)
                 val sizeObj = Size(innerRadius * 2, innerRadius * 2)
 
-                var startAngle = -90f
+                var currentStartAngle = -90f
 
                 data.forEach { stat ->
                     val sweepAngle = (stat.totalAmount.toFloat() / total) * 360f
-                    val adjustedSweep = if (sweepAngle > gapAngle) sweepAngle - gapAngle else sweepAngle
+                    val adjustedSweep = if (sweepAngle > gapAngle) sweepAngle - gapAngle else maxOf(sweepAngle - 0.5f, 0.1f)
 
+                    val hsl = floatArrayOf(0f, 0f, 0f)
+                    ColorUtils.colorToHSL(stat.color.toArgb(), hsl)
+                    hsl[2] = (hsl[2] + 0.15f).coerceIn(0f, 1f)
+                    val lightColor = Color(ColorUtils.HSLToColor(hsl))
+                    hsl[2] = (hsl[2] - 0.2f).coerceIn(0f, 1f)
+                    val darkColor = Color(ColorUtils.HSLToColor(hsl))
+
+                    val sweepFraction = adjustedSweep / 360f
+                    val gradientColors = listOf(lightColor, stat.color, darkColor)
+                    val colorStops = listOf(0.0f, sweepFraction * 0.5f, sweepFraction)
+
+                    val brush = Brush.sweepGradient(
+                        colorStops = colorStops.zip(gradientColors).toTypedArray(),
+                        center = Offset(halfSize.width, halfSize.height)
+                    )
+
+                    rotate(degrees = currentStartAngle, pivot = center) {
+                        drawArc(
+                            brush = brush,
+                            startAngle = 0f,
+                            sweepAngle = adjustedSweep,
+                            useCenter = false,
+                            topLeft = topLeft,
+                            size = sizeObj,
+                            style = Stroke(width = strokeWidth, cap = StrokeCap.Butt)
+                        )
+                    }
+                    currentStartAngle += sweepAngle
+                }
+
+                if (total == 0) {
+                    val emptyBrush = Brush.sweepGradient(
+                        colors = listOf(Color.Gray.copy(alpha = 0.1f), Color.Gray.copy(alpha = 0.2f), Color.Gray.copy(alpha = 0.1f))
+                    )
                     drawArc(
-                        color = stat.color,
-                        startAngle = startAngle,
-                        sweepAngle = adjustedSweep,
+                        brush = emptyBrush,
+                        startAngle = 0f,
+                        sweepAngle = 360f,
                         useCenter = false,
                         topLeft = topLeft,
                         size = sizeObj,
                         style = Stroke(width = strokeWidth)
                     )
-                    startAngle += sweepAngle
                 }
             }
 
-            // 中間的總金額文字 (已在地化)
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(text = stringResource(R.string.label_total), fontSize = 12.sp, color = AppTheme.colors.textSecondary)
                 Text(
-                    // [修改] 使用多語言資源
-                    text = stringResource(R.string.label_total),
-                    fontSize = 12.sp,
-                    color = AppTheme.colors.textSecondary
-                )
-                Text(
-                    text = "$total",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = AppTheme.colors.textPrimary
+                    text = stringResource(R.string.amount_currency_format, total),
+                    style = getShadowTextStyle(fontSize = 20, fontWeight = FontWeight.ExtraBold)
                 )
             }
         }
 
-        // 右側：圖例 (使用校正後的百分比)
         Column(
             modifier = Modifier
                 .weight(1f)
-                .padding(start = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(start = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             data.forEachIndexed { index, stat ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(modifier = Modifier.size(12.dp).background(stat.color, shape = CircleShape))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = stringResource(
-                            R.string.format_pie_chart_legend,
-                            getSmartCategoryName(stat.name),
-                            stat.totalAmount,
-                            // [修改] 使用校正後的百分比陣列
-                            correctedPercentages.getOrElse(index) { 0 }
-                        ),
-                        style = MaterialTheme.typography.bodyMedium.copy(color = AppTheme.colors.textPrimary)
+                    Box(
+                        modifier = Modifier
+                            .size(width = 12.dp, height = 12.dp)
+                            .background(stat.color, RoundedCornerShape(4.dp))
                     )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        // [修正] 使用智慧翻譯 (圖例分類)
+                        Text(
+                            text = getSmartCategoryName(stat.name),
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                color = AppTheme.colors.textPrimary,
+                                fontWeight = FontWeight.Bold
+                            )
+                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "${correctedPercentages.getOrElse(index) { 0 }}% (${stringResource(R.string.amount_currency_format, stat.totalAmount)})",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    color = AppTheme.colors.textSecondary
+                                )
+                            )
+                        }
+                    }
                 }
             }
         }
