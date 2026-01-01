@@ -2,11 +2,9 @@ package com.example.budgetquest.ui.plan
 
 import android.app.DatePickerDialog
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.clickable // 雖然 GlassCard 封裝了，但部分邏輯可能還需要
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Box // 用於 GlassCard 內部排版
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -17,9 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -33,9 +28,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.IconButton // 用於 TopBar 的標準 IconButton (如果需要)
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.Text
@@ -51,146 +44,27 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.budgetquest.R
 import com.example.budgetquest.ui.AppViewModelProvider
+import com.example.budgetquest.ui.common.AuroraPrimaryButton
+import com.example.budgetquest.ui.common.GlassActionTextButton
+import com.example.budgetquest.ui.common.GlassCard
+import com.example.budgetquest.ui.common.GlassIconButton
+import com.example.budgetquest.ui.common.GlassTextField
 import com.example.budgetquest.ui.theme.AppTheme
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
-// [美術] 定義玻璃筆刷 (保持全域一致)
-@Composable
-private fun getGlassBrush(): Brush {
-    return Brush.verticalGradient(
-        colors = listOf(
-            AppTheme.colors.surface.copy(alpha = 0.65f),
-            AppTheme.colors.surface.copy(alpha = 0.35f)
-        )
-    )
-}
-
-@Composable
-private fun getBorderBrush(): Brush {
-    return Brush.linearGradient(
-        colors = listOf(
-            AppTheme.colors.textPrimary.copy(alpha = 0.25f),
-            AppTheme.colors.textPrimary.copy(alpha = 0.10f)
-        )
-    )
-}
-
-// [美術] 1. 玻璃圓形按鈕容器 (用於 TopAppBar)
-@Composable
-fun GlassIconContainer(
-    modifier: Modifier = Modifier,
-    content: @Composable () -> Unit
-) {
-    val glassBrush = getGlassBrush()
-    val borderBrush = getBorderBrush()
-
-    Box(
-        modifier = modifier
-            .size(40.dp)
-            .clip(CircleShape)
-            .background(glassBrush)
-            .border(1.dp, borderBrush, CircleShape),
-        contentAlignment = Alignment.Center
-    ) {
-        content()
-    }
-}
-
-// [美術] 2. 極光漸層主要按鈕 (用於 Save/Start)
-@Composable
-fun AuroraPrimaryButton(
-    text: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    // 建立一個從 Accent 到稍亮顏色的水平漸層
-    val gradientBrush = Brush.horizontalGradient(
-        colors = listOf(
-            AppTheme.colors.accent,
-            AppTheme.colors.accent.copy(alpha = 0.7f)
-        )
-    )
-
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(56.dp)
-            .shadow(8.dp, RoundedCornerShape(16.dp), ambientColor = AppTheme.colors.accent, spotColor = AppTheme.colors.accent) // 光暈陰影
-            .clip(RoundedCornerShape(16.dp))
-            .background(gradientBrush)
-            .clickable { onClick() },
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = text,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color.White
-        )
-    }
-}
-
-// [美術] 3. 警示玻璃按鈕 (用於 Delete/Clear)
-@Composable
-fun GlassDangerButton(
-    text: String,
-    icon: ImageVector,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val glassBrush = getGlassBrush()
-    // 紅色邊框
-    val borderBrush = Brush.linearGradient(
-        colors = listOf(
-            AppTheme.colors.fail.copy(alpha = 0.5f),
-            AppTheme.colors.fail.copy(alpha = 0.2f)
-        )
-    )
-
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(50.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(glassBrush) // 玻璃背景
-            .border(1.dp, borderBrush, RoundedCornerShape(12.dp)) // 紅色邊框
-            .clickable { onClick() },
-        contentAlignment = Alignment.Center
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = AppTheme.colors.fail,
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = text,
-                color = AppTheme.colors.fail,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Medium
-            )
-        }
-    }
-}
+// [移除] 所有本地定義的樣式與元件
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -315,10 +189,6 @@ fun PlanSetupScreen(
         }
     }
 
-    // [美術] 取得筆刷
-    val glassBrush = getGlassBrush()
-    val borderBrush = getBorderBrush()
-
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
@@ -332,17 +202,12 @@ fun PlanSetupScreen(
                 },
                 navigationIcon = {
                     if (showBackButton) {
-                        // [美術] 優化：使用玻璃圓鈕
-                        // 順序：padding -> clip -> clickable (確保水波紋為圓形)
-                        Box(
-                            modifier = Modifier
-                                .padding(start = 12.dp)
-                                .clip(CircleShape)
-                                .clickable { debounce(onBackClick) }
+                        // [優化] 使用 GlassIconButton (圓形水波紋)
+                        GlassIconButton(
+                            onClick = { debounce(onBackClick) },
+                            modifier = Modifier.padding(start = 12.dp)
                         ) {
-                            GlassIconContainer(modifier = Modifier.size(40.dp)) {
-                                Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = AppTheme.colors.textPrimary, modifier = Modifier.size(20.dp))
-                            }
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = AppTheme.colors.textPrimary, modifier = Modifier.size(20.dp))
                         }
                     }
                 },
@@ -372,22 +237,28 @@ fun PlanSetupScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            JapaneseInputCard(label = stringResource(R.string.label_plan_name)) {
-                JapaneseTextField(
-                    value = uiState.planName,
-                    onValueChange = { viewModel.updatePlanState(planName = it) },
-                    placeholder = stringResource(R.string.hint_plan_name)
-                )
+            // [優化] 使用 GlassCard 和 GlassTextField (輸入計畫名稱)
+            // GlassCard 預設帶有邊框 (Border)，符合您的需求
+            GlassCard(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    GlassTextField(
+                        value = uiState.planName,
+                        onValueChange = { viewModel.updatePlanState(planName = it) },
+                        placeholder = stringResource(R.string.hint_plan_name),
+                        label = stringResource(R.string.label_plan_name)
+                    )
+                }
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                JapaneseDateCard(
+                // [優化] 日期選擇器使用 CommonGlassDateCard
+                CommonGlassDateCard(
                     label = stringResource(R.string.label_start_date),
                     date = uiState.startDate,
                     onClick = { debounce { startDatePickerDialog.show() } },
                     modifier = Modifier.weight(1f)
                 )
-                JapaneseDateCard(
+                CommonGlassDateCard(
                     label = stringResource(R.string.label_end_date),
                     date = uiState.endDate,
                     onClick = { debounce { endDatePickerDialog.show() } },
@@ -395,9 +266,11 @@ fun PlanSetupScreen(
                 )
             }
 
-            JapaneseInputCard(label = stringResource(R.string.label_budget_target)) {
-                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    JapaneseTextField(
+            // [優化] 預算設定區塊
+            GlassCard(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Text(stringResource(R.string.label_budget_target), fontSize = 12.sp, color = AppTheme.colors.textSecondary, modifier = Modifier.padding(bottom = 4.dp))
+                    GlassTextField(
                         value = uiState.totalBudget,
                         onValueChange = { viewModel.updatePlanState(totalBudget = it) },
                         placeholder = stringResource(R.string.hint_total_budget),
@@ -405,7 +278,7 @@ fun PlanSetupScreen(
                         isNumber = true
                     )
                     HorizontalDivider(color = AppTheme.colors.divider, thickness = 1.dp)
-                    JapaneseTextField(
+                    GlassTextField(
                         value = uiState.targetSavings,
                         onValueChange = { viewModel.updatePlanState(targetSavings = it) },
                         placeholder = stringResource(R.string.hint_target_savings),
@@ -422,16 +295,10 @@ fun PlanSetupScreen(
             val savings = uiState.targetSavings.toIntOrNull() ?: 0
             val dailyAvailable = (budget - savings) / safeDays
 
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(glassBrush)
-                    .border(1.dp, borderBrush, RoundedCornerShape(24.dp))
-                    .padding(24.dp)
-            ) {
+            // [優化] 每日可用金額
+            GlassCard(modifier = Modifier.fillMaxWidth()) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.padding(24.dp).fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -455,16 +322,13 @@ fun PlanSetupScreen(
             }
 
             if (planId != null && planId != -1) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(24.dp))
-                        .background(glassBrush)
-                        .border(1.dp, borderBrush, RoundedCornerShape(24.dp))
-                        .clickable { debounce { isDeleteExpanded = !isDeleteExpanded } }
-                        .padding(20.dp)
+                // [優化] 進階選項 (開關型按鈕)
+                // 使用 GlassCard 並傳入 onClick，這樣就會有帶邊框的點擊效果，符合「深色模式切換」的風格
+                GlassCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = { debounce { isDeleteExpanded = !isDeleteExpanded } }
                 ) {
-                    Column {
+                    Column(modifier = Modifier.padding(20.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -480,20 +344,23 @@ fun PlanSetupScreen(
 
                         AnimatedVisibility(visible = isDeleteExpanded) {
                             Column(modifier = Modifier.padding(top = 16.dp)) {
-                                // [美術] 優化：使用警示玻璃按鈕 (清空消費)
-                                GlassDangerButton(
+                                // [優化] 使用 GlassActionTextButton (紅色危險按鈕)
+                                GlassActionTextButton(
                                     text = stringResource(R.string.btn_clear_expenses),
                                     icon = Icons.Default.Refresh,
-                                    onClick = { debounce { showDeleteExpensesConfirmation = true } }
+                                    onClick = { debounce { showDeleteExpensesConfirmation = true } },
+                                    isDanger = true,
+                                    modifier = Modifier.fillMaxWidth()
                                 )
 
                                 Spacer(modifier = Modifier.height(12.dp))
 
-                                // [美術] 優化：使用警示玻璃按鈕 (刪除計畫)
-                                GlassDangerButton(
+                                GlassActionTextButton(
                                     text = stringResource(R.string.btn_delete_plan),
                                     icon = Icons.Default.Delete,
-                                    onClick = { debounce { showDeleteConfirmation = true } }
+                                    onClick = { debounce { showDeleteConfirmation = true } },
+                                    isDanger = true,
+                                    modifier = Modifier.fillMaxWidth()
                                 )
                             }
                         }
@@ -503,7 +370,7 @@ fun PlanSetupScreen(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // [美術] 優化：使用極光漸層主要按鈕 (開始/儲存)
+            // [優化] 使用 AuroraPrimaryButton
             AuroraPrimaryButton(
                 text = if (planId == null) stringResource(R.string.btn_start_plan) else stringResource(R.string.btn_save_changes),
                 onClick = {
@@ -520,82 +387,24 @@ fun PlanSetupScreen(
     }
 }
 
-// --- 輔助元件 ---
-
+// 為了方便重用，這裡定義一個小型的 DateCard，使用 GlassCard 封裝
 @Composable
-fun JapaneseInputCard(label: String, content: @Composable () -> Unit) {
-    val glassBrush = getGlassBrush()
-    val borderBrush = getBorderBrush()
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(24.dp))
-            .background(glassBrush)
-            .border(1.dp, borderBrush, RoundedCornerShape(24.dp))
-            .padding(20.dp)
-    ) {
-        Column {
-            Text(label, fontSize = 12.sp, color = AppTheme.colors.textSecondary, modifier = Modifier.padding(bottom = 12.dp))
-            content()
-        }
-    }
-}
-
-@Composable
-fun JapaneseDateCard(label: String, date: Long, onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun CommonGlassDateCard(label: String, date: Long, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val dateFormat = stringResource(R.string.format_date_short)
     val formatter = remember(dateFormat) { SimpleDateFormat(dateFormat, Locale.getDefault()) }
-    val glassBrush = getGlassBrush()
-    val borderBrush = getBorderBrush()
 
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(24.dp))
-            .background(glassBrush)
-            .border(1.dp, borderBrush, RoundedCornerShape(24.dp))
-            .clickable { onClick() }
-            .padding(vertical = 24.dp)
-            .fillMaxWidth(),
-        contentAlignment = Alignment.Center
+    // 使用 GlassCard 封裝，自動獲得邊框與點擊效果
+    GlassCard(
+        modifier = modifier,
+        onClick = onClick
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(
+            modifier = Modifier.padding(vertical = 24.dp).fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
             Text(label, fontSize = 12.sp, color = AppTheme.colors.textSecondary)
             Spacer(modifier = Modifier.height(8.dp))
             Text(formatter.format(Date(date)), fontSize = 24.sp, fontWeight = FontWeight.Bold, color = AppTheme.colors.textPrimary)
         }
-    }
-}
-
-@Composable
-fun JapaneseTextField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    placeholder: String,
-    label: String? = null,
-    isNumber: Boolean = false
-) {
-    Column {
-        if (label != null) {
-            Text(label, fontSize = 12.sp, color = AppTheme.colors.textSecondary)
-        }
-        OutlinedTextField(
-            value = value,
-            onValueChange = onValueChange,
-            placeholder = { Text(placeholder, color = AppTheme.colors.textSecondary.copy(alpha = 0.5f)) },
-            modifier = Modifier.fillMaxWidth(),
-            textStyle = androidx.compose.ui.text.TextStyle(
-                fontSize = 18.sp,
-                color = AppTheme.colors.textPrimary
-            ),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Color.Transparent,
-                unfocusedBorderColor = Color.Transparent,
-                focusedContainerColor = Color.Transparent,
-                unfocusedContainerColor = Color.Transparent
-            ),
-            keyboardOptions = if (isNumber) KeyboardOptions(keyboardType = KeyboardType.Number) else KeyboardOptions.Default,
-            singleLine = true
-        )
     }
 }

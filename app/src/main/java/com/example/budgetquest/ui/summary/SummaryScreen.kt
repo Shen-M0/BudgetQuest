@@ -33,17 +33,13 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -82,74 +78,21 @@ import com.example.budgetquest.data.CategoryEntity
 import com.example.budgetquest.data.ExpenseEntity
 import com.example.budgetquest.data.TagEntity
 import com.example.budgetquest.ui.AppViewModelProvider
+import com.example.budgetquest.ui.common.GlassCard
+import com.example.budgetquest.ui.common.GlassChip
+import com.example.budgetquest.ui.common.GlassIconButton
 import com.example.budgetquest.ui.common.JapaneseBudgetProgressBar
 import com.example.budgetquest.ui.common.getIconByKey
-import com.example.budgetquest.ui.common.getSmartCategoryName // [新增]
-import com.example.budgetquest.ui.common.getSmartTagName // [新增]
-import com.example.budgetquest.ui.common.getSmartNote // [新增]
+import com.example.budgetquest.ui.common.getShadowTextStyle
+import com.example.budgetquest.ui.common.getSmartCategoryName
+import com.example.budgetquest.ui.common.getSmartNote
+import com.example.budgetquest.ui.common.getSmartTagName
 import com.example.budgetquest.ui.theme.AppTheme
 import com.example.budgetquest.ui.transaction.CategoryManagerDialog
 import com.example.budgetquest.ui.transaction.TagManagerDialog
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-
-// [美術] 定義全域共用的玻璃筆刷
-@Composable
-private fun getGlassBrush(): Brush {
-    return Brush.verticalGradient(
-        colors = listOf(
-            AppTheme.colors.surface.copy(alpha = 0.65f),
-            AppTheme.colors.surface.copy(alpha = 0.35f)
-        )
-    )
-}
-
-@Composable
-private fun getBorderBrush(): Brush {
-    return Brush.linearGradient(
-        colors = listOf(
-            AppTheme.colors.textPrimary.copy(alpha = 0.25f),
-            AppTheme.colors.textPrimary.copy(alpha = 0.10f)
-        )
-    )
-}
-
-// [美術] 玻璃按鈕容器
-@Composable
-fun GlassIconContainer(
-    modifier: Modifier = Modifier,
-    content: @Composable () -> Unit
-) {
-    val glassBrush = getGlassBrush()
-    val borderBrush = getBorderBrush()
-
-    Box(
-        modifier = modifier
-            .size(40.dp)
-            .clip(CircleShape)
-            .background(glassBrush)
-            .border(1.dp, borderBrush, CircleShape),
-        contentAlignment = Alignment.Center
-    ) {
-        content()
-    }
-}
-
-// [美術] 文字陰影樣式
-@Composable
-fun getShadowTextStyle(fontSize: Int, fontWeight: FontWeight): TextStyle {
-    return TextStyle(
-        fontSize = fontSize.sp,
-        fontWeight = fontWeight,
-        color = AppTheme.colors.textPrimary,
-        shadow = Shadow(
-            color = Color.Black.copy(alpha = 0.1f),
-            offset = Offset(2f, 2f),
-            blurRadius = 4f
-        )
-    )
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -197,21 +140,16 @@ fun SummaryScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.title_summary), color = AppTheme.colors.textPrimary, fontSize = 18.sp) },
                 navigationIcon = {
-                    // [美術] TopBar 返回按鈕：Box (Padding) -> Clip -> Clickable -> Glass Container
-                    Box(
-                        modifier = Modifier
-                            .padding(start = 12.dp)
-                            .clip(CircleShape) // 確保水波紋是圓的
-                            .clickable { debounce(onBackClick) }
+                    GlassIconButton(
+                        onClick = { debounce(onBackClick) },
+                        modifier = Modifier.padding(start = 12.dp)
                     ) {
-                        GlassIconContainer(modifier = Modifier.size(40.dp)) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = stringResource(R.string.action_back),
-                                tint = AppTheme.colors.textPrimary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.action_back),
+                            tint = AppTheme.colors.textPrimary,
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -295,22 +233,17 @@ fun SummaryScreen(
 @Composable
 fun MinimalBudgetCard(totalBudget: Int, totalSpent: Int, message: String) {
     val remaining = totalBudget - totalSpent
-    val glassBrush = getGlassBrush()
-    val borderBrush = getBorderBrush()
 
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .background(glassBrush)
-            .border(1.dp, borderBrush, RoundedCornerShape(20.dp))
-            .padding(24.dp)
+    GlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        cornerRadius = 20.dp
     ) {
-        Column {
+        Column(modifier = Modifier.padding(24.dp)) {
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(
                     text = stringResource(R.string.amount_currency_format, remaining),
-                    style = getShadowTextStyle(fontSize = 32, fontWeight = FontWeight.Light)
+                    // [修改] 將字體改為 Bold，使其更具份量感
+                    style = getShadowTextStyle(fontSize = 32, fontWeight = FontWeight.Bold)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(stringResource(R.string.label_remaining_budget), fontSize = 12.sp, color = AppTheme.colors.textSecondary, modifier = Modifier.padding(bottom = 6.dp))
@@ -332,8 +265,6 @@ fun MinimalBudgetCard(totalBudget: Int, totalSpent: Int, message: String) {
 @Composable
 fun CollapsiblePieChart(data: List<CategoryStat>) {
     var expanded by remember { mutableStateOf(false) }
-    val glassBrush = getGlassBrush()
-    val borderBrush = getBorderBrush()
 
     var lastClickTime by remember { mutableLongStateOf(0L) }
     fun debounceToggle() {
@@ -344,23 +275,21 @@ fun CollapsiblePieChart(data: List<CategoryStat>) {
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .background(glassBrush)
-            .border(1.dp, borderBrush, RoundedCornerShape(20.dp))
-            .clickable { debounceToggle() }
-            .padding(16.dp)
+    GlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        cornerRadius = 20.dp,
+        onClick = { debounceToggle() }
     ) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(R.string.label_expense_distribution), color = AppTheme.colors.textPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-            Icon(if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown, null, tint = AppTheme.colors.textSecondary, modifier = Modifier.size(20.dp))
-        }
-        AnimatedVisibility(visible = expanded, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
-            Column {
-                Spacer(modifier = Modifier.height(16.dp))
-                PieChart(data = data)
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.label_expense_distribution), color = AppTheme.colors.textPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                Icon(if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown, null, tint = AppTheme.colors.textSecondary, modifier = Modifier.size(20.dp))
+            }
+            AnimatedVisibility(visible = expanded, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
+                Column {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    PieChart(data = data)
+                }
             }
         }
     }
@@ -380,8 +309,6 @@ fun JapaneseFilterCard(
     onEditTag: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val glassBrush = getGlassBrush()
-    val borderBrush = getBorderBrush()
 
     var lastClickTime by remember { mutableLongStateOf(0L) }
     fun debounceToggle() {
@@ -392,19 +319,11 @@ fun JapaneseFilterCard(
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(24.dp))
-            .background(glassBrush)
-            .border(1.dp, borderBrush, RoundedCornerShape(24.dp))
-        // 移除 padding，避免點擊範圍被擠壓
-    ) {
+    GlassCard(modifier = Modifier.fillMaxWidth()) {
         Column {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    // 標題列點擊邏輯：1. clickable -> 2. padding
                     .clickable { debounceToggle() }
                     .padding(16.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -429,18 +348,33 @@ fun JapaneseFilterCard(
                 ) {
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(categories) { cat ->
-                            // [修正] 使用 getSmartCategoryName 進行翻譯
-                            JapaneseCompactChip(getSmartCategoryName(cat.name, cat.resourceKey), selectedCategory == cat.name, getIconByKey(cat.iconKey)) { onCategorySelect(cat.name) }
+                            GlassChip(
+                                label = getSmartCategoryName(cat.name, cat.resourceKey),
+                                selected = selectedCategory == cat.name,
+                                icon = getIconByKey(cat.iconKey),
+                                onClick = { onCategorySelect(cat.name) }
+                            )
                         }
-                        item { JapaneseGlassEditButton(onEditCategory) }
+                        item {
+                            GlassIconButton(onClick = onEditCategory, size = 32.dp) {
+                                Icon(Icons.Default.Add, stringResource(R.string.desc_edit_button), tint = AppTheme.colors.textSecondary, modifier = Modifier.size(16.dp))
+                            }
+                        }
                     }
 
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(tags) { tag ->
-                            // [修正] 使用 getSmartTagName 進行翻譯
-                            JapaneseCompactChip(getSmartTagName(tag.name, tag.resourceKey), selectedTag == tag.name) { onTagSelect(tag.name) }
+                            GlassChip(
+                                label = getSmartTagName(tag.name, tag.resourceKey),
+                                selected = selectedTag == tag.name,
+                                onClick = { onTagSelect(tag.name) }
+                            )
                         }
-                        item { JapaneseGlassEditButton(onEditTag) }
+                        item {
+                            GlassIconButton(onClick = onEditTag, size = 32.dp) {
+                                Icon(Icons.Default.Add, stringResource(R.string.desc_edit_button), tint = AppTheme.colors.textSecondary, modifier = Modifier.size(16.dp))
+                            }
+                        }
                     }
 
                     OutlinedTextField(
@@ -476,145 +410,77 @@ fun JapaneseFilterCard(
     }
 }
 
-// 獨立實作編輯按鈕 (修復水波紋尺寸)
-@Composable
-fun JapaneseGlassEditButton(onClick: () -> Unit) {
-    val glassBrush = getGlassBrush()
-    val borderBrush = getBorderBrush()
-
-    Box(
-        modifier = Modifier
-            .size(32.dp)
-            .clip(CircleShape)
-            .background(glassBrush)
-            .border(1.dp, borderBrush, CircleShape)
-            .clickable { onClick() },
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            imageVector = Icons.Default.Add,
-            contentDescription = stringResource(R.string.desc_edit_button),
-            tint = AppTheme.colors.textSecondary,
-            modifier = Modifier.size(16.dp)
-        )
-    }
-}
-
-@Composable
-fun JapaneseCompactChip(label: String, selected: Boolean, icon: ImageVector? = null, onClick: () -> Unit) {
-    val glassBrush = getGlassBrush()
-    val borderBrush = getBorderBrush()
-
-    val backgroundModifier = if (selected) {
-        Modifier.background(AppTheme.colors.accent, RoundedCornerShape(8.dp))
-    } else {
-        Modifier
-            .background(glassBrush, RoundedCornerShape(8.dp))
-            .border(1.dp, borderBrush, RoundedCornerShape(8.dp))
-    }
-
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .then(backgroundModifier)
-            .clickable { onClick() }
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-        ) {
-            if (icon != null) {
-                Icon(
-                    icon,
-                    null,
-                    modifier = Modifier.size(14.dp),
-                    tint = if (selected) Color.White else AppTheme.colors.textSecondary
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-            }
-            Text(
-                label,
-                fontSize = 12.sp,
-                color = if (selected) Color.White else AppTheme.colors.textSecondary
-            )
-        }
-    }
-}
-
 @Composable
 fun JapaneseExpenseItem(expense: ExpenseEntity, onDelete: () -> Unit) {
     val dateFormat = stringResource(R.string.format_date_month_day)
     val dateFormatter = remember(dateFormat) { SimpleDateFormat(dateFormat, Locale.getDefault()) }
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(AppTheme.colors.surface.copy(alpha = 0.7f))
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+    GlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        cornerRadius = 16.dp
     ) {
-        // [美術] 琉璃珠分類圓點
-        val categoryColor = getCategoryColorDot(expense.category)
-        Box(
-            modifier = Modifier
-                .size(12.dp)
-                .background(
-                    brush = Brush.radialGradient(
-                        colors = listOf(
-                            categoryColor.copy(alpha = 0.4f),
-                            categoryColor
-                        ),
-                        center = Offset.Unspecified,
-                        radius = Float.POSITIVE_INFINITY
-                    ),
-                    shape = CircleShape
-                )
-                .border(0.5.dp, Color.White.copy(alpha = 0.3f), CircleShape)
-        )
-
-        Spacer(modifier = Modifier.width(16.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                // [修正] 使用智慧翻譯 (分類)
-                Text(text = getSmartCategoryName(expense.category), color = AppTheme.colors.textSecondary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                Text(
-                    text = stringResource(R.string.format_category_date, " ", dateFormatter.format(Date(expense.date))),
-                    color = AppTheme.colors.textSecondary.copy(alpha = 0.8f),
-                    fontSize = 12.sp
-                )
-            }
-            Spacer(modifier = Modifier.height(4.dp))
-            // [修正] 使用智慧翻譯 (備註+自動扣款)
-            Text(text = getSmartNote(expense.note), color = AppTheme.colors.textPrimary, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
-        Spacer(modifier = Modifier.width(8.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(text = stringResource(R.string.amount_negative_format, expense.amount), color = AppTheme.colors.textPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-            Spacer(modifier = Modifier.width(12.dp))
-            // [修正] 圓形水波紋刪除按鈕
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            val categoryColor = getCategoryColorDot(expense.category)
             Box(
                 modifier = Modifier
-                    .size(32.dp)
-                    .clip(CircleShape)
-                    .clickable { onDelete() },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Default.Close,
-                    stringResource(R.string.content_desc_delete),
-                    tint = AppTheme.colors.textSecondary.copy(alpha = 0.5f),
-                    modifier = Modifier.size(18.dp)
-                )
+                    .size(12.dp)
+                    .background(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                categoryColor.copy(alpha = 0.4f),
+                                categoryColor
+                            ),
+                            center = Offset.Unspecified,
+                            radius = Float.POSITIVE_INFINITY
+                        ),
+                        shape = CircleShape
+                    )
+                    .border(0.5.dp, Color.White.copy(alpha = 0.3f), CircleShape)
+            )
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(text = getSmartCategoryName(expense.category), color = AppTheme.colors.textSecondary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                    Text(
+                        text = stringResource(R.string.format_category_date, " ", dateFormatter.format(Date(expense.date))),
+                        color = AppTheme.colors.textSecondary.copy(alpha = 0.8f),
+                        fontSize = 12.sp
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(text = getSmartNote(expense.note), color = AppTheme.colors.textPrimary, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(text = stringResource(R.string.amount_negative_format, expense.amount), color = AppTheme.colors.textPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .clickable { onDelete() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Close,
+                        stringResource(R.string.content_desc_delete),
+                        tint = AppTheme.colors.textSecondary.copy(alpha = 0.5f),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
         }
     }
 }
 
 private fun getCategoryColorDot(category: String): Color {
-    // 這裡維持使用原始字串判斷，因為資料庫存的是 Key 或原始值，尚未翻譯
     return when(category) {
         "飲食", "餐饮", "Food", "食事", "cat_food" -> Color(0xFFFFAB91)
         "購物", "购物", "Shopping", "買い物", "cat_shopping" -> Color(0xFF90CAF9)
@@ -649,7 +515,6 @@ fun PieChart(data: List<CategoryStat>, modifier: Modifier = Modifier) {
             contentAlignment = Alignment.Center
         ) {
             Canvas(modifier = Modifier.size(160.dp)) {
-                // ... (Canvas 繪圖邏輯維持不變) ...
                 val strokeWidth = 35.dp.toPx()
                 val gapAngle = if (data.size > 1) 2f else 0f
 
@@ -734,7 +599,6 @@ fun PieChart(data: List<CategoryStat>, modifier: Modifier = Modifier) {
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
-                        // [修正] 使用智慧翻譯 (圖例分類)
                         Text(
                             text = getSmartCategoryName(stat.name),
                             style = MaterialTheme.typography.bodyMedium.copy(

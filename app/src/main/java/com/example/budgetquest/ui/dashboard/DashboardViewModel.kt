@@ -26,15 +26,17 @@ data class DailyState(
     val status: DayStatus
 )
 
+// [修改] 增加 isLoading 欄位，預設為 true (解決閃爍問題)
 data class DashboardUiState(
-    val dailyStates: List<DailyState> = emptyList(),
-    val todayAvailable: Int = 0,
-    val isLoading: Boolean = false,
-    val viewMode: ViewMode = ViewMode.Focus,
+    val isLoading: Boolean = true, // 載入狀態
     val currentYear: Int = Calendar.getInstance().get(Calendar.YEAR),
     val currentMonth: Int = Calendar.getInstance().get(Calendar.MONTH),
     val activePlan: PlanEntity? = null,
-    val isExpired: Boolean = false
+    val dailyStates: List<DailyState> = emptyList(),
+    val totalSpent: Int = 0,
+    val todayAvailable: Int = 0,
+    val isExpired: Boolean = false,
+    val viewMode: ViewMode = ViewMode.Focus
 )
 
 data class CalendarState(val year: Int, val month: Int)
@@ -47,39 +49,26 @@ class DashboardViewModel(
     private val _currentYear = MutableStateFlow(Calendar.getInstance().get(Calendar.YEAR))
     private val _currentMonth = MutableStateFlow(Calendar.getInstance().get(Calendar.MONTH))
 
-    // 統一使用 _selectedPlanId 來管理當前選中的計畫
     private val _selectedPlanId = MutableStateFlow<Int?>(null)
 
-    // [關鍵修改] 在 ViewModel 內部記錄最後一次處理的 Trigger 時間戳
     private var lastProcessedTrigger: Long = 0L
 
     private val _calendarState = combine(_currentYear, _currentMonth) { year, month ->
         CalendarState(year, month)
     }
 
-    // [修正] 移除所有防呆變數，回歸單純的指令執行
-    // 防呆邏輯改由 UI 層的 Timestamp 控制
-
-    // [關鍵修改] 接收 trigger 參數
+    // 接收 trigger 參數
     fun setViewingPlanId(id: Int, trigger: Long) {
-        // 1. 如果 trigger 無效 (0) 或是 跟上次處理的一樣 -> 忽略！
-        // 這是防止 "幽靈參數" 再次觸發跳轉的絕對防線
         if (trigger <= 0 || trigger == lastProcessedTrigger) return
-
-        // 2. 標記為已處理
         lastProcessedTrigger = trigger
-
-        // 3. 執行邏輯
         if (id != -1) {
             selectPlanById(id)
         }
     }
 
-    // [關鍵修改] 接收 trigger 參數
+    // 接收 trigger 參數
     fun switchToCalendarDate(date: Long, trigger: Long) {
-        // 同樣的防呆邏輯
         if (trigger <= 0 || trigger == lastProcessedTrigger) return
-
         lastProcessedTrigger = trigger
 
         if (date == -1L) return
@@ -100,7 +89,6 @@ class DashboardViewModel(
         }
     }
 
-    // [簡化後] _targetPlan 邏輯
     private val _targetPlan = combine(
         _selectedPlanId,
         budgetRepository.getAllPlansStream()
@@ -127,12 +115,10 @@ class DashboardViewModel(
         val year = calState.year
         val month = calState.month
 
-        // [關鍵修正] 修改這裡的邏輯
         val dailyStates = if (mode == ViewMode.Focus) {
             if (activePlan != null) {
                 generateFocusModeDays(activePlan, expenses, year, month)
             } else {
-                // ✅ 修正：直接回傳空列表，讓 UI 層的 isEmpty() 判斷生效，進而顯示空狀態頁面
                 emptyList()
             }
         } else {
@@ -159,7 +145,9 @@ class DashboardViewModel(
             }
         }
 
+        // [關鍵修正] 資料計算完成，isLoading = false
         DashboardUiState(
+            isLoading = false,
             activePlan = activePlan,
             todayAvailable = displayAmount,
             currentMonth = month,
@@ -173,7 +161,8 @@ class DashboardViewModel(
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = DashboardUiState()
+            // [關鍵修正] 初始狀態 isLoading = true，避免一開始顯示空畫面
+            initialValue = DashboardUiState(isLoading = true)
         )
 
     init {
@@ -212,7 +201,6 @@ class DashboardViewModel(
 
     fun selectPlanById(planId: Int) {
         viewModelScope.launch {
-            // [優化] 避免重複執行
             if (_selectedPlanId.value == planId) return@launch
 
             _selectedPlanId.value = planId
@@ -245,7 +233,6 @@ class DashboardViewModel(
         }
     }
 
-    // ... calculateSmartDates, Helpers, generateLogic 保持不變 ...
     suspend fun calculateSmartDates(clickedDate: Long): Pair<Long, Long> {
         val allPlans = budgetRepository.getAllPlans().sortedBy { it.startDate }
         val nextPlan = allPlans.firstOrNull { it.startDate > clickedDate }

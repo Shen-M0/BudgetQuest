@@ -15,13 +15,12 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.shape.CircleShape // [新增]
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Help
@@ -39,7 +38,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -52,6 +50,10 @@ import androidx.work.*
 import com.example.budgetquest.R
 import com.example.budgetquest.data.BackupManager
 import com.example.budgetquest.data.SettingsRepository
+import com.example.budgetquest.ui.AppViewModelProvider
+import com.example.budgetquest.ui.common.GlassActionTextButton
+import com.example.budgetquest.ui.common.GlassCard
+import com.example.budgetquest.ui.common.GlassIconButton
 import com.example.budgetquest.ui.theme.AppTheme
 import com.example.budgetquest.worker.ReminderWorker
 import kotlinx.coroutines.launch
@@ -60,76 +62,6 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.TimeUnit
-
-// [美術] 定義全域一致的玻璃筆刷
-@Composable
-private fun getGlassBrush(): Brush {
-    return Brush.verticalGradient(
-        colors = listOf(
-            AppTheme.colors.surface.copy(alpha = 0.65f),
-            AppTheme.colors.surface.copy(alpha = 0.35f)
-        )
-    )
-}
-
-@Composable
-private fun getBorderBrush(): Brush {
-    return Brush.linearGradient(
-        colors = listOf(
-            AppTheme.colors.textPrimary.copy(alpha = 0.25f),
-            AppTheme.colors.textPrimary.copy(alpha = 0.10f)
-        )
-    )
-}
-
-// [美術] 1. 玻璃圓形按鈕容器 (TopBar 用)
-@Composable
-fun GlassIconContainer(
-    modifier: Modifier = Modifier,
-    content: @Composable () -> Unit
-) {
-    val glassBrush = getGlassBrush()
-    val borderBrush = getBorderBrush()
-
-    Box(
-        modifier = modifier
-            .size(40.dp)
-            .clip(CircleShape)
-            .background(glassBrush)
-            .border(1.dp, borderBrush, CircleShape),
-        contentAlignment = Alignment.Center
-    ) {
-        content()
-    }
-}
-
-// [美術] 2. 玻璃功能按鈕 (用於 Backup/Restore/Test)
-@Composable
-fun GlassSimpleButton(
-    text: String,
-    icon: ImageVector,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val glassBrush = getGlassBrush()
-    val borderBrush = getBorderBrush()
-
-    Box(
-        modifier = modifier
-            .height(50.dp)
-            .clip(RoundedCornerShape(12.dp)) // 先裁切形狀
-            .background(glassBrush)          // 再上背景
-            .border(1.dp, borderBrush, RoundedCornerShape(12.dp)) // 再畫框
-            .clickable { onClick() },        // 最後才是點擊 (確保水波紋被 clip 限制住)
-        contentAlignment = Alignment.Center
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, null, tint = AppTheme.colors.textPrimary, modifier = Modifier.size(18.dp))
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(text, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = AppTheme.colors.textPrimary)
-        }
-    }
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -254,17 +186,11 @@ fun SettingsScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.title_settings), color = AppTheme.colors.textPrimary, fontSize = 18.sp) },
                 navigationIcon = {
-                    // [美術] 返回按鈕：確保圓形水波紋
-                    // 關鍵順序：1. clip(CircleShape) -> 2. clickable
-                    Box(
-                        modifier = Modifier
-                            .padding(start = 12.dp)
-                            .clip(CircleShape) // 1. 先裁切成圓形
-                            .clickable { debounce(onBackClick) } // 2. 再設定點擊，水波紋就會被限縮在圓形內
+                    GlassIconButton(
+                        onClick = { debounce(onBackClick) },
+                        modifier = Modifier.padding(start = 12.dp)
                     ) {
-                        GlassIconContainer {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back), tint = AppTheme.colors.textPrimary)
-                        }
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back), tint = AppTheme.colors.textPrimary)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -278,7 +204,8 @@ fun SettingsScreen(
             modifier = Modifier
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
-                .padding(20.dp)
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
 
             AppearanceCard(
@@ -290,13 +217,9 @@ fun SettingsScreen(
                 }
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
-
             LanguageCard(
                 onClick = { debounce { showLanguageDialog = true } }
             )
-
-            Spacer(modifier = Modifier.height(20.dp))
 
             NotificationSettingsCard(
                 dailyReminder = dailyReminder,
@@ -346,8 +269,6 @@ fun SettingsScreen(
                 }
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
-
             CloudBackupCard(
                 onBackupClick = {
                     debounce {
@@ -362,9 +283,6 @@ fun SettingsScreen(
                 }
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
-            HorizontalDivider(color = AppTheme.colors.divider)
-
             SettingsItem(
                 icon = Icons.AutoMirrored.Filled.Help,
                 title = stringResource(R.string.title_tutorial),
@@ -376,6 +294,38 @@ fun SettingsScreen(
         }
     }
 }
+
+// 統一的 Switch 樣式，解決「看起來像點」的問題
+@Composable
+private fun BudgetQuestSwitch(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isDark = isSystemInDarkTheme()
+    // 設定一個明顯的軌道顏色，讓開關在未選取時也是實心的膠囊狀
+    val uncheckedTrackColor = if (isDark) {
+        Color.White.copy(alpha = 0.3f)
+    } else {
+        Color.Black.copy(alpha = 0.2f)
+    }
+
+    Switch(
+        checked = checked,
+        onCheckedChange = onCheckedChange,
+        modifier = modifier,
+        colors = SwitchDefaults.colors(
+            checkedTrackColor = AppTheme.colors.accent,
+            checkedThumbColor = Color.White,
+            checkedBorderColor = Color.Transparent, // 移除邊框
+            uncheckedTrackColor = uncheckedTrackColor, // 使用實心顏色取代透明
+            uncheckedThumbColor = Color.White,
+            uncheckedBorderColor = Color.Transparent // 移除邊框
+        )
+    )
+}
+
+// [移除] ContrastBackgroundRow (不再需要)
 
 @Composable
 fun LanguageCard(onClick: () -> Unit) {
@@ -390,20 +340,11 @@ fun LanguageCard(onClick: () -> Unit) {
         else -> stringResource(R.string.language_system)
     }
 
-    val glassBrush = getGlassBrush()
-    val borderBrush = getBorderBrush()
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(24.dp)) // 1. 先裁切
-            .background(glassBrush)
-            .border(1.dp, borderBrush, RoundedCornerShape(24.dp))
-            .clickable { onClick() }         // 2. 再點擊 (圓角矩形水波紋)
-            .padding(20.dp)
-    ) {
+    GlassCard(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -480,21 +421,13 @@ fun CloudBackupCard(
     onRestoreClick: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val glassBrush = getGlassBrush()
-    val borderBrush = getBorderBrush()
 
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(24.dp))
-            .background(glassBrush)
-            .border(1.dp, borderBrush, RoundedCornerShape(24.dp))
-    ) {
+    GlassCard(modifier = Modifier.fillMaxWidth()) {
         Column {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { expanded = !expanded } // 圓角矩形水波紋 (因為父層有 clip)
+                    .clickable { expanded = !expanded }
                     .padding(20.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
@@ -525,15 +458,14 @@ fun CloudBackupCard(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        // [美術] 使用玻璃按鈕
-                        GlassSimpleButton(
+                        GlassActionTextButton(
                             text = stringResource(R.string.btn_backup),
                             icon = Icons.Default.Upload,
                             onClick = onBackupClick,
                             modifier = Modifier.weight(1f)
                         )
 
-                        GlassSimpleButton(
+                        GlassActionTextButton(
                             text = stringResource(R.string.btn_restore),
                             icon = Icons.Default.Download,
                             onClick = onRestoreClick,
@@ -557,16 +489,8 @@ fun NotificationSettingsCard(
     onTestNotificationClick: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val glassBrush = getGlassBrush()
-    val borderBrush = getBorderBrush()
 
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(24.dp))
-            .background(glassBrush)
-            .border(1.dp, borderBrush, RoundedCornerShape(24.dp))
-    ) {
+    GlassCard(modifier = Modifier.fillMaxWidth()) {
         Column {
             Row(
                 modifier = Modifier
@@ -596,8 +520,10 @@ fun NotificationSettingsCard(
                 Column(
                     modifier = Modifier
                         .background(AppTheme.colors.surface.copy(alpha = 0.3f))
-                        .padding(20.dp)
+                        .padding(horizontal = 20.dp, vertical = 20.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp) // 適度間距
                 ) {
+                    // [修正] 直接使用 SettingsSwitchItem (已移除外部背景色)
                     SettingsSwitchItem(title = stringResource(R.string.label_daily_reminder), checked = dailyReminder, onCheckedChange = onDailyReminderChange)
 
                     if (dailyReminder) {
@@ -606,17 +532,16 @@ fun NotificationSettingsCard(
 
                     SettingsSwitchItem(title = stringResource(R.string.label_plan_end_reminder), subtitle = stringResource(R.string.desc_plan_end_reminder), checked = planEndReminder, onCheckedChange = onPlanEndReminderChange)
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
-                    // [美術] 使用玻璃按鈕
-                    GlassSimpleButton(
+                    GlassActionTextButton(
                         text = stringResource(R.string.btn_test_notification),
                         icon = Icons.Default.Notifications,
                         onClick = onTestNotificationClick,
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         stringResource(R.string.msg_check_notification_permission),
                         fontSize = 11.sp,
@@ -629,10 +554,11 @@ fun NotificationSettingsCard(
     }
 }
 
+// [修正] 移除 ContrastBackgroundRow，恢復透明背景，但保留 BudgetQuestSwitch
 @Composable
 fun SettingsSwitchItem(title: String, subtitle: String? = null, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+        modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -640,23 +566,21 @@ fun SettingsSwitchItem(title: String, subtitle: String? = null, checked: Boolean
             Text(title, fontSize = 15.sp, color = AppTheme.colors.textPrimary)
             if (subtitle != null) Text(subtitle, fontSize = 11.sp, color = AppTheme.colors.textSecondary)
         }
-        Switch(
+        // [保留] 統一的 BudgetQuestSwitch
+        BudgetQuestSwitch(
             checked = checked,
-            onCheckedChange = onCheckedChange,
-            colors = SwitchDefaults.colors(
-                checkedTrackColor = AppTheme.colors.accent,
-                checkedThumbColor = Color.White,
-                uncheckedTrackColor = AppTheme.colors.background.copy(alpha = 0.5f),
-                uncheckedBorderColor = Color.Transparent
-            )
+            onCheckedChange = onCheckedChange
         )
     }
 }
 
+// [修正] 移除 ContrastBackgroundRow，恢復透明背景
 @Composable
 fun SettingsActionItem(title: String, value: String, onClick: () -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().clickable { onClick() }.padding(vertical = 12.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -678,19 +602,11 @@ fun SettingsActionItem(title: String, value: String, onClick: () -> Unit) {
 
 @Composable
 fun AppearanceCard(isDarkMode: Boolean, onToggle: (Boolean) -> Unit) {
-    val glassBrush = getGlassBrush()
-    val borderBrush = getBorderBrush()
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(24.dp))
-            .background(glassBrush)
-            .border(1.dp, borderBrush, RoundedCornerShape(24.dp))
-            .padding(20.dp)
-    ) {
+    GlassCard(modifier = Modifier.fillMaxWidth()) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -706,13 +622,9 @@ fun AppearanceCard(isDarkMode: Boolean, onToggle: (Boolean) -> Unit) {
                     Text(if (isDarkMode) stringResource(R.string.status_on) else stringResource(R.string.status_off), fontSize = 12.sp, color = AppTheme.colors.textSecondary)
                 }
             }
-            Switch(
+            BudgetQuestSwitch(
                 checked = isDarkMode,
-                onCheckedChange = onToggle,
-                colors = SwitchDefaults.colors(
-                    checkedTrackColor = AppTheme.colors.accent,
-                    uncheckedTrackColor = AppTheme.colors.background.copy(alpha = 0.5f)
-                )
+                onCheckedChange = onToggle
             )
         }
     }
@@ -726,26 +638,25 @@ fun SettingsItem(
     trailing: (@Composable () -> Unit)? = null,
     onClick: (() -> Unit)? = null
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            // [美術] 增加點擊回饋的圓角
-            // 這裡也需要先 clip 再 clickable，才能有圓角矩形水波紋，而非方框
-            .clip(RoundedCornerShape(16.dp))
-            .clickable(enabled = onClick != null) { onClick?.invoke() }
-            .padding(horizontal = 20.dp, vertical = 16.dp),
-        verticalAlignment = Alignment.CenterVertically
+    GlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick
     ) {
-        Icon(icon, null, tint = AppTheme.colors.textSecondary, modifier = Modifier.size(24.dp))
-        Spacer(modifier = Modifier.width(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(title, fontSize = 16.sp, color = AppTheme.colors.textPrimary)
-            if (subtitle != null) {
-                Text(subtitle, fontSize = 12.sp, color = AppTheme.colors.textSecondary)
+        Row(
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(icon, null, tint = AppTheme.colors.textSecondary, modifier = Modifier.size(24.dp))
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, fontSize = 16.sp, color = AppTheme.colors.textPrimary)
+                if (subtitle != null) {
+                    Text(subtitle, fontSize = 12.sp, color = AppTheme.colors.textSecondary)
+                }
             }
-        }
-        if (trailing != null) {
-            trailing()
+            if (trailing != null) {
+                trailing()
+            }
         }
     }
 }

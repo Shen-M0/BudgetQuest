@@ -1,8 +1,6 @@
 package com.example.budgetquest.ui.subscription
 
 import android.app.DatePickerDialog
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -21,7 +19,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButton // 用於列表內的刪除按鈕
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
@@ -38,7 +36,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -60,106 +57,14 @@ import com.example.budgetquest.ui.transaction.SubTagManagerDialog
 import com.example.budgetquest.ui.common.getIconByKey
 import com.example.budgetquest.ui.common.getSmartCategoryName
 import com.example.budgetquest.ui.common.getSmartTagName
+import com.example.budgetquest.ui.common.AuroraPrimaryButton // [新增]
+import com.example.budgetquest.ui.common.GlassCard // [新增]
+import com.example.budgetquest.ui.common.GlassChip // [新增]
+import com.example.budgetquest.ui.common.GlassIconButton // [新增]
+import com.example.budgetquest.ui.common.GlassTextField // [新增]
 import com.example.budgetquest.ui.theme.AppTheme
 
-// [美術] 定義玻璃筆刷
-@Composable
-private fun getGlassBrush(): Brush {
-    return Brush.verticalGradient(
-        colors = listOf(
-            AppTheme.colors.surface.copy(alpha = 0.65f),
-            AppTheme.colors.surface.copy(alpha = 0.35f)
-        )
-    )
-}
-
-@Composable
-private fun getBorderBrush(): Brush {
-    return Brush.linearGradient(
-        colors = listOf(
-            AppTheme.colors.textPrimary.copy(alpha = 0.25f),
-            AppTheme.colors.textPrimary.copy(alpha = 0.10f)
-        )
-    )
-}
-
-// [美術] 1. 玻璃圓形按鈕容器 (TopBar 用)
-@Composable
-fun GlassIconContainer(
-    modifier: Modifier = Modifier,
-    content: @Composable () -> Unit
-) {
-    val glassBrush = getGlassBrush()
-    val borderBrush = getBorderBrush()
-
-    Box(
-        modifier = modifier
-            .size(40.dp)
-            .clip(CircleShape)
-            .background(glassBrush)
-            .border(1.dp, borderBrush, CircleShape),
-        contentAlignment = Alignment.Center
-    ) {
-        content()
-    }
-}
-
-// [美術] 2. 極光漸層主要按鈕 (用於加入清單)
-@Composable
-fun AuroraPrimaryButton(
-    text: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val gradientBrush = Brush.horizontalGradient(
-        colors = listOf(
-            AppTheme.colors.accent,
-            AppTheme.colors.accent.copy(alpha = 0.7f)
-        )
-    )
-
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(56.dp)
-            .shadow(8.dp, RoundedCornerShape(16.dp), ambientColor = AppTheme.colors.accent, spotColor = AppTheme.colors.accent)
-            .clip(RoundedCornerShape(16.dp))
-            .background(gradientBrush)
-            .clickable { onClick() },
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = text,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color.White
-        )
-    }
-}
-
-// [美術] 3. 玻璃編輯按鈕 (小圓鈕)
-@Composable
-fun GlassSmallEditButton(onClick: () -> Unit) {
-    val glassBrush = getGlassBrush()
-    val borderBrush = getBorderBrush()
-
-    Box(
-        modifier = Modifier
-            .size(32.dp)
-            .clip(CircleShape)
-            .background(glassBrush)
-            .border(1.dp, borderBrush, CircleShape)
-            .clickable { onClick() },
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            imageVector = Icons.Default.Add,
-            contentDescription = stringResource(R.string.desc_edit_button),
-            tint = AppTheme.colors.textSecondary,
-            modifier = Modifier.size(16.dp)
-        )
-    }
-}
+// [移除] 所有本地定義的樣式與元件 (getGlassBrush, getBorderBrush, GlassIconContainer, AuroraPrimaryButton, GlassSmallEditButton, JapaneseTextField, JapaneseCompactChip)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -258,21 +163,18 @@ fun SubscriptionScreen(
         SubTagManagerDialog(allSubTags, { showSubTagManager = false }, viewModel::addSubTag, viewModel::toggleSubTagVisibility, viewModel::deleteSubTag)
     }
 
-    // [美術] 取得筆刷
-    val glassBrush = getGlassBrush()
-    val borderBrush = getBorderBrush()
-
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.title_fixed_expenses), color = AppTheme.colors.textPrimary, fontSize = 18.sp) },
                 navigationIcon = {
-                    // [美術] 優化：使用玻璃圓鈕
-                    Box(modifier = Modifier.padding(start = 12.dp).clip(CircleShape).clickable { debounce(onBackClick) }) {
-                        GlassIconContainer(modifier = Modifier.size(40.dp)) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back), tint = AppTheme.colors.textPrimary, modifier = Modifier.size(20.dp))
-                        }
+                    // [優化] 使用 GlassIconButton
+                    GlassIconButton(
+                        onClick = { debounce(onBackClick) },
+                        modifier = Modifier.padding(start = 12.dp)
+                    ) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back), tint = AppTheme.colors.textPrimary, modifier = Modifier.size(20.dp))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -298,22 +200,25 @@ fun SubscriptionScreen(
             modifier = Modifier.padding(innerPadding).padding(horizontal = 20.dp).fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            // [美術] 輸入區塊 (玻璃 Box)
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(glassBrush)
-                    .border(1.dp, borderBrush, RoundedCornerShape(24.dp))
-                    .padding(20.dp)
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            // [優化] 輸入區塊改用 GlassCard 封裝
+            GlassCard(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         JapaneseDateButton(stringResource(R.string.label_date_start), dateFormatter.format(Date(uiState.startDate))) {
                             debounce { startDatePickerDialog.show() }
                         }
                         Box(modifier = Modifier.weight(1f)) {
-                            JapaneseTextField(value = uiState.amount, onValueChange = { viewModel.updateUiState(amount = it) }, label = stringResource(R.string.label_amount), isNumber = true)
+                            // [優化] 使用 GlassTextField
+                            GlassTextField(
+                                value = uiState.amount,
+                                onValueChange = { viewModel.updateUiState(amount = it) },
+                                label = stringResource(R.string.label_amount),
+                                isNumber = true,
+                                placeholder = ""
+                            )
                         }
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -326,12 +231,23 @@ fun SubscriptionScreen(
                         Spacer(modifier = Modifier.width(16.dp))
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             items(periodsMap.toList()) { (key, resId) ->
-                                JapaneseCompactChip(stringResource(resId), uiState.frequency == key) { viewModel.updateUiState(frequency = key) }
+                                // [優化] 使用 GlassChip
+                                GlassChip(
+                                    label = stringResource(resId),
+                                    selected = uiState.frequency == key,
+                                    onClick = { viewModel.updateUiState(frequency = key) }
+                                )
                             }
                         }
                     }
                     if (uiState.frequency == "CUSTOM") {
-                        JapaneseTextField(value = uiState.customDays, onValueChange = { viewModel.updateUiState(customDays = it) }, label = stringResource(R.string.label_interval_days), isNumber = true)
+                        GlassTextField(
+                            value = uiState.customDays,
+                            onValueChange = { viewModel.updateUiState(customDays = it) },
+                            label = stringResource(R.string.label_interval_days),
+                            isNumber = true,
+                            placeholder = ""
+                        )
                     }
 
                     HorizontalDivider(color = AppTheme.colors.divider, thickness = 1.dp)
@@ -340,37 +256,52 @@ fun SubscriptionScreen(
 
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(categories, key = { it.id }) { category ->
-                            JapaneseCompactChip(
+                            GlassChip(
                                 label = getSmartCategoryName(category.name),
                                 selected = uiState.category == category.name,
-                                icon = getIconByKey(category.iconKey)
-                            ) { viewModel.updateUiState(category = category.name) }
+                                icon = getIconByKey(category.iconKey),
+                                onClick = { viewModel.updateUiState(category = category.name) }
+                            )
                         }
-                        // [美術] 優化：使用玻璃小圓鈕
-                        item { GlassSmallEditButton { debounce { showCategoryManager = true } } }
+                        // [優化] 編輯按鈕：使用 GlassIconButton 的變體 (小尺寸 32dp)
+                        item {
+                            GlassIconButton(
+                                onClick = { debounce { showCategoryManager = true } },
+                                size = 32.dp
+                            ) {
+                                Icon(Icons.Default.Add, stringResource(R.string.desc_edit_button), tint = AppTheme.colors.textSecondary, modifier = Modifier.size(16.dp))
+                            }
+                        }
                     }
 
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(subTags, key = { it.id }) { tag ->
                             val displayName = getSmartTagName(tag.name, tag.resourceKey)
-                            JapaneseCompactChip(
+                            GlassChip(
                                 label = displayName,
-                                selected = uiState.note == displayName
+                                selected = uiState.note == displayName,
+                                onClick = { viewModel.updateUiState(note = displayName) }
+                            )
+                        }
+                        // [優化] 編輯按鈕
+                        item {
+                            GlassIconButton(
+                                onClick = { debounce { showSubTagManager = true } },
+                                size = 32.dp
                             ) {
-                                viewModel.updateUiState(note = displayName)
+                                Icon(Icons.Default.Add, stringResource(R.string.desc_edit_button), tint = AppTheme.colors.textSecondary, modifier = Modifier.size(16.dp))
                             }
                         }
-                        // [美術] 優化：使用玻璃小圓鈕
-                        item { GlassSmallEditButton { debounce { showSubTagManager = true } } }
                     }
 
-                    JapaneseTextField(
+                    GlassTextField(
                         value = getSmartTagName(uiState.note),
                         onValueChange = { viewModel.updateUiState(note = it) },
-                        label = stringResource(R.string.hint_subscription_name)
+                        label = stringResource(R.string.hint_subscription_name),
+                        placeholder = ""
                     )
 
-                    // [美術] 優化：使用極光漸層按鈕
+                    // [優化] 使用 AuroraPrimaryButton
                     AuroraPrimaryButton(
                         text = stringResource(R.string.btn_add_to_list),
                         onClick = {
@@ -405,27 +336,6 @@ fun SubscriptionScreen(
 // ... 下方共用元件 ...
 
 @Composable
-fun JapaneseTextField(value: String, onValueChange: (String) -> Unit, label: String, isNumber: Boolean = false) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        placeholder = { Text(label, color = AppTheme.colors.textSecondary) },
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = OutlinedTextFieldDefaults.colors(
-            unfocusedBorderColor = Color.Transparent,
-            focusedBorderColor = AppTheme.colors.accent,
-            unfocusedContainerColor = AppTheme.colors.background.copy(alpha = 0.5f),
-            focusedContainerColor = AppTheme.colors.background.copy(alpha = 0.7f),
-            focusedTextColor = AppTheme.colors.textPrimary,
-            unfocusedTextColor = AppTheme.colors.textPrimary
-        ),
-        keyboardOptions = if (isNumber) KeyboardOptions(keyboardType = KeyboardType.Number) else KeyboardOptions.Default,
-        singleLine = true
-    )
-}
-
-@Composable
 fun JapaneseDateButton(label: String, value: String, onClick: () -> Unit) {
     Column(modifier = Modifier.clickable { onClick() }) {
         Text(label, fontSize = 12.sp, color = AppTheme.colors.textSecondary)
@@ -433,26 +343,8 @@ fun JapaneseDateButton(label: String, value: String, onClick: () -> Unit) {
     }
 }
 
-@Composable
-fun JapaneseCompactChip(label: String, selected: Boolean, icon: ImageVector? = null, onClick: () -> Unit) {
-    Surface(
-        color = if (selected) AppTheme.colors.accent else AppTheme.colors.background.copy(alpha = 0.5f),
-        contentColor = if (selected) Color.White else AppTheme.colors.textSecondary,
-        shape = RoundedCornerShape(8.dp),
-        modifier = Modifier.clickable { onClick() }
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-        ) {
-            if (icon != null) {
-                Icon(icon, null, modifier = Modifier.size(14.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-            }
-            Text(label, fontSize = 12.sp)
-        }
-    }
-}
+// [移除] JapaneseTextField (已改用 GlassTextField)
+// [移除] JapaneseCompactChip (已改用 GlassChip)
 
 @Composable
 fun JapaneseSubscriptionItem(
@@ -460,33 +352,33 @@ fun JapaneseSubscriptionItem(
     frequencyLabel: String,
     onDelete: () -> Unit
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .background(AppTheme.colors.surface.copy(alpha = 0.7f))
-            .padding(20.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Surface(shape = CircleShape, color = AppTheme.colors.background.copy(alpha = 0.5f), modifier = Modifier.size(48.dp)) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(Icons.Default.Star, null, tint = AppTheme.colors.accent, modifier = Modifier.size(24.dp))
+    // [優化] 列表項目改用 GlassCard 封裝
+    GlassCard(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(shape = CircleShape, color = AppTheme.colors.background.copy(alpha = 0.5f), modifier = Modifier.size(48.dp)) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Star, null, tint = AppTheme.colors.accent, modifier = Modifier.size(24.dp))
+                    }
+                }
+                Spacer(modifier = Modifier.width(16.dp))
+                Column {
+                    Text(getSmartTagName(item.note), fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = AppTheme.colors.textPrimary)
+                    Text(
+                        stringResource(R.string.format_subscription_price, item.amount, frequencyLabel),
+                        fontSize = 12.sp,
+                        color = AppTheme.colors.textSecondary
+                    )
                 }
             }
-            Spacer(modifier = Modifier.width(16.dp))
-            Column {
-                Text(getSmartTagName(item.note), fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = AppTheme.colors.textPrimary)
-                Text(
-                    stringResource(R.string.format_subscription_price, item.amount, frequencyLabel),
-                    fontSize = 12.sp,
-                    color = AppTheme.colors.textSecondary
-                )
+            // 這裡的刪除按鈕如果是單純 Icon，可以保留 IconButton，或者也改用 GlassIconButton(size=32.dp)
+            IconButton(onClick = onDelete) {
+                Icon(Icons.Default.Delete, stringResource(R.string.content_desc_delete), tint = AppTheme.colors.textSecondary.copy(alpha = 0.5f))
             }
-        }
-        IconButton(onClick = onDelete) {
-            Icon(Icons.Default.Delete, stringResource(R.string.content_desc_delete), tint = AppTheme.colors.textSecondary.copy(alpha = 0.5f))
         }
     }
 }

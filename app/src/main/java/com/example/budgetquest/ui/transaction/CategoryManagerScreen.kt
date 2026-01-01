@@ -16,9 +16,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush // [新增]
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -28,32 +26,13 @@ import com.example.budgetquest.R
 import com.example.budgetquest.data.CategoryEntity
 import com.example.budgetquest.data.TagEntity
 import com.example.budgetquest.data.SubscriptionTagEntity
+import com.example.budgetquest.ui.common.GlassCard
+import com.example.budgetquest.ui.common.GlassIconButton
+import com.example.budgetquest.ui.common.GlassTextField
 import com.example.budgetquest.ui.common.getIconByKey
 import com.example.budgetquest.ui.common.getSmartCategoryName
 import com.example.budgetquest.ui.common.getSmartTagName
 import com.example.budgetquest.ui.theme.AppTheme
-
-// [美術] 玻璃筆刷 (區域性定義，或可抽離)
-@Composable
-private fun getDialogGlassBrush(): Brush {
-    // Dialog 需要稍微不透明一點，以免內容太雜
-    return Brush.verticalGradient(
-        colors = listOf(
-            AppTheme.colors.surface.copy(alpha = 0.85f),
-            AppTheme.colors.surface.copy(alpha = 0.65f)
-        )
-    )
-}
-
-@Composable
-private fun getDialogBorderBrush(): Brush {
-    return Brush.linearGradient(
-        colors = listOf(
-            AppTheme.colors.textPrimary.copy(alpha = 0.25f),
-            AppTheme.colors.textPrimary.copy(alpha = 0.10f)
-        )
-    )
-}
 
 val PRESET_COLORS = listOf(
     "#EF5350", "#EC407A", "#AB47BC", "#7E57C2",
@@ -94,28 +73,22 @@ fun CategoryManagerDialog(
     val iconList = remember { PRESET_ICONS }
     val colorList = remember { PRESET_COLORS }
 
-    val glassBrush = getDialogGlassBrush()
-    val borderBrush = getDialogBorderBrush()
-
     Dialog(onDismissRequest = onDismiss) {
-        // [美術] 改用 Box + 玻璃質感
-        Box(
+        GlassCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(max = 650.dp)
-                .clip(RoundedCornerShape(24.dp))
-                .background(glassBrush)
-                .border(1.dp, borderBrush, RoundedCornerShape(24.dp))
-                .padding(20.dp)
         ) {
-            Column {
+            Column(modifier = Modifier.padding(20.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(stringResource(R.string.title_manage_categories), fontSize = 18.sp, fontWeight = FontWeight.Bold, color = AppTheme.colors.textPrimary)
-                    IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, null, tint = AppTheme.colors.textSecondary) }
+                    GlassIconButton(onClick = onDismiss, size = 32.dp) {
+                        Icon(Icons.Default.Close, null, tint = AppTheme.colors.textSecondary, modifier = Modifier.size(18.dp))
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -124,8 +97,8 @@ fun CategoryManagerDialog(
                     Column(
                         modifier = Modifier
                             .clip(RoundedCornerShape(16.dp))
-                            // [美術] 新增區塊半透明
-                            .background(AppTheme.colors.surface.copy(alpha = 0.5f))
+                            // [調整] 降低透明度 (0.5 -> 0.3)，讓背景更通透
+                            .background(AppTheme.colors.surface.copy(alpha = 0.3f))
                             .padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
@@ -136,8 +109,8 @@ fun CategoryManagerDialog(
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
                             colors = OutlinedTextFieldDefaults.colors(
-                                unfocusedContainerColor = AppTheme.colors.background.copy(alpha = 0.5f),
-                                focusedContainerColor = AppTheme.colors.background.copy(alpha = 0.7f),
+                                unfocusedContainerColor = AppTheme.colors.background.copy(alpha = 0.3f), // [調整] 降低
+                                focusedContainerColor = AppTheme.colors.background.copy(alpha = 0.5f),   // [調整] 降低
                                 unfocusedBorderColor = Color.Transparent,
                                 focusedBorderColor = AppTheme.colors.accent,
                                 focusedTextColor = AppTheme.colors.textPrimary,
@@ -220,7 +193,7 @@ fun CategoryManagerDialog(
                                     selectedColor = PRESET_COLORS[0]
                                 },
                                 modifier = Modifier.weight(1f).height(40.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = AppTheme.colors.background.copy(alpha = 0.5f), contentColor = AppTheme.colors.textPrimary),
+                                colors = ButtonDefaults.buttonColors(containerColor = AppTheme.colors.background.copy(alpha = 0.3f), contentColor = AppTheme.colors.textPrimary), // [調整] 降低
                                 elevation = ButtonDefaults.buttonElevation(0.dp)
                             ) {
                                 Text(stringResource(R.string.action_cancel), fontSize = 14.sp)
@@ -249,7 +222,7 @@ fun CategoryManagerDialog(
                     Button(
                         onClick = { isAdding = true },
                         modifier = Modifier.fillMaxWidth().height(48.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = AppTheme.colors.surface.copy(alpha = 0.7f), contentColor = AppTheme.colors.accent),
+                        colors = ButtonDefaults.buttonColors(containerColor = AppTheme.colors.surface.copy(alpha = 0.4f), contentColor = AppTheme.colors.accent), // [調整] 降低
                         elevation = ButtonDefaults.buttonElevation(0.dp),
                         shape = RoundedCornerShape(16.dp)
                     ) {
@@ -263,48 +236,62 @@ fun CategoryManagerDialog(
 
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(categories, key = { it.id }) { item ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                // [美術] 列表項目背景微透明
-                                .background(AppTheme.colors.surface.copy(alpha = 0.7f))
-                                .padding(horizontal = 12.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                        GlassCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            cornerRadius = 12.dp,
+                            // [移除] 這裡不需要額外的 onClick，除非需要點擊整行
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(30.dp)
-                                        .background(
-                                            try { Color(android.graphics.Color.parseColor(item.colorHex)) } catch (_: Exception) { AppTheme.colors.accent.copy(alpha = 0.2f) },
-                                            CircleShape
-                                        ),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = getIconByKey(item.iconKey),
-                                        contentDescription = null,
-                                        tint = Color.White,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Text(getSmartCategoryName(item.name, item.resourceKey), color = if (item.isVisible) AppTheme.colors.textPrimary else AppTheme.colors.textSecondary, fontSize = 14.sp)
-                            }
+                            // [重要調整] 這裡原本沒有設定背景，GlassCard 會套用預設的玻璃背景。
+                            // 但因為是在 Dialog 內部 (已有背景)，雙重玻璃可能會太厚。
+                            // 這裡我們維持 GlassCard 的結構，但因為 GlassCard 預設是半透明，
+                            // 在深色 Dialog 上應該會剛好。
+                            // 如果您覺得列表項目還是太深，可以考慮使用更輕的背景色覆盖，例如：
+                            // Box(modifier = Modifier.background(Color.Transparent)) // 但 GlassCard 預設有背景
 
-                            Row {
-                                IconButton(onClick = { debounce { onToggleVisibility(item) } }, modifier = Modifier.size(32.dp)) {
-                                    Icon(
-                                        if (item.isVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                        null,
-                                        tint = if (item.isVisible) AppTheme.colors.accent else AppTheme.colors.textSecondary,
-                                        modifier = Modifier.size(18.dp)
-                                    )
+                            // 這裡使用 GlassCard 已經是最佳解，因為它比之前手寫的 alpha=0.7f (Row background) 要輕。
+                            // GlassCard 的預設 alpha 是 0.65 -> 0.35。
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    // 移除之前手動設定的 background(alpha=0.7f)
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(30.dp)
+                                            .background(
+                                                try { Color(android.graphics.Color.parseColor(item.colorHex)) } catch (_: Exception) { AppTheme.colors.accent.copy(alpha = 0.2f) },
+                                                CircleShape
+                                            ),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = getIconByKey(item.iconKey),
+                                            contentDescription = null,
+                                            tint = Color.White,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Text(getSmartCategoryName(item.name, item.resourceKey), color = if (item.isVisible) AppTheme.colors.textPrimary else AppTheme.colors.textSecondary, fontSize = 14.sp)
                                 }
-                                IconButton(onClick = { debounce { onDelete(item) } }, modifier = Modifier.size(32.dp)) {
-                                    Icon(Icons.Default.Delete, null, tint = AppTheme.colors.fail, modifier = Modifier.size(18.dp))
+
+                                Row {
+                                    GlassIconButton(onClick = { debounce { onToggleVisibility(item) } }, size = 32.dp) {
+                                        Icon(
+                                            if (item.isVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                            null,
+                                            tint = if (item.isVisible) AppTheme.colors.accent else AppTheme.colors.textSecondary,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                    GlassIconButton(onClick = { debounce { onDelete(item) } }, size = 32.dp) {
+                                        Icon(Icons.Default.Delete, null, tint = AppTheme.colors.fail, modifier = Modifier.size(18.dp))
+                                    }
                                 }
                             }
                         }
@@ -335,23 +322,16 @@ fun TagManagerDialog(
         }
     }
 
-    val glassBrush = getDialogGlassBrush()
-    val borderBrush = getDialogBorderBrush()
-
     Dialog(onDismissRequest = onDismiss) {
-        Box(
+        GlassCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(max = 600.dp)
-                .clip(RoundedCornerShape(24.dp))
-                .background(glassBrush)
-                .border(1.dp, borderBrush, RoundedCornerShape(24.dp))
-                .padding(20.dp)
         ) {
-            Column {
+            Column(modifier = Modifier.padding(20.dp)) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Text(stringResource(R.string.title_manage_tags), fontSize = 18.sp, fontWeight = FontWeight.Bold, color = AppTheme.colors.textPrimary)
-                    IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, null, tint = AppTheme.colors.textSecondary) }
+                    GlassIconButton(onClick = onDismiss, size = 32.dp) { Icon(Icons.Default.Close, null, tint = AppTheme.colors.textSecondary, modifier = Modifier.size(18.dp)) }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -360,32 +340,23 @@ fun TagManagerDialog(
                     Column(
                         modifier = Modifier
                             .clip(RoundedCornerShape(16.dp))
-                            .background(AppTheme.colors.surface.copy(alpha = 0.5f))
+                            // [調整] 降低透明度 0.5 -> 0.3
+                            .background(AppTheme.colors.surface.copy(alpha = 0.3f))
                             .padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        OutlinedTextField(
+                        GlassTextField(
                             value = newName,
                             onValueChange = { newName = it },
-                            placeholder = { Text(stringResource(R.string.hint_new_tag), color = AppTheme.colors.textSecondary) },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                unfocusedContainerColor = AppTheme.colors.background.copy(alpha = 0.5f),
-                                focusedContainerColor = AppTheme.colors.background.copy(alpha = 0.7f),
-                                unfocusedBorderColor = Color.Transparent,
-                                focusedBorderColor = AppTheme.colors.accent,
-                                focusedTextColor = AppTheme.colors.textPrimary,
-                                unfocusedTextColor = AppTheme.colors.textPrimary
-                            ),
-                            shape = RoundedCornerShape(12.dp)
+                            placeholder = stringResource(R.string.hint_new_tag),
+                            label = null
                         )
 
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Button(
                                 onClick = { isAdding = false; newName = "" },
                                 modifier = Modifier.weight(1f),
-                                colors = ButtonDefaults.buttonColors(containerColor = AppTheme.colors.background.copy(alpha = 0.5f), contentColor = AppTheme.colors.textPrimary),
+                                colors = ButtonDefaults.buttonColors(containerColor = AppTheme.colors.background.copy(alpha = 0.3f), contentColor = AppTheme.colors.textPrimary), // [調整] 降低
                                 elevation = ButtonDefaults.buttonElevation(0.dp)
                             ) {
                                 Text(stringResource(R.string.action_cancel))
@@ -412,7 +383,7 @@ fun TagManagerDialog(
                     Button(
                         onClick = { isAdding = true },
                         modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = AppTheme.colors.surface.copy(alpha = 0.7f), contentColor = AppTheme.colors.accent),
+                        colors = ButtonDefaults.buttonColors(containerColor = AppTheme.colors.surface.copy(alpha = 0.4f), contentColor = AppTheme.colors.accent), // [調整] 降低
                         elevation = ButtonDefaults.buttonElevation(0.dp),
                         shape = RoundedCornerShape(16.dp)
                     ) {
@@ -426,22 +397,25 @@ fun TagManagerDialog(
 
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(tags, key = { it.id }) { item ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(AppTheme.colors.surface.copy(alpha = 0.7f))
-                                .padding(horizontal = 12.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                        GlassCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            cornerRadius = 12.dp
                         ) {
-                            Text(getSmartTagName(item.name, item.resourceKey), color = if(item.isVisible) AppTheme.colors.textPrimary else AppTheme.colors.textSecondary)
-                            Row {
-                                IconButton(onClick = { debounce { onToggleVisibility(item) } }, modifier = Modifier.size(32.dp)) {
-                                    Icon(if (item.isVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff, null, tint = if(item.isVisible) AppTheme.colors.accent else AppTheme.colors.textSecondary, modifier = Modifier.size(18.dp))
-                                }
-                                IconButton(onClick = { debounce { onDelete(item) } }, modifier = Modifier.size(32.dp)) {
-                                    Icon(Icons.Default.Delete, null, tint = AppTheme.colors.fail, modifier = Modifier.size(18.dp))
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(getSmartTagName(item.name, item.resourceKey), color = if(item.isVisible) AppTheme.colors.textPrimary else AppTheme.colors.textSecondary)
+                                Row {
+                                    GlassIconButton(onClick = { debounce { onToggleVisibility(item) } }, size = 32.dp) {
+                                        Icon(if (item.isVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff, null, tint = if(item.isVisible) AppTheme.colors.accent else AppTheme.colors.textSecondary, modifier = Modifier.size(18.dp))
+                                    }
+                                    GlassIconButton(onClick = { debounce { onDelete(item) } }, size = 32.dp) {
+                                        Icon(Icons.Default.Delete, null, tint = AppTheme.colors.fail, modifier = Modifier.size(18.dp))
+                                    }
                                 }
                             }
                         }
@@ -472,23 +446,16 @@ fun SubTagManagerDialog(
         }
     }
 
-    val glassBrush = getDialogGlassBrush()
-    val borderBrush = getDialogBorderBrush()
-
     Dialog(onDismissRequest = onDismiss) {
-        Box(
+        GlassCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(max = 600.dp)
-                .clip(RoundedCornerShape(24.dp))
-                .background(glassBrush)
-                .border(1.dp, borderBrush, RoundedCornerShape(24.dp))
-                .padding(20.dp)
         ) {
-            Column {
+            Column(modifier = Modifier.padding(20.dp)) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Text(stringResource(R.string.title_manage_subscriptions), fontSize = 18.sp, fontWeight = FontWeight.Bold, color = AppTheme.colors.textPrimary)
-                    IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, null, tint = AppTheme.colors.textSecondary) }
+                    GlassIconButton(onClick = onDismiss, size = 32.dp) { Icon(Icons.Default.Close, null, tint = AppTheme.colors.textSecondary, modifier = Modifier.size(18.dp)) }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -497,32 +464,23 @@ fun SubTagManagerDialog(
                     Column(
                         modifier = Modifier
                             .clip(RoundedCornerShape(16.dp))
-                            .background(AppTheme.colors.surface.copy(alpha = 0.5f))
+                            // [調整] 降低透明度 0.5 -> 0.3
+                            .background(AppTheme.colors.surface.copy(alpha = 0.3f))
                             .padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        OutlinedTextField(
+                        GlassTextField(
                             value = newName,
                             onValueChange = { newName = it },
-                            placeholder = { Text(stringResource(R.string.hint_subscription_example), color = AppTheme.colors.textSecondary) },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                unfocusedContainerColor = AppTheme.colors.background.copy(alpha = 0.5f),
-                                focusedContainerColor = AppTheme.colors.background.copy(alpha = 0.7f),
-                                unfocusedBorderColor = Color.Transparent,
-                                focusedBorderColor = AppTheme.colors.accent,
-                                focusedTextColor = AppTheme.colors.textPrimary,
-                                unfocusedTextColor = AppTheme.colors.textPrimary
-                            ),
-                            shape = RoundedCornerShape(12.dp)
+                            placeholder = stringResource(R.string.hint_subscription_example),
+                            label = null
                         )
 
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Button(
                                 onClick = { isAdding = false; newName = "" },
                                 modifier = Modifier.weight(1f),
-                                colors = ButtonDefaults.buttonColors(containerColor = AppTheme.colors.background.copy(alpha = 0.5f), contentColor = AppTheme.colors.textPrimary),
+                                colors = ButtonDefaults.buttonColors(containerColor = AppTheme.colors.background.copy(alpha = 0.3f), contentColor = AppTheme.colors.textPrimary), // [調整] 降低
                                 elevation = ButtonDefaults.buttonElevation(0.dp)
                             ) {
                                 Text(stringResource(R.string.action_cancel))
@@ -549,7 +507,7 @@ fun SubTagManagerDialog(
                     Button(
                         onClick = { isAdding = true },
                         modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = AppTheme.colors.surface.copy(alpha = 0.7f), contentColor = AppTheme.colors.accent),
+                        colors = ButtonDefaults.buttonColors(containerColor = AppTheme.colors.surface.copy(alpha = 0.4f), contentColor = AppTheme.colors.accent), // [調整] 降低
                         elevation = ButtonDefaults.buttonElevation(0.dp),
                         shape = RoundedCornerShape(16.dp)
                     ) {
@@ -563,22 +521,25 @@ fun SubTagManagerDialog(
 
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(tags, key = { it.id }) { item ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(AppTheme.colors.surface.copy(alpha = 0.7f))
-                                .padding(horizontal = 12.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                        GlassCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            cornerRadius = 12.dp
                         ) {
-                            Text(getSmartCategoryName(item.name, item.resourceKey), color = if(item.isVisible) AppTheme.colors.textPrimary else AppTheme.colors.textSecondary)
-                            Row {
-                                IconButton(onClick = { debounce { onToggleVisibility(item) } }, modifier = Modifier.size(32.dp)) {
-                                    Icon(if (item.isVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff, null, tint = if(item.isVisible) AppTheme.colors.accent else AppTheme.colors.textSecondary, modifier = Modifier.size(18.dp))
-                                }
-                                IconButton(onClick = { debounce { onDelete(item) } }, modifier = Modifier.size(32.dp)) {
-                                    Icon(Icons.Default.Delete, null, tint = AppTheme.colors.fail, modifier = Modifier.size(18.dp))
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(getSmartCategoryName(item.name, item.resourceKey), color = if(item.isVisible) AppTheme.colors.textPrimary else AppTheme.colors.textSecondary)
+                                Row {
+                                    GlassIconButton(onClick = { debounce { onToggleVisibility(item) } }, size = 32.dp) {
+                                        Icon(if (item.isVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff, null, tint = if(item.isVisible) AppTheme.colors.accent else AppTheme.colors.textSecondary, modifier = Modifier.size(18.dp))
+                                    }
+                                    GlassIconButton(onClick = { debounce { onDelete(item) } }, size = 32.dp) {
+                                        Icon(Icons.Default.Delete, null, tint = AppTheme.colors.fail, modifier = Modifier.size(18.dp))
+                                    }
                                 }
                             }
                         }

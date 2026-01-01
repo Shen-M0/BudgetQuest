@@ -16,38 +16,20 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush // [新增]
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.budgetquest.R
+import com.example.budgetquest.ui.common.getBorderBrush // [新增引用]
+import com.example.budgetquest.ui.common.getGlassBrush // [新增引用]
 import com.example.budgetquest.ui.theme.AppTheme
 import kotlinx.coroutines.launch
 
-// [美術] 定義玻璃筆刷 (圓形專用)
-@Composable
-private fun getCircleGlassBrush(): Brush {
-    return Brush.verticalGradient(
-        colors = listOf(
-            AppTheme.colors.surface.copy(alpha = 0.5f),
-            AppTheme.colors.surface.copy(alpha = 0.2f)
-        )
-    )
-}
-
-@Composable
-private fun getCircleBorderBrush(): Brush {
-    return Brush.linearGradient(
-        colors = listOf(
-            AppTheme.colors.textPrimary.copy(alpha = 0.3f),
-            AppTheme.colors.textPrimary.copy(alpha = 0.1f)
-        )
-    )
-}
+// [移除] getCircleGlassBrush (已改用 common 的 getGlassBrush)
+// [移除] getCircleBorderBrush (已改用 common 的 getBorderBrush)
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -81,15 +63,14 @@ fun OnboardingScreen(
         }
     }
 
-    // [美術] 取得筆刷
-    val glassBrush = getCircleGlassBrush()
-    val borderBrush = getCircleBorderBrush()
+    // [優化] 直接使用 common 的筆刷
+    val glassBrush = getGlassBrush()
+    val borderBrush = getBorderBrush()
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            // [美術] 移除背景色，讓底層極光透出來
-            // .background(AppTheme.colors.background)
+            // .background(AppTheme.colors.background) // 保持移除，讓極光透出
             .padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -103,20 +84,20 @@ fun OnboardingScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                // [美術] 圓形圖示改為玻璃擬態
+                // [美術] 圓形圖示玻璃擬態 (使用 common 資源)
                 Box(
                     modifier = Modifier
                         .size(200.dp)
                         .clip(CircleShape)
-                        .background(glassBrush)
-                        .border(1.dp, borderBrush, CircleShape),
+                        .background(glassBrush) // 使用 common 的玻璃筆刷
+                        .border(1.dp, borderBrush, CircleShape), // 使用 common 的邊框筆刷
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = "${index + 1}",
                         fontSize = 80.sp,
                         fontWeight = FontWeight.Bold,
-                        color = AppTheme.colors.accent.copy(alpha = 0.8f) // 加深一點顏色以增加對比
+                        color = AppTheme.colors.accent.copy(alpha = 0.8f)
                     )
                 }
 
@@ -158,6 +139,7 @@ fun OnboardingScreen(
                 }
             }
 
+            // 這裡維持使用標準 Button，因為 AuroraPrimaryButton 是全寬的，不適合放在 Row 裡面
             Button(
                 onClick = {
                     debounce {
@@ -171,7 +153,7 @@ fun OnboardingScreen(
                 colors = ButtonDefaults.buttonColors(containerColor = AppTheme.colors.accent),
                 shape = RoundedCornerShape(16.dp),
                 elevation = ButtonDefaults.buttonElevation(
-                    defaultElevation = 6.dp, // [美術] 增加陰影，讓按鈕更立體
+                    defaultElevation = 6.dp,
                     pressedElevation = 2.dp
                 )
             ) {
