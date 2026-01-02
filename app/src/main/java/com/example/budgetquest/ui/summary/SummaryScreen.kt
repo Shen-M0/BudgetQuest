@@ -1,6 +1,9 @@
 package com.example.budgetquest.ui.summary
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -29,7 +32,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Search
@@ -56,17 +58,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shadow
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -78,6 +76,7 @@ import com.example.budgetquest.data.CategoryEntity
 import com.example.budgetquest.data.ExpenseEntity
 import com.example.budgetquest.data.TagEntity
 import com.example.budgetquest.ui.AppViewModelProvider
+import com.example.budgetquest.ui.common.FluidBoundsTransform // [重要] 匯入轉場動畫設定
 import com.example.budgetquest.ui.common.GlassCard
 import com.example.budgetquest.ui.common.GlassChip
 import com.example.budgetquest.ui.common.GlassIconButton
@@ -94,12 +93,17 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class) // [修正] 加入 ExperimentalSharedTransitionApi
 @Composable
 fun SummaryScreen(
     planId: Int,
     onBackClick: () -> Unit,
-    viewModel: SummaryViewModel = viewModel(factory = AppViewModelProvider.Factory)
+    // [新增] 點擊項目回調 (用於打開詳情 Dialog)
+    onItemClick: (Long) -> Unit = {},
+    viewModel: SummaryViewModel = viewModel(factory = AppViewModelProvider.Factory),
+    // [新增] 轉場 Scope
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
     LaunchedEffect(planId) {
         viewModel.setPlanId(planId)
@@ -220,10 +224,25 @@ fun SummaryScreen(
                 }
             } else {
                 items(uiState.filteredExpenses, key = { it.id }) { expense ->
-                    JapaneseExpenseItem(
-                        expense = expense,
-                        onDelete = { debounce { viewModel.deleteExpense(expense) } }
-                    )
+                    // [修正] 準備轉場 Modifier
+                    var itemModifier = Modifier.fillMaxWidth()
+                    if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+                        with(sharedTransitionScope) {
+                            itemModifier = itemModifier.sharedElement(
+                                state = rememberSharedContentState(key = "trans_${expense.id}"),
+                                animatedVisibilityScope = animatedVisibilityScope,
+                                boundsTransform = FluidBoundsTransform
+                            )
+                        }
+                    }
+
+                    Box(modifier = itemModifier) {
+                        JapaneseExpenseItem(
+                            expense = expense,
+                            // [修正] 點擊觸發 onItemClick (進入詳情)，移除刪除按鈕
+                            onClick = { debounce { onItemClick(expense.id) } }
+                        )
+                    }
                 }
             }
         }
@@ -242,7 +261,7 @@ fun MinimalBudgetCard(totalBudget: Int, totalSpent: Int, message: String) {
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(
                     text = stringResource(R.string.amount_currency_format, remaining),
-                    // [修改] 將字體改為 Bold，使其更具份量感
+                    // 改為 Bold
                     style = getShadowTextStyle(fontSize = 32, fontWeight = FontWeight.Bold)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
@@ -411,13 +430,17 @@ fun JapaneseFilterCard(
 }
 
 @Composable
-fun JapaneseExpenseItem(expense: ExpenseEntity, onDelete: () -> Unit) {
+fun JapaneseExpenseItem(
+    expense: ExpenseEntity,
+    onClick: () -> Unit
+) {
     val dateFormat = stringResource(R.string.format_date_month_day)
     val dateFormatter = remember(dateFormat) { SimpleDateFormat(dateFormat, Locale.getDefault()) }
 
     GlassCard(
         modifier = Modifier.fillMaxWidth(),
-        cornerRadius = 16.dp
+        cornerRadius = 16.dp,
+        onClick = onClick
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
@@ -459,22 +482,7 @@ fun JapaneseExpenseItem(expense: ExpenseEntity, onDelete: () -> Unit) {
             Spacer(modifier = Modifier.width(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(text = stringResource(R.string.amount_negative_format, expense.amount), color = AppTheme.colors.textPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.width(12.dp))
-
-                Box(
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(CircleShape)
-                        .clickable { onDelete() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Default.Close,
-                        stringResource(R.string.content_desc_delete),
-                        tint = AppTheme.colors.textSecondary.copy(alpha = 0.5f),
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
+                // 刪除按鈕已移除
             }
         }
     }

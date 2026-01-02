@@ -1,82 +1,66 @@
 package com.example.budgetquest.ui.subscription
 
 import android.app.DatePickerDialog
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton // 用於列表內的刪除按鈕
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Snackbar
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.budgetquest.R
 import com.example.budgetquest.data.RecurringExpenseEntity
 import com.example.budgetquest.ui.AppViewModelProvider
+import com.example.budgetquest.ui.common.AuroraPrimaryButton
+import com.example.budgetquest.ui.common.FluidBoundsTransform
+import com.example.budgetquest.ui.common.GlassCard
+import com.example.budgetquest.ui.common.GlassChip
+import com.example.budgetquest.ui.common.GlassIconButton
+import com.example.budgetquest.ui.common.GlassTextField
+import com.example.budgetquest.ui.common.getIconByKey
+import com.example.budgetquest.ui.common.getSmartCategoryName
+import com.example.budgetquest.ui.common.getSmartTagName
+import com.example.budgetquest.ui.theme.AppTheme
+import com.example.budgetquest.ui.transaction.CategoryManagerDialog
+import com.example.budgetquest.ui.transaction.SubTagManagerDialog
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
-import com.example.budgetquest.ui.transaction.CategoryManagerDialog
-import com.example.budgetquest.ui.transaction.SubTagManagerDialog
-import com.example.budgetquest.ui.common.getIconByKey
-import com.example.budgetquest.ui.common.getSmartCategoryName
-import com.example.budgetquest.ui.common.getSmartTagName
-import com.example.budgetquest.ui.common.AuroraPrimaryButton // [新增]
-import com.example.budgetquest.ui.common.GlassCard // [新增]
-import com.example.budgetquest.ui.common.GlassChip // [新增]
-import com.example.budgetquest.ui.common.GlassIconButton // [新增]
-import com.example.budgetquest.ui.common.GlassTextField // [新增]
-import com.example.budgetquest.ui.theme.AppTheme
 
-// [移除] 所有本地定義的樣式與元件 (getGlassBrush, getBorderBrush, GlassIconContainer, AuroraPrimaryButton, GlassSmallEditButton, JapaneseTextField, JapaneseCompactChip)
-
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun SubscriptionScreen(
     planId: Int,
     startDate: Long,
     endDate: Long,
+    editId: Long = -1L,
     onBackClick: () -> Unit,
     onSaveSuccess: () -> Unit,
-    viewModel: SubscriptionViewModel = viewModel(factory = AppViewModelProvider.Factory)
+    onItemClick: (Long) -> Unit,
+    viewModel: SubscriptionViewModel = viewModel(factory = AppViewModelProvider.Factory),
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
     val uiState = viewModel.uiState
+    // [修正] 因為 ViewModel 只有一個 recurringList 了，這裡的型別推斷就會恢復正常
     val list by viewModel.recurringList.collectAsState()
     val context = LocalContext.current
 
@@ -108,8 +92,13 @@ fun SubscriptionScreen(
         }
     }
 
-    LaunchedEffect(planId, startDate, endDate) {
+    // 初始化與載入編輯資料
+    LaunchedEffect(planId, startDate, endDate, editId) {
         viewModel.initialize(planId, startDate, endDate)
+        if (editId != -1L) {
+            // 如果有傳入 editId，通知 ViewModel 載入該筆資料到輸入框
+            viewModel.loadForEditing(editId)
+        }
     }
 
     val startCalendar = remember { Calendar.getInstance() }
@@ -167,9 +156,12 @@ fun SubscriptionScreen(
         containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.title_fixed_expenses), color = AppTheme.colors.textPrimary, fontSize = 18.sp) },
+                title = {
+                    // 根據是否為編輯模式顯示不同標題
+                    val title = if (editId != -1L) "編輯固定扣款" else stringResource(R.string.title_fixed_expenses)
+                    Text(title, color = AppTheme.colors.textPrimary, fontSize = 18.sp)
+                },
                 navigationIcon = {
-                    // [優化] 使用 GlassIconButton
                     GlassIconButton(
                         onClick = { debounce(onBackClick) },
                         modifier = Modifier.padding(start = 12.dp)
@@ -197,21 +189,24 @@ fun SubscriptionScreen(
         }
     ) { innerPadding ->
         Column(
-            modifier = Modifier.padding(innerPadding).padding(horizontal = 20.dp).fillMaxSize(),
+            modifier = Modifier
+                .padding(innerPadding)
+                .padding(horizontal = 20.dp)
+                .fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            // [優化] 輸入區塊改用 GlassCard 封裝
+            // 輸入區塊
             GlassCard(modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier.padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
+                    // 第一排：開始日期 & 金額
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         JapaneseDateButton(stringResource(R.string.label_date_start), dateFormatter.format(Date(uiState.startDate))) {
                             debounce { startDatePickerDialog.show() }
                         }
                         Box(modifier = Modifier.weight(1f)) {
-                            // [優化] 使用 GlassTextField
                             GlassTextField(
                                 value = uiState.amount,
                                 onValueChange = { viewModel.updateUiState(amount = it) },
@@ -221,6 +216,8 @@ fun SubscriptionScreen(
                             )
                         }
                     }
+
+                    // 第二排：結束日期 & 頻率
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         JapaneseDateButton(
                             stringResource(R.string.label_date_end),
@@ -231,7 +228,6 @@ fun SubscriptionScreen(
                         Spacer(modifier = Modifier.width(16.dp))
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             items(periodsMap.toList()) { (key, resId) ->
-                                // [優化] 使用 GlassChip
                                 GlassChip(
                                     label = stringResource(resId),
                                     selected = uiState.frequency == key,
@@ -240,6 +236,8 @@ fun SubscriptionScreen(
                             }
                         }
                     }
+
+                    // 自訂天數 (當頻率為 Custom 時顯示)
                     if (uiState.frequency == "CUSTOM") {
                         GlassTextField(
                             value = uiState.customDays,
@@ -252,8 +250,8 @@ fun SubscriptionScreen(
 
                     HorizontalDivider(color = AppTheme.colors.divider, thickness = 1.dp)
 
+                    // 分類選擇
                     Text(stringResource(R.string.label_category_name), fontSize = 12.sp, color = AppTheme.colors.textSecondary)
-
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(categories, key = { it.id }) { category ->
                             GlassChip(
@@ -263,17 +261,14 @@ fun SubscriptionScreen(
                                 onClick = { viewModel.updateUiState(category = category.name) }
                             )
                         }
-                        // [優化] 編輯按鈕：使用 GlassIconButton 的變體 (小尺寸 32dp)
                         item {
-                            GlassIconButton(
-                                onClick = { debounce { showCategoryManager = true } },
-                                size = 32.dp
-                            ) {
+                            GlassIconButton(onClick = { debounce { showCategoryManager = true } }, size = 32.dp) {
                                 Icon(Icons.Default.Add, stringResource(R.string.desc_edit_button), tint = AppTheme.colors.textSecondary, modifier = Modifier.size(16.dp))
                             }
                         }
                     }
 
+                    // 訂閱名稱 (SubTags)
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(subTags, key = { it.id }) { tag ->
                             val displayName = getSmartTagName(tag.name, tag.resourceKey)
@@ -283,17 +278,14 @@ fun SubscriptionScreen(
                                 onClick = { viewModel.updateUiState(note = displayName) }
                             )
                         }
-                        // [優化] 編輯按鈕
                         item {
-                            GlassIconButton(
-                                onClick = { debounce { showSubTagManager = true } },
-                                size = 32.dp
-                            ) {
+                            GlassIconButton(onClick = { debounce { showSubTagManager = true } }, size = 32.dp) {
                                 Icon(Icons.Default.Add, stringResource(R.string.desc_edit_button), tint = AppTheme.colors.textSecondary, modifier = Modifier.size(16.dp))
                             }
                         }
                     }
 
+                    // 名稱輸入框
                     GlassTextField(
                         value = getSmartTagName(uiState.note),
                         onValueChange = { viewModel.updateUiState(note = it) },
@@ -301,32 +293,50 @@ fun SubscriptionScreen(
                         placeholder = ""
                     )
 
-                    // [優化] 使用 AuroraPrimaryButton
+                    // 儲存按鈕
                     AuroraPrimaryButton(
-                        text = stringResource(R.string.btn_add_to_list),
+                        text = if (editId != -1L) "儲存變更" else stringResource(R.string.btn_add_to_list),
                         onClick = {
                             debounce {
-                                viewModel.addSubscription { onSaveSuccess() }
+                                // 呼叫 ViewModel 的儲存邏輯 (內部會判斷是新增還是更新)
+                                viewModel.saveSubscription { onSaveSuccess() }
                             }
                         }
                     )
                 }
             }
 
+            // 列表區塊 (僅在新增模式下顯示，編輯模式下通常只需要專注於編輯，但顯示也無妨，這裡保留顯示)
             Text(stringResource(R.string.label_current_subscriptions), color = AppTheme.colors.textSecondary, fontSize = 14.sp, modifier = Modifier.padding(start = 4.dp))
 
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(bottom = 20.dp)
             ) {
-                items(list, key = { it.id }) { item ->
-                    JapaneseSubscriptionItem(
-                        item,
-                        frequencyLabel = stringResource(periodsMap[item.frequency] ?: R.string.freq_custom),
-                        onDelete = {
-                            debounce { viewModel.deleteSubscription(item) }
+                // [修正] 這裡明確指定 items 的來源
+                items(
+                    items = list,
+                    key = { it.id } // 確保 RecurringExpenseEntity 有 id 欄位
+                ) { item ->
+
+                    var itemModifier = Modifier.fillMaxWidth()
+                    if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+                        with(sharedTransitionScope) {
+                            itemModifier = itemModifier.sharedElement(
+                                state = rememberSharedContentState(key = "sub_${item.id}"),
+                                animatedVisibilityScope = animatedVisibilityScope,
+                                boundsTransform = FluidBoundsTransform
+                            )
                         }
-                    )
+                    }
+
+                    Box(modifier = itemModifier) {
+                        JapaneseSubscriptionItem(
+                            item = item,
+                            frequencyLabel = stringResource(periodsMap[item.frequency] ?: R.string.freq_custom),
+                            onClick = { debounce { onItemClick(item.id) } }
+                        )
+                    }
                 }
             }
         }
@@ -343,17 +353,16 @@ fun JapaneseDateButton(label: String, value: String, onClick: () -> Unit) {
     }
 }
 
-// [移除] JapaneseTextField (已改用 GlassTextField)
-// [移除] JapaneseCompactChip (已改用 GlassChip)
-
 @Composable
 fun JapaneseSubscriptionItem(
     item: RecurringExpenseEntity,
     frequencyLabel: String,
-    onDelete: () -> Unit
+    onClick: () -> Unit // [修改] 傳入點擊 Callback
 ) {
-    // [優化] 列表項目改用 GlassCard 封裝
-    GlassCard(modifier = Modifier.fillMaxWidth()) {
+    GlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick // [新增] 啟用卡片點擊
+    ) {
         Row(
             modifier = Modifier.padding(20.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -374,10 +383,6 @@ fun JapaneseSubscriptionItem(
                         color = AppTheme.colors.textSecondary
                     )
                 }
-            }
-            // 這裡的刪除按鈕如果是單純 Icon，可以保留 IconButton，或者也改用 GlassIconButton(size=32.dp)
-            IconButton(onClick = onDelete) {
-                Icon(Icons.Default.Delete, stringResource(R.string.content_desc_delete), tint = AppTheme.colors.textSecondary.copy(alpha = 0.5f))
             }
         }
     }

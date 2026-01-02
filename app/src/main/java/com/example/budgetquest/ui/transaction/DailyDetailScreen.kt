@@ -135,11 +135,25 @@ fun DailyDetailScreen(
                 contentPadding = PaddingValues(bottom = 80.dp)
             ) {
                 items(expenses, key = { it.id }) { expense ->
-                    JapaneseTransactionItem(
-                        expense = expense,
-                        onClick = { debounce { onItemClick(expense.id) } },
-                        onDelete = { debounce { viewModel.deleteExpense(expense) } }
-                    )
+                    // [修改] 準備 Item 的轉場 Modifier
+                    var itemModifier = Modifier.fillMaxWidth()
+                    if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+                        with(sharedTransitionScope) {
+                            itemModifier = itemModifier.sharedElement(
+                                state = rememberSharedContentState(key = "trans_${expense.id}"),
+                                animatedVisibilityScope = animatedVisibilityScope,
+                                boundsTransform = FluidBoundsTransform
+                            )
+                        }
+                    }
+
+                    Box(modifier = itemModifier) {
+                        JapaneseTransactionItem(
+                            expense = expense,
+                            onClick = { debounce { onItemClick(expense.id) } }
+                            // [移除] onDelete 參數
+                        )
+                    }
                 }
             }
         }
@@ -166,7 +180,6 @@ fun TotalAmountCard(totalAmount: Int) {
 fun JapaneseTransactionItem(
     expense: ExpenseEntity,
     onClick: () -> Unit,
-    onDelete: () -> Unit
 ) {
     val categoryColor = getCategoryColorDot(expense.category)
     val displayCategory = getSmartCategoryName(expense.category)
@@ -210,7 +223,7 @@ fun JapaneseTransactionItem(
                 }
             }
 
-            // 右側內容群組
+            // 右側內容群組 - [移除] 刪除按鈕
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = stringResource(R.string.amount_negative_format, expense.amount),
@@ -218,23 +231,7 @@ fun JapaneseTransactionItem(
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                Box(
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(CircleShape)
-                        .clickable { onDelete() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = stringResource(R.string.content_desc_delete),
-                        tint = AppTheme.colors.textSecondary.copy(alpha = 0.5f),
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
+                // 這裡原本的刪除按鈕 Box 已移除
             }
         }
     }

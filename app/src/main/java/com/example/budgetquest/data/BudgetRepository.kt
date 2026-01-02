@@ -14,6 +14,7 @@ interface BudgetRepository {
     suspend fun insertPlan(plan: PlanEntity): Long
     suspend fun updatePlan(plan: PlanEntity)
     suspend fun getPlanById(id: Int): PlanEntity?
+    suspend fun deletePlan(plan: PlanEntity)
 
     // Expense
     fun getAllExpensesStream(): Flow<List<ExpenseEntity>>
@@ -23,11 +24,15 @@ interface BudgetRepository {
     suspend fun deleteExpense(expense: ExpenseEntity)
     suspend fun updateExpense(expense: ExpenseEntity)
     suspend fun getExpenseById(id: Long): ExpenseEntity?
+    suspend fun getExpensesByRangeList(start: Long, end: Long): List<ExpenseEntity>
+    suspend fun deleteExpensesByRange(start: Long, end: Long)
 
-    // Recurring
-    fun getAllRecurringStream(): Flow<List<RecurringExpenseEntity>>
-    suspend fun addRecurring(recurring: RecurringExpenseEntity)
-    suspend fun deleteRecurring(recurring: RecurringExpenseEntity)
+    // Recurring (固定扣款)
+    fun getAllRecurringExpensesStream(): Flow<List<RecurringExpenseEntity>> // 改名以配合 DAO 語意
+    suspend fun getRecurringExpenseById(id: Long): RecurringExpenseEntity?
+    suspend fun insertRecurringExpense(expense: RecurringExpenseEntity)
+    suspend fun updateRecurringExpense(expense: RecurringExpenseEntity)
+    suspend fun deleteRecurringExpense(expense: RecurringExpenseEntity)
     suspend fun checkAndGenerateRecurringExpenses()
 
     // Category & Tag
@@ -49,16 +54,6 @@ interface BudgetRepository {
     suspend fun insertSubTag(tag: SubscriptionTagEntity)
     suspend fun updateSubTag(tag: SubscriptionTagEntity)
     suspend fun deleteSubTag(tag: SubscriptionTagEntity)
-
-    // [新增]
-    suspend fun getExpensesByRangeList(start: Long, end: Long): List<ExpenseEntity>
-
-    // 在 BudgetRepository 介面中加入
-    suspend fun deletePlan(plan: PlanEntity)
-
-    // [新增] 定義介面
-    suspend fun deleteExpensesByRange(start: Long, end: Long)
-
 }
 
 class OfflineBudgetRepository(private val budgetDao: BudgetDao) : BudgetRepository {
@@ -70,7 +65,6 @@ class OfflineBudgetRepository(private val budgetDao: BudgetDao) : BudgetReposito
     override fun getAllPlansStream(): Flow<List<PlanEntity>> =
         budgetDao.getAllPlansStream().flowOn(Dispatchers.IO)
 
-    // [關鍵檢查 1] 這裡必須有 suspend，且呼叫 budgetDao.getAllPlans()
     override suspend fun getAllPlans(): List<PlanEntity> = withContext(Dispatchers.IO) {
         budgetDao.getAllPlans()
     }
@@ -85,6 +79,10 @@ class OfflineBudgetRepository(private val budgetDao: BudgetDao) : BudgetReposito
 
     override suspend fun getPlanById(id: Int): PlanEntity? = withContext(Dispatchers.IO) {
         budgetDao.getPlanById(id)
+    }
+
+    override suspend fun deletePlan(plan: PlanEntity) = withContext(Dispatchers.IO) {
+        budgetDao.deletePlan(plan)
     }
 
     // --- Expense ---
@@ -121,20 +119,41 @@ class OfflineBudgetRepository(private val budgetDao: BudgetDao) : BudgetReposito
         budgetDao.getExpenseById(id)
     }
 
-    // --- Recurring ---
-    override fun getAllRecurringStream(): Flow<List<RecurringExpenseEntity>> =
+    override suspend fun getExpensesByRangeList(start: Long, end: Long): List<ExpenseEntity> = withContext(Dispatchers.IO) {
+        budgetDao.getExpensesListByDate(start, end)
+    }
+
+    override suspend fun deleteExpensesByRange(start: Long, end: Long) = withContext(Dispatchers.IO) {
+        budgetDao.deleteExpensesByRange(start, end)
+    }
+
+    // --- Recurring (固定扣款) ---
+
+    // UI 用 (Flow)
+    override fun getAllRecurringExpensesStream(): Flow<List<RecurringExpenseEntity>> =
         budgetDao.getAllRecurringStream().flowOn(Dispatchers.IO)
 
-    override suspend fun addRecurring(recurring: RecurringExpenseEntity) = withContext(Dispatchers.IO) {
-        budgetDao.addRecurring(recurring)
+    // 詳情/編輯用
+    override suspend fun getRecurringExpenseById(id: Long): RecurringExpenseEntity? = withContext(Dispatchers.IO) {
+        budgetDao.getRecurringExpenseById(id)
     }
 
-    override suspend fun deleteRecurring(recurring: RecurringExpenseEntity) = withContext(Dispatchers.IO) {
-        budgetDao.deleteRecurring(recurring)
+    override suspend fun insertRecurringExpense(expense: RecurringExpenseEntity) = withContext(Dispatchers.IO) {
+        budgetDao.insertRecurringExpense(expense)
     }
 
+    override suspend fun updateRecurringExpense(expense: RecurringExpenseEntity) = withContext(Dispatchers.IO) {
+        budgetDao.updateRecurringExpense(expense)
+    }
+
+    override suspend fun deleteRecurringExpense(expense: RecurringExpenseEntity) = withContext(Dispatchers.IO) {
+        budgetDao.deleteRecurringExpense(expense)
+    }
+
+    // 後台檢查邏輯
     override suspend fun checkAndGenerateRecurringExpenses() = withContext(Dispatchers.IO) {
-        val recurringList = budgetDao.getAllRecurringExpenses()
+        // [修正] 這裡使用 getAllRecurringExpensesList() 取得 List，而不是 Flow
+        val recurringList = budgetDao.getAllRecurringExpensesList()
         val today = System.currentTimeMillis()
 
         recurringList.forEach { recurring ->
@@ -143,7 +162,7 @@ class OfflineBudgetRepository(private val budgetDao: BudgetDao) : BudgetReposito
             var hasUpdates = false
 
             // 檢查是否到期 且 (沒有結束日期 或 未超過結束日期)
-            while (nextDueDate <= today && (recurring.endDate == null || nextDueDate <= recurring.endDate)) {
+            while (nextDueDate <= today && (recurring.endDate == null || nextDueDate <= recurring.endDate!!)) { // 注意 endDate!! 的判斷
                 val newExpense = ExpenseEntity(
                     date = nextDueDate,
                     amount = currentRecurring.amount,
@@ -158,14 +177,17 @@ class OfflineBudgetRepository(private val budgetDao: BudgetDao) : BudgetReposito
             }
 
             if (hasUpdates) {
-                budgetDao.updateRecurring(currentRecurring)
+                budgetDao.updateRecurringExpense(currentRecurring)
             }
         }
     }
 
     private fun calculateNextDueDate(recurring: RecurringExpenseEntity): Long {
         val calendar = Calendar.getInstance()
-        calendar.timeInMillis = recurring.lastGeneratedDate
+        // 如果從未生成過，從開始日期算起；否則從上次生成日期算起
+        val baseDate = if (recurring.lastGeneratedDate == 0L) recurring.startDate else recurring.lastGeneratedDate
+        calendar.timeInMillis = baseDate
+
         when (recurring.frequency) {
             "MONTH" -> calendar.add(Calendar.MONTH, 1)
             "WEEK" -> calendar.add(Calendar.WEEK_OF_YEAR, 1)
@@ -175,6 +197,7 @@ class OfflineBudgetRepository(private val budgetDao: BudgetDao) : BudgetReposito
         return calendar.timeInMillis
     }
 
+    // --- Category & Tag & SubTag ---
     override fun getVisibleCategoriesStream() = budgetDao.getVisibleCategoriesStream().flowOn(Dispatchers.IO)
     override fun getAllCategoriesStream() = budgetDao.getAllCategoriesStream().flowOn(Dispatchers.IO)
     override suspend fun insertCategory(category: CategoryEntity) = withContext(Dispatchers.IO) { budgetDao.insertCategory(category) }
@@ -192,18 +215,4 @@ class OfflineBudgetRepository(private val budgetDao: BudgetDao) : BudgetReposito
     override suspend fun insertSubTag(tag: SubscriptionTagEntity) = withContext(Dispatchers.IO) { budgetDao.insertSubTag(tag) }
     override suspend fun updateSubTag(tag: SubscriptionTagEntity) = withContext(Dispatchers.IO) { budgetDao.updateSubTag(tag) }
     override suspend fun deleteSubTag(tag: SubscriptionTagEntity) = withContext(Dispatchers.IO) { budgetDao.deleteSubTag(tag) }
-
-    // [關鍵檢查 2] 這裡必須有 suspend，且呼叫 budgetDao.getExpensesListByDate
-    override suspend fun getExpensesByRangeList(start: Long, end: Long): List<ExpenseEntity> = withContext(Dispatchers.IO) {
-        budgetDao.getExpensesListByDate(start, end)
-    }
-
-    // 在 OfflineBudgetRepository 類別中加入
-    override suspend fun deletePlan(plan: PlanEntity) = budgetDao.deletePlan(plan)
-
-    // [新增] 實作功能
-    override suspend fun deleteExpensesByRange(start: Long, end: Long) = withContext(Dispatchers.IO) {
-        budgetDao.deleteExpensesByRange(start, end)
-    }
-
 }

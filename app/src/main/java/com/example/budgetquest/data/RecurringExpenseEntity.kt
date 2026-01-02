@@ -3,7 +3,6 @@ package com.example.budgetquest.data
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
-// [修正] 改回 recurring_expense_table 以配合 DAO 的查詢
 @Entity(tableName = "recurring_expense_table")
 data class RecurringExpenseEntity(
     @PrimaryKey(autoGenerate = true)
@@ -16,5 +15,7 @@ data class RecurringExpenseEntity(
     val customDays: Int = 0,
     val lastGeneratedDate: Long = 0,
     val endDate: Long? = null,
-    val planId: Int = -1
+    val planId: Int = -1,
+    // [修正] 補上這個欄位，用於顯示「每月幾號」扣款
+    val dayOfMonth: Int = 1
 )

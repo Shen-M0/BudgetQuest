@@ -79,17 +79,35 @@ fun getShadowTextStyle(fontSize: Int, fontWeight: FontWeight = FontWeight.Normal
 fun GlassCard(
     modifier: Modifier = Modifier,
     cornerRadius: Dp = 24.dp,
+    // [新增] 可選的背景色，預設為 null (代表使用原本的玻璃筆刷)
+    backgroundColor: Color? = null,
+    // [新增] 可選的邊框色，預設為 null (代表使用原本的邊框筆刷)
+    borderColor: Color? = null,
     onClick: (() -> Unit)? = null,
     content: @Composable BoxScope.() -> Unit
 ) {
-    val glassBrush = getGlassBrush()
-    val borderBrush = getBorderBrush()
     val shape = RoundedCornerShape(cornerRadius)
+
+    // 1. 決定背景邏輯
+    val backgroundModifier = if (backgroundColor != null) {
+        Modifier.background(backgroundColor)
+    } else {
+        // 如果沒有指定顏色，才使用預設的玻璃漸層
+        Modifier.background(getGlassBrush())
+    }
+
+    // 2. 決定邊框邏輯
+    val borderModifier = if (borderColor != null) {
+        Modifier.border(1.dp, borderColor, shape)
+    } else {
+        // 如果沒有指定顏色，才使用預設的邊框漸層
+        Modifier.border(1.dp, getBorderBrush(), shape)
+    }
 
     var finalModifier = modifier
         .clip(shape)
-        .background(glassBrush)
-        .border(1.dp, borderBrush, shape)
+        .then(backgroundModifier) // 應用背景
+        .then(borderModifier)     // 應用邊框
 
     if (onClick != null) {
         finalModifier = finalModifier.clickable { onClick() }

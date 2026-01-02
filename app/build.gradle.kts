@@ -89,4 +89,11 @@ dependencies {
     //語言切換依賴
     implementation("androidx.appcompat:appcompat:1.6.1")
 
+    // [新增] Coil for Compose (圖片載入庫)
+    implementation("io.coil-kt:coil-compose:2.6.0")
+
+    implementation("com.google.android.libraries.places:places:3.3.0")
+
+
+
 }

@@ -11,6 +11,7 @@ import com.example.budgetquest.ui.subscription.SubscriptionViewModel
 import com.example.budgetquest.ui.summary.SummaryViewModel
 import com.example.budgetquest.ui.transaction.TransactionViewModel
 import com.example.budgetquest.ui.history.PlanHistoryViewModel
+import com.example.budgetquest.ui.subscription.SubscriptionDetailViewModel
 import com.example.budgetquest.ui.transaction.DailyDetailViewModel
 
 object AppViewModelProvider {
@@ -47,6 +48,11 @@ object AppViewModelProvider {
         // [關鍵修復] 加入 DailyDetailViewModel 的初始化邏輯
         initializer {
             DailyDetailViewModel(budgetQuestApplication().container.budgetRepository)
+        }
+
+        // [新增這一段] 修復閃退的關鍵
+        initializer {
+            SubscriptionDetailViewModel(budgetQuestApplication().container.budgetRepository)
         }
 
     }

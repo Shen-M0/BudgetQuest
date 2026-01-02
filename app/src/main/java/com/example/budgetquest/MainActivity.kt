@@ -23,6 +23,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.dialog
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.budgetquest.data.SettingsRepository
@@ -34,11 +35,13 @@ import com.example.budgetquest.ui.onboarding.OnboardingScreen
 import com.example.budgetquest.ui.plan.PlanSetupScreen
 import com.example.budgetquest.ui.plan.PlanViewModel
 import com.example.budgetquest.ui.settings.SettingsScreen
+import com.example.budgetquest.ui.subscription.SubscriptionDetailScreen
 import com.example.budgetquest.ui.subscription.SubscriptionScreen
 import com.example.budgetquest.ui.summary.SummaryScreen
 import com.example.budgetquest.ui.theme.AppTheme
 import com.example.budgetquest.ui.theme.BudgetQuestTheme
 import com.example.budgetquest.ui.transaction.DailyDetailScreen
+import com.example.budgetquest.ui.transaction.TransactionDetailScreen
 import com.example.budgetquest.ui.transaction.TransactionScreen
 
 class MainActivity : AppCompatActivity() {
@@ -272,8 +275,9 @@ class MainActivity : AppCompatActivity() {
                                                         launchSingleTop = true
                                                     }
                                                 },
+                                                // [修改] 點擊項目 -> 導航至 transaction_detail
                                                 onItemClick = { expenseId ->
-                                                    navController.navigate("transaction/$expenseId") {
+                                                    navController.navigate("transaction_detail/$expenseId") {
                                                         launchSingleTop = true
                                                     }
                                                 },
@@ -371,7 +375,15 @@ class MainActivity : AppCompatActivity() {
                                             val planId = backStackEntry.arguments?.getInt("planId") ?: -1
                                             SummaryScreen(
                                                 planId = planId,
-                                                onBackClick = { navController.popBackStack() }
+                                                onBackClick = { navController.popBackStack() },
+                                                // [新增] 點擊項目 -> 導航至 transaction_detail
+                                                onItemClick = { expenseId ->
+                                                    navController.navigate("transaction_detail/$expenseId") {
+                                                        launchSingleTop = true
+                                                    }
+                                                },
+                                                sharedTransitionScope = this@SharedTransitionLayout,
+                                                animatedVisibilityScope = this@composable
                                             )
                                         }
 
@@ -407,13 +419,13 @@ class MainActivity : AppCompatActivity() {
 
                                         // 7. Subscription (固定扣款) - Slide Up
                                         composable(
-                                            route = "subscription?planId={planId}&start={start}&end={end}",
+                                            route = "subscription?planId={planId}&start={start}&end={end}&editId={editId}", // [注意] 這裡我也建議加上 editId 參數
                                             arguments = listOf(
                                                 navArgument("planId") { type = NavType.IntType; defaultValue = -1 },
                                                 navArgument("start") { type = NavType.LongType; defaultValue = -1L },
-                                                navArgument("end") { type = NavType.LongType; defaultValue = -1L }
+                                                navArgument("end") { type = NavType.LongType; defaultValue = -1L },
+                                                navArgument("editId") { type = NavType.LongType; defaultValue = -1L } // [新增]
                                             ),
-                                            // [修改] 使用 Slide Up
                                             enterTransition = {
                                                 slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Up, animationSpec = tween(animDuration)) +
                                                         fadeIn(animationSpec = tween(animDuration))
@@ -434,15 +446,26 @@ class MainActivity : AppCompatActivity() {
                                             val planId = backStackEntry.arguments?.getInt("planId") ?: -1
                                             val start = backStackEntry.arguments?.getLong("start") ?: -1L
                                             val end = backStackEntry.arguments?.getLong("end") ?: -1L
+                                            val editId = backStackEntry.arguments?.getLong("editId") ?: -1L // [新增]
 
                                             SubscriptionScreen(
                                                 planId = planId,
                                                 startDate = start,
                                                 endDate = end,
+                                                editId = editId, // [新增] 傳入 editId
                                                 onBackClick = { navController.popBackStack() },
                                                 onSaveSuccess = {
                                                     navController.popBackStack()
-                                                }
+                                                },
+                                                // [修正] 補上 onItemClick
+                                                onItemClick = { subId ->
+                                                    navController.navigate("subscription_detail/$subId") {
+                                                        launchSingleTop = true
+                                                    }
+                                                },
+                                                // 傳入 scope
+                                                sharedTransitionScope = this@SharedTransitionLayout,
+                                                animatedVisibilityScope = this@composable
                                             )
                                         }
 
@@ -477,6 +500,71 @@ class MainActivity : AppCompatActivity() {
                                                 }
                                             )
                                         }
+
+                                        // 9. Transaction Detail (改為 Composable 頁面以支援 Shared Element)
+                                        composable(
+                                            route = "transaction_detail/{expenseId}",
+                                            arguments = listOf(navArgument("expenseId") { type = NavType.LongType }),
+                                            // 設定背景淡入淡出，讓 Shared Element 成為視覺焦點
+                                            enterTransition = { fadeIn(animationSpec = tween(300)) },
+                                            exitTransition = { fadeOut(animationSpec = tween(300)) },
+                                            popEnterTransition = { fadeIn(animationSpec = tween(300)) },
+                                            popExitTransition = { fadeOut(animationSpec = tween(300)) }
+                                        ) { backStackEntry ->
+                                            val expenseId = backStackEntry.arguments?.getLong("expenseId") ?: -1L
+
+                                            // 先取得 ViewModel 實體
+                                            val viewModel: com.example.budgetquest.ui.transaction.TransactionViewModel = viewModel(factory = AppViewModelProvider.Factory)
+
+                                            TransactionDetailScreen(
+                                                expenseId = expenseId,
+                                                onBackClick = { navController.popBackStack() },
+                                                onEditClick = { id ->
+                                                    // [修改 2] 移除 popUpTo，讓編輯頁面疊加上去，以觸發由下往上的動畫
+                                                    navController.navigate("transaction/$id")
+                                                },
+                                                onDeleteClick = {
+                                                    viewModel.deleteExpense(expenseId)
+                                                    navController.popBackStack()
+                                                },
+                                                sharedTransitionScope = this@SharedTransitionLayout,
+                                                animatedVisibilityScope = this@composable
+                                            )
+                                        }
+
+                                        // [新增] 10. Subscription Detail
+                                        composable(
+                                            route = "subscription_detail/{subId}",
+                                            arguments = listOf(navArgument("subId") { type = NavType.LongType }),
+                                            enterTransition = { fadeIn(animationSpec = tween(300)) },
+                                            exitTransition = { fadeOut(animationSpec = tween(300)) },
+                                            popEnterTransition = { fadeIn(animationSpec = tween(300)) },
+                                            popExitTransition = { fadeOut(animationSpec = tween(300)) }
+                                        ) { backStackEntry ->
+                                            val subId = backStackEntry.arguments?.getLong("subId") ?: -1L
+
+                                            SubscriptionDetailScreen(
+                                                subscriptionId = subId,
+                                                onBackClick = { navController.popBackStack() },
+
+                                                // [修正] 這裡才是寫 navController 導航邏輯的地方
+                                                onEditClick = { id ->
+                                                    // 導航到 SubscriptionScreen 並帶入 editId
+                                                    navController.navigate("subscription?planId=-1&editId=$id")
+                                                },
+
+                                                onDeleteSuccess = {
+                                                    navController.popBackStack()
+                                                },
+                                                sharedTransitionScope = this@SharedTransitionLayout,
+                                                animatedVisibilityScope = this@composable
+                                            )
+                                        }
+
+
+
+
+
                                     }
                                 }
                             }

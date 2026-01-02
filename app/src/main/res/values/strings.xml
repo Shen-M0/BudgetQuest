@@ -291,7 +291,7 @@
     <string name="label_total_expense">總支出</string>
 
     <string name="suffix_auto_deduction">(自動扣款)</string>
-
-
+    //以下為新增項目，還未翻譯
+    <string name="title_transaction_detail">消費詳情</string>
 
 </resources>

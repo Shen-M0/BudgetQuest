@@ -7,18 +7,15 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.RawQuery
 import androidx.room.Update
+import androidx.sqlite.db.SupportSQLiteQuery
 import kotlinx.coroutines.flow.Flow
-import androidx.sqlite.db.SupportSQLiteQuery // [新增 import]
+
 @Dao
 interface BudgetDao {
     // --- Plan 相關 ---
-
-    // 只抓取 "可見" 的分類 (給記帳頁面用)
-    // 只抓取 "可見" 的分類 (給記帳頁面用)
     @Query("SELECT * FROM category_table WHERE isVisible = 1")
     fun getVisibleCategoriesStream(): Flow<List<CategoryEntity>>
 
-    // 抓取 "所有" 分類 (給管理頁面用，包含隱藏的)
     @Query("SELECT * FROM category_table")
     fun getAllCategoriesStream(): Flow<List<CategoryEntity>>
 
@@ -31,7 +28,7 @@ interface BudgetDao {
     @Delete
     suspend fun deleteCategory(category: CategoryEntity)
 
-    // Tag 同理
+    // Tag
     @Query("SELECT * FROM tag_table WHERE isVisible = 1")
     fun getVisibleTagsStream(): Flow<List<TagEntity>>
 
@@ -47,6 +44,7 @@ interface BudgetDao {
     @Delete
     suspend fun deleteTag(tag: TagEntity)
 
+    // Plan
     @Query("SELECT * FROM plan_table WHERE isActive = 1 ORDER BY id DESC LIMIT 1")
     fun getCurrentPlanStream(): Flow<PlanEntity?>
 
@@ -56,9 +54,8 @@ interface BudgetDao {
     @Query("SELECT * FROM plan_table ORDER BY startDate DESC")
     fun getAllPlansStream(): Flow<List<PlanEntity>>
 
-    // 在 BudgetDao 介面中
     @Insert(onConflict = OnConflictStrategy.IGNORE)
-    suspend fun insertPlan(plan: PlanEntity): Long // [修改] 改為回傳 Long
+    suspend fun insertPlan(plan: PlanEntity): Long
 
     @Update
     suspend fun updatePlan(plan: PlanEntity)
@@ -66,11 +63,13 @@ interface BudgetDao {
     @Query("SELECT * FROM plan_table WHERE id = :id")
     suspend fun getPlanById(id: Int): PlanEntity?
 
+    @Delete
+    suspend fun deletePlan(plan: PlanEntity)
+
     // --- Expense 相關 ---
     @Query("SELECT * FROM expense_table ORDER BY date DESC")
     fun getAllExpenses(): Flow<List<ExpenseEntity>>
 
-    // 範圍查詢
     @Query("SELECT * FROM expense_table WHERE date >= :start AND date <= :end ORDER BY date DESC")
     fun getExpensesByDate(start: Long, end: Long): Flow<List<ExpenseEntity>>
 
@@ -86,28 +85,39 @@ interface BudgetDao {
     @Delete
     suspend fun deleteExpense(expense: ExpenseEntity)
 
-    // --- Recurring (訂閱) 相關 ---
+    @Query("SELECT * FROM expense_table WHERE date >= :start AND date <= :end")
+    suspend fun getExpensesListByDate(start: Long, end: Long): List<ExpenseEntity>
 
+    @Query("DELETE FROM expense_table WHERE date >= :start AND date <= :end")
+    suspend fun deleteExpensesByRange(start: Long, end: Long)
+
+    // --- Recurring (固定扣款/訂閱) 相關 ---
+
+    // 1. [UI 用] 透過 Flow 觀察資料變化
     @Query("SELECT * FROM recurring_expense_table ORDER BY id DESC")
     fun getAllRecurringStream(): Flow<List<RecurringExpenseEntity>>
 
-    // 2. 給自動扣款邏輯用的 List (一次性讀取)
+    // 2. [後台邏輯用] 直接取得 List (非 Flow)，用於 checkAndGenerateRecurringExpenses
     @Query("SELECT * FROM recurring_expense_table")
-    suspend fun getAllRecurringExpenses(): List<RecurringExpenseEntity>
+    suspend fun getAllRecurringExpensesList(): List<RecurringExpenseEntity>
 
-    // 3. 新增訂閱
-    @Insert(onConflict = OnConflictStrategy.IGNORE)
-    suspend fun addRecurring(recurring: RecurringExpenseEntity)
+    // 3. 透過 ID 取得單筆資料 (詳情頁/編輯用)
+    @Query("SELECT * FROM recurring_expense_table WHERE id = :id")
+    suspend fun getRecurringExpenseById(id: Long): RecurringExpenseEntity?
 
-    // 4. 更新訂閱
+    // 4. 新增
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertRecurringExpense(expense: RecurringExpenseEntity)
+
+    // 5. 更新 (終止/編輯)
     @Update
-    suspend fun updateRecurring(recurring: RecurringExpenseEntity)
+    suspend fun updateRecurringExpense(expense: RecurringExpenseEntity)
 
-    // 5. 刪除訂閱
+    // 6. 刪除
     @Delete
-    suspend fun deleteRecurring(recurring: RecurringExpenseEntity)
+    suspend fun deleteRecurringExpense(expense: RecurringExpenseEntity)
 
-    // --- Subscription Tag (訂閱備註) ---
+    // --- Subscription Tag ---
     @Query("SELECT * FROM subscription_tag_table WHERE isVisible = 1")
     fun getVisibleSubTagsStream(): Flow<List<SubscriptionTagEntity>>
 
@@ -123,20 +133,7 @@ interface BudgetDao {
     @Delete
     suspend fun deleteSubTag(tag: SubscriptionTagEntity)
 
-    // BudgetDao.kt
-    @Query("SELECT * FROM expense_table WHERE date >= :start AND date <= :end")
-    suspend fun getExpensesListByDate(start: Long, end: Long): List<ExpenseEntity>
-
-    // [新增] 強制寫入 Checkpoint，確保 .db 檔案包含最新資料
+    // --- System ---
     @RawQuery
     suspend fun checkpoint(supportSQLiteQuery: SupportSQLiteQuery): Int
-
-    @Delete
-    suspend fun deletePlan(plan: PlanEntity)
-
-    // [新增] 依據日期範圍刪除消費紀錄 (給 "清空帳目" 功能用)
-    @Query("DELETE FROM expense_table WHERE date >= :start AND date <= :end")
-    suspend fun deleteExpensesByRange(start: Long, end: Long)
-
-
 }
