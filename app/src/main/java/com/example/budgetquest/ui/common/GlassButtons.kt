@@ -185,3 +185,52 @@ fun GlassActionTextButton(
         }
     }
 }
+
+/**
+ * 5. 詳情頁動作按鈕 (用於 刪除/終止/編輯)
+ * 特色：極低透明度的背景 (0.05f)，強調邊框與文字顏色，視覺輕量化，適合並排顯示
+ */
+@Composable
+fun GlassDetailActionButton(
+    text: String,
+    icon: ImageVector,
+    color: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    // [修正] 提高透明度：從 0.05f 提升到 0.12f，讓實體感更強，符合您的需求
+    val backgroundColor = color.copy(alpha = 0.12f)
+    // 邊框也稍微加深一點
+    val borderColor = color.copy(alpha = 0.4f)
+
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(backgroundColor)
+            .border(1.dp, borderColor, RoundedCornerShape(16.dp))
+            .clickable { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(vertical = 12.dp)
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = color,
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = text,
+                color = color,
+                fontWeight = FontWeight.Medium,
+                fontSize = 14.sp
+            )
+        }
+    }
+}

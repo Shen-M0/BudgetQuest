@@ -29,6 +29,7 @@ import com.example.budgetquest.data.SubscriptionTagEntity
 import com.example.budgetquest.ui.common.GlassCard
 import com.example.budgetquest.ui.common.GlassIconButton
 import com.example.budgetquest.ui.common.GlassTextField
+import com.example.budgetquest.ui.common.getDialogGlassBrush
 import com.example.budgetquest.ui.common.getIconByKey
 import com.example.budgetquest.ui.common.getSmartCategoryName
 import com.example.budgetquest.ui.common.getSmartTagName
@@ -77,7 +78,8 @@ fun CategoryManagerDialog(
         GlassCard(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(max = 650.dp)
+                .heightIn(max = 600.dp), // 高度可能不同，依您原本設定
+            customBrush = getDialogGlassBrush()
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
                 Row(
@@ -324,9 +326,8 @@ fun TagManagerDialog(
 
     Dialog(onDismissRequest = onDismiss) {
         GlassCard(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(max = 600.dp)
+            modifier = Modifier.fillMaxWidth().heightIn(max = 500.dp),
+            customBrush = getDialogGlassBrush() // [修正]
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -450,7 +451,8 @@ fun SubTagManagerDialog(
         GlassCard(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(max = 600.dp)
+                .heightIn(max = 600.dp), // 高度可能不同，依您原本設定
+            customBrush = getDialogGlassBrush()
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {

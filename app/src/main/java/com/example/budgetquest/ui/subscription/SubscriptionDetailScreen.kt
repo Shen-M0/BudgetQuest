@@ -17,10 +17,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -28,12 +26,10 @@ import com.example.budgetquest.R
 import com.example.budgetquest.ui.AppViewModelProvider
 import com.example.budgetquest.ui.common.FluidBoundsTransform
 import com.example.budgetquest.ui.common.GlassCard
+import com.example.budgetquest.ui.common.GlassDetailActionButton
 import com.example.budgetquest.ui.common.GlassIconButton
 import com.example.budgetquest.ui.common.getSmartCategoryName
 import com.example.budgetquest.ui.theme.AppTheme
-import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Locale
 
 @OptIn(ExperimentalSharedTransitionApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -52,45 +48,24 @@ fun SubscriptionDetailScreen(
 
     val uiState by viewModel.uiState.collectAsState()
 
-    // 控制對話框
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showTerminateDialog by remember { mutableStateOf(false) }
 
     if (uiState.id != subscriptionId) return
 
-    val context = LocalContext.current
-
-    // 計算下次扣款日
-    val nextDueDateString = remember(uiState.dayOfMonth, uiState.isActive) {
-        if (!uiState.isActive) "已結束"
-        else {
-            val cal = Calendar.getInstance()
-            val today = cal.get(Calendar.DAY_OF_MONTH)
-            if (today > uiState.dayOfMonth) {
-                cal.add(Calendar.MONTH, 1)
-            }
-            cal.set(Calendar.DAY_OF_MONTH, uiState.dayOfMonth)
-            val sdf = SimpleDateFormat("yyyy/MM/dd", Locale.getDefault())
-            val dateStr = sdf.format(cal.time)
-
-            // 計算剩餘天數
-            val diff = cal.timeInMillis - System.currentTimeMillis()
-            val daysLeft = (diff / (1000 * 60 * 60 * 24)).toInt().coerceAtLeast(0)
-            "$dateStr (還有 $daysLeft 天)"
-        }
-    }
-
     // 刪除確認
     if (showDeleteDialog) {
         ActionDialog(
             title = "確認刪除",
-            text = "您確定要完全刪除此訂閱嗎？歷史紀錄將無法追溯。",
-            confirmText = "刪除",
+            // [用語修正]
+            text = "您確定要刪除此固定支出項目嗎？\n注意：這將會一併刪除所有透過此規則自動產生的歷史支出紀錄，且無法復原。",
+            confirmText = "全部刪除",
             confirmColor = AppTheme.colors.fail,
             onConfirm = {
-                viewModel.deleteSubscription(subscriptionId)
-                showDeleteDialog = false
-                onDeleteSuccess()
+                viewModel.deleteSubscription(subscriptionId) {
+                    showDeleteDialog = false
+                    onDeleteSuccess()
+                }
             },
             onDismiss = { showDeleteDialog = false }
         )
@@ -100,8 +75,9 @@ fun SubscriptionDetailScreen(
     if (showTerminateDialog) {
         ActionDialog(
             title = "確認終止",
-            text = "您確定要停止此訂閱嗎？\n這將設定結束日期為今天，但會保留過去的紀錄。",
-            confirmText = "終止訂閱",
+            // [用語修正]
+            text = "您確定要停止此固定支出嗎？\n這將設定結束日期為今天，之後將不再自動記錄，但「過去的紀錄」會被保留。",
+            confirmText = "終止支出",
             confirmColor = AppTheme.colors.accent,
             onConfirm = {
                 viewModel.terminateSubscription(subscriptionId)
@@ -115,7 +91,8 @@ fun SubscriptionDetailScreen(
         containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
-                title = { Text("訂閱詳情", color = AppTheme.colors.textPrimary, fontSize = 18.sp) },
+                // [用語修正] 扣款詳情 -> 固定支出詳情
+                title = { Text("固定支出詳情", color = AppTheme.colors.textPrimary, fontSize = 18.sp) },
                 navigationIcon = {
                     GlassIconButton(onClick = onBackClick, modifier = Modifier.padding(start = 12.dp)) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back), tint = AppTheme.colors.textPrimary, modifier = Modifier.size(20.dp))
@@ -137,7 +114,7 @@ fun SubscriptionDetailScreen(
             if (sharedTransitionScope != null && animatedVisibilityScope != null) {
                 with(sharedTransitionScope) {
                     cardModifier = cardModifier.sharedElement(
-                        state = rememberSharedContentState(key = "sub_${subscriptionId}"), // 注意這裡的 Key
+                        state = rememberSharedContentState(key = "sub_${subscriptionId}"),
                         animatedVisibilityScope = animatedVisibilityScope,
                         boundsTransform = FluidBoundsTransform
                     )
@@ -159,7 +136,6 @@ fun SubscriptionDetailScreen(
                                 color = AppTheme.colors.textSecondary,
                                 fontWeight = FontWeight.Medium
                             )
-                            // 狀態標籤
                             StatusChip(
                                 label = if (uiState.isActive) "進行中" else "已結束",
                                 color = if (uiState.isActive) AppTheme.colors.success else AppTheme.colors.textSecondary,
@@ -195,57 +171,69 @@ fun SubscriptionDetailScreen(
 
                     HorizontalDivider(color = AppTheme.colors.divider, thickness = 1.dp)
 
-                    // Details
+                    // Details: [用語修正]
                     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        DetailRow(Icons.Default.DateRange, "扣款週期", "每月 ${uiState.dayOfMonth} 號")
-                        DetailRow(Icons.Default.NextPlan, "下次扣款", nextDueDateString)
+                        DetailRow(Icons.Default.Loop, "支出週期", uiState.cycleText)
+                        DetailRow(Icons.Default.NextPlan, "下次支出", uiState.nextDateText)
+                        DetailRow(Icons.Default.DateRange, "支出期間", uiState.periodText)
 
-                        val dateFormat = SimpleDateFormat("yyyy/MM/dd", Locale.getDefault())
-                        val startStr = dateFormat.format(java.util.Date(uiState.startDate))
-                        val endStr = uiState.endDate?.let { dateFormat.format(java.util.Date(it)) } ?: "至今"
-                        DetailRow(Icons.Default.History, "訂閱期間", "$startStr ~ $endStr")
+                        // [新增/修正] 真正的智慧顯示：只有資料庫有值才顯示
+                        // 因為 SubscriptionDetailViewModel 需要先把 Entity 的這些欄位 expose 出來
+                        // 假設 ViewModel 的 uiState 已經加了 paymentMethod (String) 和 isNeed (Boolean?)
+                        // (請記得去 SubscriptionDetailUiState 補上這兩個欄位)
+
+                        /* 在 SubscriptionDetailViewModel.kt 的 SubscriptionDetailUiState 加入:
+                           val paymentMethod: String = "",
+                           val isNeed: Boolean? = null
+                           並在 loadSubscription 中賦值
+                        */
+
+                        // 顯示支付方式 (如果不為空)
+                        if (uiState.paymentMethod.isNotEmpty()) {
+                            DetailRow(Icons.Default.Payment, "支付方式", uiState.paymentMethod)
+                        }
+
+                        // 顯示性質 (如果不為 null)
+                        if (uiState.isNeed != null) {
+                            val label = if (uiState.isNeed == true) "需要 (Need)" else "想要 (Want)"
+                            // 這裡可以用 DetailRow 或 StatusChip，看您喜歡哪種排版，這裡示範 DetailRow
+                            DetailRow(
+                                icon = if (uiState.isNeed == true) Icons.Default.Check else Icons.Default.Star,
+                                label = "消費性質",
+                                value = label
+                            )
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
 
                     // Buttons
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        // 1. 刪除 (紅)
-                        GlassCard(
+                        GlassDetailActionButton(
+                            text = "刪除",
+                            icon = Icons.Default.Delete,
+                            color = AppTheme.colors.fail,
                             modifier = Modifier.weight(1f),
-                            cornerRadius = 16.dp,
-                            backgroundColor = AppTheme.colors.fail.copy(alpha = 0.15f),
-                            borderColor = AppTheme.colors.fail.copy(alpha = 0.3f),
                             onClick = { showDeleteDialog = true }
-                        ) {
-                            ButtonContent(Icons.Default.Delete, "刪除", AppTheme.colors.fail)
-                        }
+                        )
 
-                        // 2. 終止 (橘/黃) - 只有進行中才顯示
                         if (uiState.isActive) {
-                            GlassCard(
+                            GlassDetailActionButton(
+                                text = "終止",
+                                icon = Icons.Default.Stop,
+                                color = Color(0xFFFFB74D),
                                 modifier = Modifier.weight(1f),
-                                cornerRadius = 16.dp,
-                                backgroundColor = Color(0xFFFFB74D).copy(alpha = 0.15f),
-                                borderColor = Color(0xFFFFB74D).copy(alpha = 0.3f),
                                 onClick = { showTerminateDialog = true }
-                            ) {
-                                ButtonContent(Icons.Default.Stop, "終止", Color(0xFFFFB74D))
-                            }
+                            )
                         }
 
-                        // 3. 編輯 (藍/Accent)
-                        // 3. 編輯 (藍/Accent)
-                        GlassCard(
+                        GlassDetailActionButton(
+                            text = "編輯",
+                            icon = Icons.Default.Edit,
+                            color = AppTheme.colors.accent, // 或 textPrimary
                             modifier = Modifier.weight(1f),
-                            cornerRadius = 16.dp,
-                            backgroundColor = AppTheme.colors.accent.copy(alpha = 0.15f),
-                            borderColor = AppTheme.colors.accent.copy(alpha = 0.3f),
-                            // [修正] 這裡只需要呼叫傳進來的函式，把 ID 傳出去就好
                             onClick = { onEditClick(subscriptionId) }
-                        ) {
-                            ButtonContent(Icons.Default.Edit, "編輯", AppTheme.colors.accent)
-                        }
+                        )
                     }
                 }
             }
@@ -254,6 +242,7 @@ fun SubscriptionDetailScreen(
     }
 }
 
+// ... (Helper components 保持不變) ...
 @Composable
 private fun ActionDialog(title: String, text: String, confirmText: String, confirmColor: Color, onConfirm: () -> Unit, onDismiss: () -> Unit) {
     AlertDialog(

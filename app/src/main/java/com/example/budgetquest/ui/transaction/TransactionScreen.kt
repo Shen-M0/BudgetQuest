@@ -2,7 +2,6 @@ package com.example.budgetquest.ui.transaction
 
 import android.app.Activity
 import android.app.DatePickerDialog
-import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -61,7 +60,8 @@ import com.example.budgetquest.ui.common.getSmartCategoryName
 import com.example.budgetquest.ui.common.getSmartTagName
 import com.example.budgetquest.ui.theme.AppTheme
 import com.google.android.libraries.places.api.Places
-import com.google.android.libraries.places.api.model.Place
+// [修正 1] 將 Place 取別名為 GooglePlace，避免與圖標 Icons.Default.Place 衝突
+import com.google.android.libraries.places.api.model.Place as GooglePlace
 import com.google.android.libraries.places.widget.Autocomplete
 import com.google.android.libraries.places.widget.AutocompleteActivity
 import com.google.android.libraries.places.widget.model.AutocompleteActivityMode
@@ -93,13 +93,27 @@ fun TransactionScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
 
+
+    // [新增] 觀察支付方式列表
+    val paymentMethods by viewModel.visiblePaymentMethods.collectAsState()
+    var showPaymentMethodManager by remember { mutableStateOf(false) }
+
+    if (showPaymentMethodManager) {
+        val allPaymentMethods by viewModel.allPaymentMethods.collectAsState()
+        PaymentMethodManagerDialog(
+            paymentMethods = allPaymentMethods,
+            onDismiss = { showPaymentMethodManager = false },
+            onAdd = viewModel::addPaymentMethod,
+            onToggleVisibility = viewModel::togglePaymentMethodVisibility,
+            onDelete = viewModel::deletePaymentMethod
+        )
+    }
+
     // [新增] 初始化 Google Places SDK
-    // 注意：請將 "YOUR_API_KEY" 替換為您真實的 Google Cloud API Key
-    // 為了避免每次重繪都執行，使用 LaunchedEffect (雖然後面的 if 判斷也能擋住)
+    // 注意：請將 "YOUR_API_KEY_HERE" 替換為您真實的 Google Cloud API Key
     LaunchedEffect(Unit) {
         if (!Places.isInitialized()) {
             // TODO: 請填入您的 Google Places API Key
-            // 若沒有 Key，點擊地圖按鈕會導致 App 崩潰或顯示錯誤
             Places.initialize(context.applicationContext, "YOUR_API_KEY_HERE")
         }
     }
@@ -110,16 +124,14 @@ fun TransactionScreen(
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             result.data?.let { intent ->
+                // 使用 Autocomplete 解析資料
                 val place = Autocomplete.getPlaceFromIntent(intent)
-                // 將地點名稱帶入 ViewModel
-                // 我們優先使用 name，如果沒有則使用 address
                 val locationName = place.name ?: place.address
                 if (locationName != null) {
                     viewModel.updateMerchant(locationName)
                 }
             }
         } else if (result.resultCode == AutocompleteActivity.RESULT_ERROR) {
-            // 處理錯誤 (例如 API Key 無效)
             result.data?.let { intent ->
                 val status = Autocomplete.getStatusFromIntent(intent)
                 Toast.makeText(context, "搜尋錯誤: ${status.statusMessage}", Toast.LENGTH_SHORT).show()
@@ -478,18 +490,27 @@ fun TransactionScreen(
 
                             // B. 支付方式
                             Text("支付方式", fontSize = 12.sp, color = AppTheme.colors.textSecondary)
-                            val paymentMethods = listOf("現金", "信用卡", "LinePay", "悠遊卡", "轉帳")
+                            // [修正] 使用動態列表
                             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                items(paymentMethods) { method ->
+                                items(paymentMethods, key = { it.id }) { method ->
                                     GlassChip(
-                                        label = method,
-                                        selected = uiState.paymentMethod == method,
-                                        onClick = { viewModel.updatePaymentMethod(method) }
+                                        label = method.name,
+                                        selected = uiState.paymentMethod == method.name,
+                                        onClick = { viewModel.updatePaymentMethod(method.name) }
                                     )
+                                }
+                                // [新增] 管理按鈕
+                                item {
+                                    GlassIconButton(
+                                        onClick = { debounce { showPaymentMethodManager = true } },
+                                        size = 32.dp
+                                    ) {
+                                        Icon(Icons.Default.Add, "Manage", tint = AppTheme.colors.textSecondary, modifier = Modifier.size(16.dp))
+                                    }
                                 }
                             }
 
-                            // C. 店家/地點 [修改] 加入地圖搜尋按鈕
+                            // C. 店家/地點 [修正 2] 使用 GooglePlace.Field 來避免衝突
                             Text("店家 / 地點", fontSize = 12.sp, color = AppTheme.colors.textSecondary)
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -507,9 +528,9 @@ fun TransactionScreen(
                                 GlassIconButton(
                                     onClick = {
                                         debounce {
-                                            // 設定要回傳的欄位 (名稱與地址)
-                                            val fields = listOf(Place.Field.NAME, Place.Field.ADDRESS)
-                                            // 啟動 Autocomplete Intent (Overlay 模式：蓋在目前的畫面上)
+                                            // [修正 2] 這裡使用 GooglePlace.Field，因為上面已經取了別名
+                                            val fields = listOf(GooglePlace.Field.NAME, GooglePlace.Field.ADDRESS)
+                                            // 啟動 Autocomplete Intent
                                             val intent = Autocomplete.IntentBuilder(AutocompleteActivityMode.OVERLAY, fields)
                                                 .build(context)
                                             placeLauncher.launch(intent)
@@ -548,19 +569,22 @@ fun TransactionScreen(
                             // E. Need vs Want
                             Text("消費性質", fontSize = 12.sp, color = AppTheme.colors.textSecondary)
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                // [修正] 判斷是否選中 (uiState.isNeed == true)，並使用 toggle
                                 GlassChip(
                                     label = "需要 (Need)",
-                                    selected = uiState.isNeed,
-                                    icon = if(uiState.isNeed) Icons.Default.Check else null,
-                                    onClick = { viewModel.updateIsNeed(true) }
+                                    selected = uiState.isNeed == true,
+                                    icon = if (uiState.isNeed == true) Icons.Default.Check else null,
+                                    onClick = { viewModel.toggleNeedStatus(true) } // 使用 toggle
                                 )
+                                // [修正] 判斷是否選中 (uiState.isNeed == false)
                                 GlassChip(
                                     label = "想要 (Want)",
-                                    selected = !uiState.isNeed,
-                                    icon = if(!uiState.isNeed) Icons.Default.Check else null,
-                                    onClick = { viewModel.updateIsNeed(false) }
+                                    selected = uiState.isNeed == false,
+                                    icon = if (uiState.isNeed == false) Icons.Default.Check else null,
+                                    onClick = { viewModel.toggleNeedStatus(false) } // 使用 toggle
                                 )
                             }
+
                         }
                     }
                 }

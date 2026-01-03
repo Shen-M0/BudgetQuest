@@ -21,15 +21,13 @@ data class ExpenseEntity(
     // [新增] 圖片路徑 (URI 字串)
     val imageUri: String? = null,
 
-    // [新增] 支付方式 (預設現金)
-    val paymentMethod: String = "Cash",
+    // [修正] 預設為空字串，代表未指定
+    val paymentMethod: String = "",
 
-    // [新增] 店家/地點
-    val merchant: String? = null,
-
-    // [新增] 不計入預算 (預設 false = 都要計入)
+    // [修正] 改為 Boolean? (可為空)，null 代表未指定
+    val isNeed: Boolean? = null,
     val excludeFromBudget: Boolean = false,
+    val merchant: String = "",
+    val recurringRuleId: Long? = null
 
-    // [新增] 消費性質 (預設 true = 需要 Need, false = 想要 Want)
-    val isNeed: Boolean = true
 )

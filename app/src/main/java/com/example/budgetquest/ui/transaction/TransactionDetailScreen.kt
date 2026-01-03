@@ -58,6 +58,7 @@ import com.example.budgetquest.R
 import com.example.budgetquest.ui.AppViewModelProvider
 import com.example.budgetquest.ui.common.FluidBoundsTransform
 import com.example.budgetquest.ui.common.GlassCard
+import com.example.budgetquest.ui.common.GlassDetailActionButton
 import com.example.budgetquest.ui.common.GlassIconButton
 import com.example.budgetquest.ui.common.getSmartCategoryName
 import com.example.budgetquest.ui.common.getSmartNote
@@ -251,16 +252,23 @@ fun TransactionDetailScreen(
                             )
                         }
 
-                        DetailRow(icon = Icons.Default.Payment, label = "支付", value = uiState.paymentMethod)
+                        // [修正] 智慧顯示
+                        if (uiState.paymentMethod.isNotEmpty()) {
+                            DetailRow(icon = Icons.Default.Payment, label = "支付", value = uiState.paymentMethod)
+                        }
 
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            StatusChip(
-                                label = if (uiState.isNeed) "需要 (Need)" else "想要 (Want)",
-                                color = if (uiState.isNeed) AppTheme.colors.success else AppTheme.colors.accent,
-                                icon = if (uiState.isNeed) Icons.Default.Check else null
-                            )
-                            if (uiState.excludeFromBudget) {
-                                StatusChip(label = "不計入預算", color = AppTheme.colors.textSecondary)
+                        if (uiState.isNeed != null || uiState.excludeFromBudget) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                if (uiState.isNeed != null) {
+                                    StatusChip(
+                                        label = if (uiState.isNeed == true) "需要 (Need)" else "想要 (Want)",
+                                        color = if (uiState.isNeed == true) AppTheme.colors.success else AppTheme.colors.accent,
+                                        icon = if (uiState.isNeed == true) Icons.Default.Check else null
+                                    )
+                                }
+                                if (uiState.excludeFromBudget) {
+                                    StatusChip(label = "不計入預算", color = AppTheme.colors.textSecondary)
+                                }
                             }
                         }
                     }
@@ -295,45 +303,21 @@ fun TransactionDetailScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        GlassCard(
+                        GlassDetailActionButton(
+                            text = "刪除",
+                            icon = Icons.Default.Delete,
+                            color = AppTheme.colors.fail,
                             modifier = Modifier.weight(1f),
-                            cornerRadius = 16.dp,
-                            backgroundColor = AppTheme.colors.fail.copy(alpha = 0.15f),
-                            borderColor = AppTheme.colors.fail.copy(alpha = 0.3f),
                             onClick = { showDeleteDialog = true }
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .padding(vertical = 12.dp)
-                                    .fillMaxWidth(),
-                                horizontalArrangement = Arrangement.Center,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(Icons.Default.Delete, null, tint = AppTheme.colors.fail, modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("刪除", color = AppTheme.colors.fail, fontWeight = FontWeight.Bold)
-                            }
-                        }
+                        )
 
-                        GlassCard(
+                        GlassDetailActionButton(
+                            text = "編輯",
+                            icon = Icons.Default.Edit,
+                            color = AppTheme.colors.accent,
                             modifier = Modifier.weight(1f),
-                            cornerRadius = 16.dp,
-                            backgroundColor = AppTheme.colors.accent.copy(alpha = 0.15f),
-                            borderColor = AppTheme.colors.accent.copy(alpha = 0.3f),
                             onClick = { onEditClick(expenseId) }
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .padding(vertical = 12.dp)
-                                    .fillMaxWidth(),
-                                horizontalArrangement = Arrangement.Center,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(Icons.Default.Edit, null, tint = AppTheme.colors.accent, modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("編輯", color = AppTheme.colors.accent, fontWeight = FontWeight.Bold)
-                            }
-                        }
+                        )
                     }
                 }
             }

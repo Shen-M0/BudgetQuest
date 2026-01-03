@@ -113,7 +113,7 @@
     <string name="hint_search_note">搜尋備註...</string>
 
     //以下為SubscriptionScreen.kt
-    <string name="title_fixed_expenses">固定收支</string>
+    <string name="title_fixed_expenses">固定扣款</string>
     <string name="label_date_start">開始</string>
     <string name="label_date_end">結束</string>
     <string name="label_date_infinite">無限期</string>

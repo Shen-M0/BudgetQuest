@@ -136,4 +136,29 @@ interface BudgetDao {
     // --- System ---
     @RawQuery
     suspend fun checkpoint(supportSQLiteQuery: SupportSQLiteQuery): Int
+
+    // [新增] 根據 recurringRuleId 刪除所有相關的消費紀錄
+    @Query("DELETE FROM expense_table WHERE recurringRuleId = :ruleId")
+    suspend fun deleteExpensesByRecurringRuleId(ruleId: Long)
+
+
+    // --- Payment Method (依照您的風格新增) ---
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertPaymentMethod(paymentMethod: PaymentMethodEntity)
+
+    @Update
+    suspend fun updatePaymentMethod(paymentMethod: PaymentMethodEntity)
+
+    @Delete
+    suspend fun deletePaymentMethod(paymentMethod: PaymentMethodEntity)
+
+    // 取得可見的支付方式 (用於記帳頁面)
+    @Query("SELECT * FROM payment_method_table WHERE isVisible = 1 ORDER BY `order` ASC, id ASC")
+    fun getVisiblePaymentMethodsStream(): Flow<List<PaymentMethodEntity>>
+
+    // 取得所有支付方式 (用於管理頁面)
+    @Query("SELECT * FROM payment_method_table ORDER BY `order` ASC, id ASC")
+    fun getAllPaymentMethodsStream(): Flow<List<PaymentMethodEntity>>
+
 }

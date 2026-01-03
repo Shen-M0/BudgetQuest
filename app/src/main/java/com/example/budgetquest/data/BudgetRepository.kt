@@ -54,6 +54,20 @@ interface BudgetRepository {
     suspend fun insertSubTag(tag: SubscriptionTagEntity)
     suspend fun updateSubTag(tag: SubscriptionTagEntity)
     suspend fun deleteSubTag(tag: SubscriptionTagEntity)
+
+
+    // [新增介面定義] 請記得在 BudgetRepository interface 也加上這個函式
+    suspend fun deleteRecurringRuleAndHistory(recurring: RecurringExpenseEntity)
+
+    // Payment Method
+    fun getVisiblePaymentMethodsStream(): Flow<List<PaymentMethodEntity>>
+    fun getAllPaymentMethodsStream(): Flow<List<PaymentMethodEntity>>
+    suspend fun insertPaymentMethod(paymentMethod: PaymentMethodEntity)
+    suspend fun updatePaymentMethod(paymentMethod: PaymentMethodEntity)
+    suspend fun deletePaymentMethod(paymentMethod: PaymentMethodEntity)
+
+
+
 }
 
 class OfflineBudgetRepository(private val budgetDao: BudgetDao) : BudgetRepository {
@@ -150,27 +164,58 @@ class OfflineBudgetRepository(private val budgetDao: BudgetDao) : BudgetReposito
         budgetDao.deleteRecurringExpense(expense)
     }
 
-    // 後台檢查邏輯
+    // [修正] 生成邏輯：寫入 recurringRuleId
     override suspend fun checkAndGenerateRecurringExpenses() = withContext(Dispatchers.IO) {
-        // [修正] 這裡使用 getAllRecurringExpensesList() 取得 List，而不是 Flow
         val recurringList = budgetDao.getAllRecurringExpensesList()
+        // ... (日期設定 todayEnd 保持不變) ...
+        val calendar = Calendar.getInstance()
         val today = System.currentTimeMillis()
+        calendar.timeInMillis = today
+        calendar.set(Calendar.HOUR_OF_DAY, 23); calendar.set(Calendar.MINUTE, 59); calendar.set(Calendar.SECOND, 59)
+        val todayEnd = calendar.timeInMillis
 
         recurringList.forEach { recurring ->
-            var nextDueDate = calculateNextDueDate(recurring)
             var currentRecurring = recurring
             var hasUpdates = false
 
-            // 檢查是否到期 且 (沒有結束日期 或 未超過結束日期)
-            while (nextDueDate <= today && (recurring.endDate == null || nextDueDate <= recurring.endDate!!)) { // 注意 endDate!! 的判斷
-                val newExpense = ExpenseEntity(
-                    date = nextDueDate,
+            // [修正] 建立 ExpenseEntity 時帶入 recurringRuleId
+            fun createExpense(date: Long): ExpenseEntity {
+                return ExpenseEntity(
+                    date = date,
                     amount = currentRecurring.amount,
                     note = "${currentRecurring.note} (自動扣款)",
-                    category = currentRecurring.category
+                    category = currentRecurring.category,
+                    imageUri = currentRecurring.imageUri,
+                    paymentMethod = currentRecurring.paymentMethod,
+                    isNeed = currentRecurring.isNeed,
+                    excludeFromBudget = currentRecurring.excludeFromBudget,
+                    merchant = currentRecurring.merchant,
+                    // [關鍵] 寫入 ID
+                    recurringRuleId = currentRecurring.id
                 )
-                budgetDao.insertExpense(newExpense)
+            }
 
+            // ... (後續生成迴圈邏輯保持不變，只要確保呼叫 createExpense 即可) ...
+            // 1. 第一次生成
+            if (currentRecurring.lastGeneratedDate == 0L) {
+                if (currentRecurring.startDate <= todayEnd) {
+                    budgetDao.insertExpense(createExpense(currentRecurring.startDate))
+                    currentRecurring = currentRecurring.copy(lastGeneratedDate = currentRecurring.startDate)
+                    hasUpdates = true
+                }
+            }
+            // 2. 後續生成
+            var nextDueDate = calculateNextDueDate(currentRecurring)
+            while (nextDueDate <= todayEnd && (currentRecurring.endDate == null || nextDueDate <= currentRecurring.endDate!!)) {
+                if (nextDueDate <= currentRecurring.lastGeneratedDate) { // 防呆
+                    val cal = Calendar.getInstance()
+                    cal.timeInMillis = currentRecurring.lastGeneratedDate
+                    cal.add(Calendar.DAY_OF_YEAR, 1)
+                    nextDueDate = cal.timeInMillis
+                }
+                if (nextDueDate > todayEnd || (currentRecurring.endDate != null && nextDueDate > currentRecurring.endDate!!)) break
+
+                budgetDao.insertExpense(createExpense(nextDueDate))
                 currentRecurring = currentRecurring.copy(lastGeneratedDate = nextDueDate)
                 hasUpdates = true
                 nextDueDate = calculateNextDueDate(currentRecurring)
@@ -182,9 +227,10 @@ class OfflineBudgetRepository(private val budgetDao: BudgetDao) : BudgetReposito
         }
     }
 
+    // [修正] 計算下次到期日，加入防呆
     private fun calculateNextDueDate(recurring: RecurringExpenseEntity): Long {
         val calendar = Calendar.getInstance()
-        // 如果從未生成過，從開始日期算起；否則從上次生成日期算起
+        // 基準日：如果是第一次計算，用 startDate；否則用上次生成日
         val baseDate = if (recurring.lastGeneratedDate == 0L) recurring.startDate else recurring.lastGeneratedDate
         calendar.timeInMillis = baseDate
 
@@ -192,7 +238,13 @@ class OfflineBudgetRepository(private val budgetDao: BudgetDao) : BudgetReposito
             "MONTH" -> calendar.add(Calendar.MONTH, 1)
             "WEEK" -> calendar.add(Calendar.WEEK_OF_YEAR, 1)
             "DAY" -> calendar.add(Calendar.DAY_OF_YEAR, 1)
-            "CUSTOM" -> calendar.add(Calendar.DAY_OF_YEAR, recurring.customDays)
+            "CUSTOM" -> {
+                // [關鍵修正] 確保至少加 1 天，防止 customDays=0 導致無限生成同一天
+                val daysToAdd = if (recurring.customDays <= 0) 1 else recurring.customDays
+                calendar.add(Calendar.DAY_OF_YEAR, daysToAdd)
+            }
+            // 預設防呆
+            else -> calendar.add(Calendar.DAY_OF_YEAR, 1)
         }
         return calendar.timeInMillis
     }
@@ -215,4 +267,22 @@ class OfflineBudgetRepository(private val budgetDao: BudgetDao) : BudgetReposito
     override suspend fun insertSubTag(tag: SubscriptionTagEntity) = withContext(Dispatchers.IO) { budgetDao.insertSubTag(tag) }
     override suspend fun updateSubTag(tag: SubscriptionTagEntity) = withContext(Dispatchers.IO) { budgetDao.updateSubTag(tag) }
     override suspend fun deleteSubTag(tag: SubscriptionTagEntity) = withContext(Dispatchers.IO) { budgetDao.deleteSubTag(tag) }
+
+    // [新增介面定義] 請記得在 BudgetRepository interface 也加上這個函式
+    override suspend fun deleteRecurringRuleAndHistory(recurring: RecurringExpenseEntity) = withContext(Dispatchers.IO) {
+        // 1. 刪除該規則產生的所有歷史紀錄
+        budgetDao.deleteExpensesByRecurringRuleId(recurring.id)
+        // 2. 刪除規則本身
+        budgetDao.deleteRecurringExpense(recurring)
+    }
+
+    // Payment Method 實作
+    override fun getVisiblePaymentMethodsStream() = budgetDao.getVisiblePaymentMethodsStream().flowOn(Dispatchers.IO)
+    override fun getAllPaymentMethodsStream() = budgetDao.getAllPaymentMethodsStream().flowOn(Dispatchers.IO)
+    override suspend fun insertPaymentMethod(paymentMethod: PaymentMethodEntity) = withContext(Dispatchers.IO) { budgetDao.insertPaymentMethod(paymentMethod) }
+    override suspend fun updatePaymentMethod(paymentMethod: PaymentMethodEntity) = withContext(Dispatchers.IO) { budgetDao.updatePaymentMethod(paymentMethod) }
+    override suspend fun deletePaymentMethod(paymentMethod: PaymentMethodEntity) = withContext(Dispatchers.IO) { budgetDao.deletePaymentMethod(paymentMethod) }
+
+
+
 }

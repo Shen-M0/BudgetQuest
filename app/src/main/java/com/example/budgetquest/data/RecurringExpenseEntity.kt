@@ -17,5 +17,15 @@ data class RecurringExpenseEntity(
     val endDate: Long? = null,
     val planId: Int = -1,
     // [修正] 補上這個欄位，用於顯示「每月幾號」扣款
-    val dayOfMonth: Int = 1
+    val dayOfMonth: Int = 1,
+
+    // [新增] 進階選項欄位
+    val imageUri: String? = null,
+    // [修正] 預設為空字串
+    val paymentMethod: String = "",
+    // [修正] 改為 Boolean?，預設為 null
+    val isNeed: Boolean? = null,
+    val excludeFromBudget: Boolean = false,
+    val merchant: String = ""
+
 )

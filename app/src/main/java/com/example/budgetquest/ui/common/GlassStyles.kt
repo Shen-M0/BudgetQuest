@@ -3,6 +3,7 @@ package com.example.budgetquest.ui.common
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,6 +24,7 @@ import com.example.budgetquest.ui.theme.AppTheme
 
 // --- 筆刷定義 ---
 
+// 一般元件使用的玻璃筆刷 (依賴 AppTheme)
 @Composable
 fun getGlassBrush(): Brush {
     return Brush.verticalGradient(
@@ -31,6 +33,30 @@ fun getGlassBrush(): Brush {
             AppTheme.colors.surface.copy(alpha = 0.35f)
         )
     )
+}
+
+// [修正] Dialog 專用筆刷：確保深色模式正確，淺色模式夠亮
+@Composable
+fun getDialogGlassBrush(): Brush {
+    val isDark = isSystemInDarkTheme()
+    return if (isDark) {
+        // 深色模式：強制使用深色底 (Color(0xFF121212))，避免因 Dialog 抓不到 AppTheme 而變白
+        // 參數與 getGlassBrush 保持一致 (0.65f -> 0.35f)，還原您原本喜歡的風格
+        Brush.verticalGradient(
+            colors = listOf(
+                Color(0xFF121212).copy(alpha = 0.65f),
+                Color(0xFF121212).copy(alpha = 0.35f)
+            )
+        )
+    } else {
+        // 淺色模式：使用高亮白色，對抗遮罩變暗
+        Brush.verticalGradient(
+            colors = listOf(
+                Color.White.copy(alpha = 0.95f),
+                Color.White.copy(alpha = 0.85f)
+            )
+        )
+    }
 }
 
 @Composable
@@ -69,45 +95,42 @@ fun getShadowTextStyle(fontSize: Int, fontWeight: FontWeight = FontWeight.Normal
     )
 }
 
-// --- 基礎容器 (取代重複的 Box 寫法) ---
+// --- 基礎容器 ---
 
 /**
  * 標準的玻璃擬態卡片容器
- * 自動套用：圓角裁切、玻璃背景、漸層邊框
  */
 @Composable
 fun GlassCard(
     modifier: Modifier = Modifier,
     cornerRadius: Dp = 24.dp,
-    // [新增] 可選的背景色，預設為 null (代表使用原本的玻璃筆刷)
     backgroundColor: Color? = null,
-    // [新增] 可選的邊框色，預設為 null (代表使用原本的邊框筆刷)
     borderColor: Color? = null,
+    // [重要] 保留此參數以支援 Dialog 的特殊處理
+    customBrush: Brush? = null,
     onClick: (() -> Unit)? = null,
     content: @Composable BoxScope.() -> Unit
 ) {
     val shape = RoundedCornerShape(cornerRadius)
 
-    // 1. 決定背景邏輯
-    val backgroundModifier = if (backgroundColor != null) {
-        Modifier.background(backgroundColor)
-    } else {
-        // 如果沒有指定顏色，才使用預設的玻璃漸層
-        Modifier.background(getGlassBrush())
+    // 1. 決定背景邏輯 (優先順序：CustomBrush > BackgroundColor > DefaultBrush)
+    val backgroundModifier = when {
+        customBrush != null -> Modifier.background(customBrush)
+        backgroundColor != null -> Modifier.background(backgroundColor)
+        else -> Modifier.background(getGlassBrush()) // 預設情況
     }
 
     // 2. 決定邊框邏輯
     val borderModifier = if (borderColor != null) {
         Modifier.border(1.dp, borderColor, shape)
     } else {
-        // 如果沒有指定顏色，才使用預設的邊框漸層
         Modifier.border(1.dp, getBorderBrush(), shape)
     }
 
     var finalModifier = modifier
         .clip(shape)
-        .then(backgroundModifier) // 應用背景
-        .then(borderModifier)     // 應用邊框
+        .then(backgroundModifier)
+        .then(borderModifier)
 
     if (onClick != null) {
         finalModifier = finalModifier.clickable { onClick() }
