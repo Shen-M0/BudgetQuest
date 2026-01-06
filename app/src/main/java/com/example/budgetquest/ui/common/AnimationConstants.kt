@@ -14,3 +14,4 @@ val FluidBoundsTransform = BoundsTransform { _, _ ->
     // 這裡設定 400ms 的持續時間與緩動曲線，讓轉場看起來流暢
     tween(durationMillis = 400, easing = FastOutSlowInEasing)
 }
+

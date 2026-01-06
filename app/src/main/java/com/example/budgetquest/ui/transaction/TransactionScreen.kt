@@ -1,7 +1,11 @@
 package com.example.budgetquest.ui.transaction
 
+import android.Manifest
 import android.app.Activity
 import android.app.DatePickerDialog
+import android.content.Context
+import android.content.pm.PackageManager
+import android.location.Geocoder
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -31,7 +35,9 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -44,32 +50,39 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.example.budgetquest.BuildConfig
 import com.example.budgetquest.R
 import com.example.budgetquest.ui.AppViewModelProvider
 import com.example.budgetquest.ui.common.AuroraPrimaryButton
 import com.example.budgetquest.ui.common.GlassCard
 import com.example.budgetquest.ui.common.GlassChip
 import com.example.budgetquest.ui.common.GlassIconButton
+import com.example.budgetquest.ui.common.GlassSwitch
 import com.example.budgetquest.ui.common.GlassTextField
 import com.example.budgetquest.ui.common.ImageUtils
 import com.example.budgetquest.ui.common.getIconByKey
 import com.example.budgetquest.ui.common.getSmartCategoryName
+import com.example.budgetquest.ui.common.getSmartPaymentName
 import com.example.budgetquest.ui.common.getSmartTagName
 import com.example.budgetquest.ui.theme.AppTheme
+import com.google.android.gms.location.LocationServices
 import com.google.android.libraries.places.api.Places
-// [修正 1] 將 Place 取別名為 GooglePlace，避免與圖標 Icons.Default.Place 衝突
-import com.google.android.libraries.places.api.model.Place as GooglePlace
 import com.google.android.libraries.places.widget.Autocomplete
 import com.google.android.libraries.places.widget.AutocompleteActivity
 import com.google.android.libraries.places.widget.model.AutocompleteActivityMode
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import com.google.android.libraries.places.api.model.Place as GooglePlace
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -87,14 +100,12 @@ fun TransactionScreen(
     var showCategoryManager by remember { mutableStateOf(false) }
     var showTagManager by remember { mutableStateOf(false) }
 
-    // 進階選項狀態
     var isAdvancedExpanded by remember { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
-
-    // [新增] 觀察支付方式列表
     val paymentMethods by viewModel.visiblePaymentMethods.collectAsState()
     var showPaymentMethodManager by remember { mutableStateOf(false) }
 
@@ -109,22 +120,97 @@ fun TransactionScreen(
         )
     }
 
-    // [新增] 初始化 Google Places SDK
-    // 注意：請將 "YOUR_API_KEY_HERE" 替換為您真實的 Google Cloud API Key
+    // Google Places 初始化
     LaunchedEffect(Unit) {
         if (!Places.isInitialized()) {
-            // TODO: 請填入您的 Google Places API Key
-            Places.initialize(context.applicationContext, "YOUR_API_KEY_HERE")
+            val apiKey = BuildConfig.GOOGLE_MAPS_API_KEY
+            if (apiKey.isNotBlank()) {
+                try {
+                    Places.initialize(context.applicationContext, apiKey)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            } else {
+                android.util.Log.e("BudgetQuest", "API Key is empty! Please check local.properties")
+            }
         }
     }
 
-    // [新增] 地點搜尋啟動器 (Places Autocomplete)
+    // [新增] FusedLocationProviderClient 用於獲取位置
+    val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
+
+    // [新增] 邏輯：獲取當前位置並轉為地址
+    fun getCurrentLocation() {
+        try {
+            // 再次檢查權限 (雖然在呼叫前會檢查，但 IDE 還是會警告)
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+                ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+            ) {
+                Toast.makeText(context, context.getString(R.string.msg_locating), Toast.LENGTH_SHORT).show()
+
+                fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+                    if (location != null) {
+                        scope.launch(Dispatchers.IO) {
+                            try {
+                                val geocoder = Geocoder(context, Locale.getDefault())
+                                // 取得 1 筆地址結果
+                                @Suppress("DEPRECATION") // 為了相容性使用舊 API，新版 API 需 Tiramisu 以上
+                                val addresses = geocoder.getFromLocation(location.latitude, location.longitude, 1)
+
+                                if (!addresses.isNullOrEmpty()) {
+                                    val address = addresses[0]
+                                    // 優先使用地標名稱 (FeatureName)，如果沒有則使用地址線
+                                    // 為了更精確顯示店家，通常 geocoder 只會給出地址，
+                                    // 若要精確店家通常需要 Places API 的 Current Place，但 Geocoder 比較省錢且簡單
+                                    val resultName = address.getAddressLine(0) // 完整地址
+
+                                    withContext(Dispatchers.Main) {
+                                        viewModel.updateMerchant(resultName)
+                                        Toast.makeText(context, context.getString(R.string.msg_location_found), Toast.LENGTH_SHORT).show()
+                                    }
+                                } else {
+                                    withContext(Dispatchers.Main) {
+                                        Toast.makeText(context, context.getString(R.string.error_location_not_found), Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(context, context.getString(R.string.error_geocoder_failed), Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        }
+                    } else {
+                        Toast.makeText(context, context.getString(R.string.error_location_unavailable), Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        } catch (e: SecurityException) {
+            e.printStackTrace()
+        }
+    }
+
+    // [新增] 權限請求 Launcher
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val isGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+                permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        if (isGranted) {
+            getCurrentLocation()
+        } else {
+            Toast.makeText(context, context.getString(R.string.error_permission_denied), Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    val errorSearchMessage = stringResource(R.string.error_search_failed)
+
+    // Places Autocomplete Launcher
     val placeLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             result.data?.let { intent ->
-                // 使用 Autocomplete 解析資料
                 val place = Autocomplete.getPlaceFromIntent(intent)
                 val locationName = place.name ?: place.address
                 if (locationName != null) {
@@ -134,16 +220,15 @@ fun TransactionScreen(
         } else if (result.resultCode == AutocompleteActivity.RESULT_ERROR) {
             result.data?.let { intent ->
                 val status = Autocomplete.getStatusFromIntent(intent)
-                Toast.makeText(context, "搜尋錯誤: ${status.statusMessage}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "$errorSearchMessage: ${status.statusMessage}", Toast.LENGTH_SHORT).show()
             }
         }
     }
 
-    // 圖片選擇相關狀態
+    // 圖片相關
     var showImageSourceDialog by remember { mutableStateOf(false) }
     var tempCameraUri by remember { mutableStateOf<Uri?>(null) }
 
-    // 相簿啟動器
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
@@ -153,7 +238,6 @@ fun TransactionScreen(
         }
     }
 
-    // 相機啟動器
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
@@ -207,14 +291,14 @@ fun TransactionScreen(
     if (showImageSourceDialog) {
         AlertDialog(
             onDismissRequest = { showImageSourceDialog = false },
-            title = { Text("選擇圖片來源") },
-            text = { Text("請選擇要從相簿選取還是開啟相機拍攝。") },
+            title = { Text(stringResource(R.string.dialog_image_source_title)) },
+            text = { Text(stringResource(R.string.dialog_image_source_message)) },
             confirmButton = {
                 TextButton(onClick = {
                     showImageSourceDialog = false
                     galleryLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                 }) {
-                    Text("相簿")
+                    Text(stringResource(R.string.source_gallery))
                 }
             },
             dismissButton = {
@@ -224,7 +308,7 @@ fun TransactionScreen(
                     tempCameraUri = uri
                     cameraLauncher.launch(uri)
                 }) {
-                    Text("相機")
+                    Text(stringResource(R.string.source_camera))
                 }
             },
             containerColor = AppTheme.colors.surface,
@@ -313,7 +397,7 @@ fun TransactionScreen(
         ) {
             Spacer(modifier = Modifier.height(0.dp))
 
-            // 1. 日期與金額卡片
+            // 1. 日期與金額
             GlassCard(modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier.padding(20.dp),
@@ -342,7 +426,7 @@ fun TransactionScreen(
                 }
             }
 
-            // 2. 分類與備註卡片
+            // 2. 分類與備註
             GlassCard(modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier.padding(20.dp),
@@ -395,7 +479,7 @@ fun TransactionScreen(
                 }
             }
 
-            // 3. 進階選項區塊
+            // 3. 進階選項
             GlassCard(modifier = Modifier.fillMaxWidth()) {
                 Column {
                     Row(
@@ -407,7 +491,7 @@ fun TransactionScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "進階選項",
+                            text = stringResource(R.string.title_advanced_options),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
                             color = AppTheme.colors.textPrimary
@@ -430,8 +514,8 @@ fun TransactionScreen(
                                 .padding(bottom = 20.dp),
                             verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            // A. 圖片上傳/拍攝
-                            Text("照片 / 收據", fontSize = 12.sp, color = AppTheme.colors.textSecondary)
+                            // A. 圖片
+                            Text(stringResource(R.string.label_photo_receipt), fontSize = 12.sp, color = AppTheme.colors.textSecondary)
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -446,26 +530,25 @@ fun TransactionScreen(
                                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                         Icon(Icons.Default.AddPhotoAlternate, null, tint = AppTheme.colors.textSecondary, modifier = Modifier.size(32.dp))
                                         Spacer(modifier = Modifier.height(8.dp))
-                                        Text("點擊拍攝或選取照片", fontSize = 12.sp, color = AppTheme.colors.textSecondary)
+                                        Text(stringResource(R.string.hint_add_photo), fontSize = 12.sp, color = AppTheme.colors.textSecondary)
                                     }
                                 } else {
                                     val file = File(uiState.imageUri!!)
                                     Box(
                                         modifier = Modifier
                                             .fillMaxSize()
-                                            .background(Color.Black.copy(alpha = 0.5f)) // 深色背景，檢視器風格
+                                            .background(Color.Black.copy(alpha = 0.5f))
                                     ) {
                                         AsyncImage(
                                             model = ImageRequest.Builder(LocalContext.current)
                                                 .data(file)
                                                 .crossfade(true)
                                                 .build(),
-                                            contentDescription = "Selected Image",
-                                            contentScale = ContentScale.Fit, // 使用 Fit 確保完整顯示
+                                            contentDescription = stringResource(R.string.desc_selected_image),
+                                            contentScale = ContentScale.Fit,
                                             modifier = Modifier.fillMaxSize()
                                         )
 
-                                        // 移除按鈕
                                         Box(
                                             modifier = Modifier
                                                 .align(Alignment.TopEnd)
@@ -489,29 +572,27 @@ fun TransactionScreen(
                             HorizontalDivider(color = AppTheme.colors.divider, thickness = 1.dp)
 
                             // B. 支付方式
-                            Text("支付方式", fontSize = 12.sp, color = AppTheme.colors.textSecondary)
-                            // [修正] 使用動態列表
+                            Text(stringResource(R.string.label_payment_method), fontSize = 12.sp, color = AppTheme.colors.textSecondary)
                             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 items(paymentMethods, key = { it.id }) { method ->
                                     GlassChip(
-                                        label = method.name,
+                                        label = getSmartPaymentName(method.name, method.resourceKey),
                                         selected = uiState.paymentMethod == method.name,
                                         onClick = { viewModel.updatePaymentMethod(method.name) }
                                     )
                                 }
-                                // [新增] 管理按鈕
                                 item {
                                     GlassIconButton(
                                         onClick = { debounce { showPaymentMethodManager = true } },
                                         size = 32.dp
                                     ) {
-                                        Icon(Icons.Default.Add, "Manage", tint = AppTheme.colors.textSecondary, modifier = Modifier.size(16.dp))
+                                        Icon(Icons.Default.Add, stringResource(R.string.desc_manage_button), tint = AppTheme.colors.textSecondary, modifier = Modifier.size(16.dp))
                                     }
                                 }
                             }
 
-                            // C. 店家/地點 [修正 2] 使用 GooglePlace.Field 來避免衝突
-                            Text("店家 / 地點", fontSize = 12.sp, color = AppTheme.colors.textSecondary)
+                            // C. 店家/地點 (地圖搜尋邏輯修正)
+                            Text(stringResource(R.string.label_merchant_location), fontSize = 12.sp, color = AppTheme.colors.textSecondary)
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically
@@ -519,26 +600,45 @@ fun TransactionScreen(
                                 GlassTextField(
                                     value = uiState.merchant,
                                     onValueChange = { viewModel.updateMerchant(it) },
-                                    placeholder = "例如：7-11, 星巴克...",
+                                    placeholder = stringResource(R.string.hint_merchant),
                                     label = null,
-                                    modifier = Modifier.weight(1f) // 佔據大部分空間
+                                    modifier = Modifier.weight(1f)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
-                                // Google Maps 搜尋按鈕
                                 GlassIconButton(
                                     onClick = {
                                         debounce {
-                                            // [修正 2] 這裡使用 GooglePlace.Field，因為上面已經取了別名
-                                            val fields = listOf(GooglePlace.Field.NAME, GooglePlace.Field.ADDRESS)
-                                            // 啟動 Autocomplete Intent
-                                            val intent = Autocomplete.IntentBuilder(AutocompleteActivityMode.OVERLAY, fields)
-                                                .build(context)
-                                            placeLauncher.launch(intent)
+                                            // [關鍵修正] 判斷輸入框內容
+                                            if (uiState.merchant.isBlank()) {
+                                                // 情況 1：輸入框為空 -> 請求權限 -> 自動定位
+                                                val hasFine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                                                val hasCoarse = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+
+                                                if (hasFine || hasCoarse) {
+                                                    getCurrentLocation()
+                                                } else {
+                                                    locationPermissionLauncher.launch(
+                                                        arrayOf(
+                                                            Manifest.permission.ACCESS_FINE_LOCATION,
+                                                            Manifest.permission.ACCESS_COARSE_LOCATION
+                                                        )
+                                                    )
+                                                }
+                                            } else {
+                                                // 情況 2：輸入框有值 -> 開啟搜尋頁面 (帶入預填文字)
+                                                val fields = listOf(GooglePlace.Field.NAME, GooglePlace.Field.ADDRESS)
+                                                val intent = Autocomplete.IntentBuilder(AutocompleteActivityMode.OVERLAY, fields)
+                                                    .setInitialQuery(uiState.merchant) // 預填文字
+                                                    .build(context)
+                                                placeLauncher.launch(intent)
+                                            }
                                         }
                                     },
-                                    size = 48.dp // 與 TextField 高度接近
+                                    size = 48.dp
                                 ) {
-                                    Icon(Icons.Default.Place, contentDescription = "Search Location", tint = AppTheme.colors.accent)
+                                    // 根據是否有輸入文字，改變 Icon 讓使用者有預期心理
+                                    val icon = if (uiState.merchant.isBlank()) Icons.Default.MyLocation else Icons.Default.Search
+                                    Icon(icon, contentDescription = stringResource(R.string.desc_search_location), tint = AppTheme.colors.accent)
                                 }
                             }
 
@@ -546,42 +646,38 @@ fun TransactionScreen(
 
                             // D. 不計入預算
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { viewModel.updateExcludeFromBudget(!uiState.excludeFromBudget) }
+                                    .padding(vertical = 4.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Column {
-                                    Text("不計入預算", fontSize = 14.sp, color = AppTheme.colors.textPrimary)
-                                    Text("開啟後不會扣除今日可用額度", fontSize = 11.sp, color = AppTheme.colors.textSecondary)
+                                    Text(stringResource(R.string.label_exclude_budget), fontSize = 14.sp, color = AppTheme.colors.textPrimary)
+                                    Text(stringResource(R.string.hint_exclude_budget), fontSize = 11.sp, color = AppTheme.colors.textSecondary)
                                 }
-                                Switch(
+
+                                GlassSwitch(
                                     checked = uiState.excludeFromBudget,
-                                    onCheckedChange = { viewModel.updateExcludeFromBudget(it) },
-                                    colors = SwitchDefaults.colors(
-                                        checkedTrackColor = AppTheme.colors.accent,
-                                        checkedThumbColor = Color.White,
-                                        uncheckedTrackColor = AppTheme.colors.background.copy(alpha = 0.5f),
-                                        uncheckedBorderColor = Color.Transparent
-                                    )
+                                    onCheckedChange = { viewModel.updateExcludeFromBudget(it) }
                                 )
                             }
 
                             // E. Need vs Want
-                            Text("消費性質", fontSize = 12.sp, color = AppTheme.colors.textSecondary)
+                            Text(stringResource(R.string.label_consumption_nature), fontSize = 12.sp, color = AppTheme.colors.textSecondary)
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                // [修正] 判斷是否選中 (uiState.isNeed == true)，並使用 toggle
                                 GlassChip(
-                                    label = "需要 (Need)",
+                                    label = stringResource(R.string.label_need_full),
                                     selected = uiState.isNeed == true,
                                     icon = if (uiState.isNeed == true) Icons.Default.Check else null,
-                                    onClick = { viewModel.toggleNeedStatus(true) } // 使用 toggle
+                                    onClick = { viewModel.toggleNeedStatus(true) }
                                 )
-                                // [修正] 判斷是否選中 (uiState.isNeed == false)
                                 GlassChip(
-                                    label = "想要 (Want)",
+                                    label = stringResource(R.string.label_want_full),
                                     selected = uiState.isNeed == false,
                                     icon = if (uiState.isNeed == false) Icons.Default.Check else null,
-                                    onClick = { viewModel.toggleNeedStatus(false) } // 使用 toggle
+                                    onClick = { viewModel.toggleNeedStatus(false) }
                                 )
                             }
 

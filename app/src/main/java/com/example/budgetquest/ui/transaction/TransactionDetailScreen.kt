@@ -16,13 +16,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Payment
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Warning
@@ -31,7 +28,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -97,8 +93,8 @@ fun TransactionDetailScreen(
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
             icon = { Icon(Icons.Default.Warning, null, tint = AppTheme.colors.fail) },
-            title = { Text(text = "確認刪除", color = AppTheme.colors.textPrimary, fontWeight = FontWeight.Bold) },
-            text = { Text(text = "您確定要刪除這筆消費紀錄嗎？此操作無法復原。", color = AppTheme.colors.textSecondary) },
+            title = { Text(text = stringResource(R.string.dialog_delete_title), color = AppTheme.colors.textPrimary, fontWeight = FontWeight.Bold) },
+            text = { Text(text = stringResource(R.string.dialog_delete_message), color = AppTheme.colors.textSecondary) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -107,7 +103,7 @@ fun TransactionDetailScreen(
                     },
                     colors = ButtonDefaults.textButtonColors(contentColor = AppTheme.colors.fail)
                 ) {
-                    Text("刪除", fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.action_delete), fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -115,7 +111,7 @@ fun TransactionDetailScreen(
                     onClick = { showDeleteDialog = false },
                     colors = ButtonDefaults.textButtonColors(contentColor = AppTheme.colors.textSecondary)
                 ) {
-                    Text("取消")
+                    Text(stringResource(R.string.action_cancel))
                 }
             },
             containerColor = AppTheme.colors.surface,
@@ -174,7 +170,7 @@ fun TransactionDetailScreen(
                     horizontalAlignment = Alignment.Start,
                     verticalArrangement = Arrangement.spacedBy(20.dp)
                 ) {
-                    // 1. 標題區塊：分類、備註與金額
+                    // 1. 標題區塊
                     Column(modifier = Modifier.fillMaxWidth()) {
                         Text(
                             text = getSmartCategoryName(uiState.category),
@@ -219,21 +215,17 @@ fun TransactionDetailScreen(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        DetailRow(icon = Icons.Default.DateRange, label = "日期", value = dateFormatter.format(Date(uiState.date)))
+                        DetailRow(icon = Icons.Default.DateRange, label = stringResource(R.string.label_date), value = dateFormatter.format(Date(uiState.date)))
 
-                        // 店家/地點：右側加入地圖搜尋按鈕
+                        // 店家/地點
                         if (uiState.merchant.isNotEmpty()) {
                             DetailRow(
                                 icon = Icons.Default.LocationOn,
-                                label = "店家",
+                                label = stringResource(R.string.label_merchant),
                                 value = uiState.merchant,
                                 actionIcon = Icons.Default.Place,
                                 onActionClick = {
                                     val merchantName = uiState.merchant
-                                    // geo:0,0?q=查詢字串
-                                    // 這個 Intent 會自動處理：
-                                    // 1. 如果 merchantName 是店名 (如 "7-11") -> 搜尋附近店家
-                                    // 2. 如果 merchantName 是地址 (如 "台北市信義路...") -> 標記該地址
                                     val gmmIntentUri = Uri.parse("geo:0,0?q=${Uri.encode(merchantName)}")
                                     val mapIntent = Intent(Intent.ACTION_VIEW, gmmIntentUri)
                                     mapIntent.setPackage("com.google.android.apps.maps")
@@ -245,29 +237,39 @@ fun TransactionDetailScreen(
                                             val webIntent = Intent(Intent.ACTION_VIEW, gmmIntentUri)
                                             context.startActivity(webIntent)
                                         } catch (e2: Exception) {
-                                            Toast.makeText(context, "無法開啟地圖應用程式", Toast.LENGTH_SHORT).show()
+                                            // Toast 需使用 context.getString 獲取資源
+                                            Toast.makeText(context, context.getString(R.string.error_open_map), Toast.LENGTH_SHORT).show()
                                         }
                                     }
                                 }
                             )
                         }
 
-                        // [修正] 智慧顯示
+                        // 支付方式
                         if (uiState.paymentMethod.isNotEmpty()) {
-                            DetailRow(icon = Icons.Default.Payment, label = "支付", value = uiState.paymentMethod)
+                            DetailRow(icon = Icons.Default.Payment, label = stringResource(R.string.label_payment), value = uiState.paymentMethod)
                         }
 
-                        if (uiState.isNeed != null || uiState.excludeFromBudget) {
+                        // Need/Want 與 不計入預算
+                        val hasIsNeed = uiState.isNeed != null
+                        val isExcluded = uiState.excludeFromBudget
+
+                        if (hasIsNeed || isExcluded) {
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                if (uiState.isNeed != null) {
+                                if (hasIsNeed) {
                                     StatusChip(
-                                        label = if (uiState.isNeed == true) "需要 (Need)" else "想要 (Want)",
+                                        label = if (uiState.isNeed == true) stringResource(R.string.label_need_full) else stringResource(R.string.label_want_full),
                                         color = if (uiState.isNeed == true) AppTheme.colors.success else AppTheme.colors.accent,
                                         icon = if (uiState.isNeed == true) Icons.Default.Check else null
                                     )
                                 }
-                                if (uiState.excludeFromBudget) {
-                                    StatusChip(label = "不計入預算", color = AppTheme.colors.textSecondary)
+
+                                if (isExcluded) {
+                                    StatusChip(
+                                        label = stringResource(R.string.label_excluded_full),
+                                        color = AppTheme.colors.textSecondary,
+                                        icon = null
+                                    )
                                 }
                             }
                         }
@@ -289,7 +291,7 @@ fun TransactionDetailScreen(
                                     .data(file)
                                     .crossfade(true)
                                     .build(),
-                                contentDescription = "附圖",
+                                contentDescription = stringResource(R.string.desc_attached_image),
                                 contentScale = ContentScale.Fit,
                                 modifier = Modifier.fillMaxSize()
                             )
@@ -304,7 +306,7 @@ fun TransactionDetailScreen(
                         horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         GlassDetailActionButton(
-                            text = "刪除",
+                            text = stringResource(R.string.action_delete),
                             icon = Icons.Default.Delete,
                             color = AppTheme.colors.fail,
                             modifier = Modifier.weight(1f),
@@ -312,7 +314,7 @@ fun TransactionDetailScreen(
                         )
 
                         GlassDetailActionButton(
-                            text = "編輯",
+                            text = stringResource(R.string.action_edit),
                             icon = Icons.Default.Edit,
                             color = AppTheme.colors.accent,
                             modifier = Modifier.weight(1f),
@@ -326,7 +328,7 @@ fun TransactionDetailScreen(
     }
 }
 
-// Helper components
+// Helper components 保持不變，參數文字已在上面替換
 @Composable
 private fun DetailRow(
     icon: ImageVector,

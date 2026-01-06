@@ -23,7 +23,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.compose.dialog
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.budgetquest.data.SettingsRepository
@@ -136,7 +135,20 @@ class MainActivity : AppCompatActivity() {
                                                 navArgument("date") { type = NavType.LongType; defaultValue = -1L },
                                                 navArgument("trigger") { type = NavType.LongType; defaultValue = 0L },
                                                 navArgument("tutorial") { type = NavType.BoolType; defaultValue = false }
-                                            )
+                                            ),
+                                            // [關鍵修改] 針對 Dashboard 的進入動畫做特殊處理
+                                            // 如果是從 History 頁面回來 (planId != -1)，我們希望使用 SharedElement 的縮放效果
+                                            // 所以這裡改用 fadeIn()，不要 slide，讓 SharedElement 唱主角
+                                            enterTransition = {
+                                                val fromHistory = initialState.destination.route?.startsWith("history") == true
+                                                if (fromHistory) {
+                                                    fadeIn(animationSpec = tween(animDuration))
+                                                } else {
+                                                    // 其他情況維持預設的滑動
+                                                    slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Left, animationSpec = tween(animDuration)) +
+                                                            fadeIn(animationSpec = tween(animDuration))
+                                                }
+                                            }
                                         ) { backStackEntry ->
                                             val planId = backStackEntry.arguments?.getInt("planId") ?: -1
                                             val date = backStackEntry.arguments?.getLong("date") ?: -1L
@@ -201,6 +213,7 @@ class MainActivity : AppCompatActivity() {
                                                         launchSingleTop = true
                                                     }
                                                 },
+                                                // [傳遞 Scope]
                                                 sharedTransitionScope = this@SharedTransitionLayout,
                                                 animatedVisibilityScope = this@composable
                                             )
@@ -275,7 +288,6 @@ class MainActivity : AppCompatActivity() {
                                                         launchSingleTop = true
                                                     }
                                                 },
-                                                // [修改] 點擊項目 -> 導航至 transaction_detail
                                                 onItemClick = { expenseId ->
                                                     navController.navigate("transaction_detail/$expenseId") {
                                                         launchSingleTop = true
@@ -295,7 +307,6 @@ class MainActivity : AppCompatActivity() {
                                                 navArgument("endDate") { type = NavType.LongType; defaultValue = -1L },
                                                 navArgument("showBack") { type = NavType.BoolType; defaultValue = true }
                                             ),
-                                            // [修改] 使用 Slide Up
                                             enterTransition = {
                                                 slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Up, animationSpec = tween(animDuration)) +
                                                         fadeIn(animationSpec = tween(animDuration))
@@ -350,11 +361,10 @@ class MainActivity : AppCompatActivity() {
                                             )
                                         }
 
-                                        // 5. Summary (詳細消費紀錄) - Slide Up
+                                        // 5. Summary - Slide Up
                                         composable(
                                             route = "summary?planId={planId}",
                                             arguments = listOf(navArgument("planId") { type = NavType.IntType; defaultValue = -1 }),
-                                            // [修改] 使用 Slide Up
                                             enterTransition = {
                                                 slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Up, animationSpec = tween(animDuration)) +
                                                         fadeIn(animationSpec = tween(animDuration))
@@ -376,7 +386,6 @@ class MainActivity : AppCompatActivity() {
                                             SummaryScreen(
                                                 planId = planId,
                                                 onBackClick = { navController.popBackStack() },
-                                                // [新增] 點擊項目 -> 導航至 transaction_detail
                                                 onItemClick = { expenseId ->
                                                     navController.navigate("transaction_detail/$expenseId") {
                                                         launchSingleTop = true
@@ -387,10 +396,9 @@ class MainActivity : AppCompatActivity() {
                                             )
                                         }
 
-                                        // 6. Settings (設定) - Slide Up
+                                        // 6. Settings - Slide Up
                                         composable(
                                             "settings",
-                                            // [修改] 使用 Slide Up
                                             enterTransition = {
                                                 slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Up, animationSpec = tween(animDuration)) +
                                                         fadeIn(animationSpec = tween(animDuration))
@@ -417,14 +425,14 @@ class MainActivity : AppCompatActivity() {
                                             )
                                         }
 
-                                        // 7. Subscription (固定扣款) - Slide Up
+                                        // 7. Subscription - Slide Up
                                         composable(
-                                            route = "subscription?planId={planId}&start={start}&end={end}&editId={editId}", // [注意] 這裡我也建議加上 editId 參數
+                                            route = "subscription?planId={planId}&start={start}&end={end}&editId={editId}",
                                             arguments = listOf(
                                                 navArgument("planId") { type = NavType.IntType; defaultValue = -1 },
                                                 navArgument("start") { type = NavType.LongType; defaultValue = -1L },
                                                 navArgument("end") { type = NavType.LongType; defaultValue = -1L },
-                                                navArgument("editId") { type = NavType.LongType; defaultValue = -1L } // [新增]
+                                                navArgument("editId") { type = NavType.LongType; defaultValue = -1L }
                                             ),
                                             enterTransition = {
                                                 slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Up, animationSpec = tween(animDuration)) +
@@ -446,48 +454,51 @@ class MainActivity : AppCompatActivity() {
                                             val planId = backStackEntry.arguments?.getInt("planId") ?: -1
                                             val start = backStackEntry.arguments?.getLong("start") ?: -1L
                                             val end = backStackEntry.arguments?.getLong("end") ?: -1L
-                                            val editId = backStackEntry.arguments?.getLong("editId") ?: -1L // [新增]
+                                            val editId = backStackEntry.arguments?.getLong("editId") ?: -1L
 
                                             SubscriptionScreen(
                                                 planId = planId,
                                                 startDate = start,
                                                 endDate = end,
-                                                editId = editId, // [新增] 傳入 editId
+                                                editId = editId,
                                                 onBackClick = { navController.popBackStack() },
                                                 onSaveSuccess = {
                                                     navController.popBackStack()
                                                 },
-                                                // [修正] 補上 onItemClick
                                                 onItemClick = { subId ->
                                                     navController.navigate("subscription_detail/$subId") {
                                                         launchSingleTop = true
                                                     }
                                                 },
-                                                // 傳入 scope
                                                 sharedTransitionScope = this@SharedTransitionLayout,
                                                 animatedVisibilityScope = this@composable
                                             )
                                         }
 
-                                        // 8. History (計畫歷史紀錄) - Slide Up
+                                        // 8. History (計畫歷史紀錄)
                                         composable(
                                             "history",
-                                            // [修改] 使用 Slide Up
+                                            // [修正 1] 進入動畫：改為由下往上滑入 (與設定頁面相同)
                                             enterTransition = {
-                                                slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Up, animationSpec = tween(animDuration)) +
-                                                        fadeIn(animationSpec = tween(animDuration))
+                                                slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Up, animationSpec = tween(300))
                                             },
+                                            // [修正 2] 離開動畫：智慧判斷
                                             exitTransition = {
-                                                slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Down, animationSpec = tween(animDuration)) +
-                                                        fadeOut(animationSpec = tween(animDuration))
+                                                // 如果是前往 Dashboard (點擊卡片)，則背景淡出，讓 SharedElement 負責縮放動畫
+                                                if (targetState.destination.route?.startsWith("dashboard") == true) {
+                                                    fadeOut(animationSpec = tween(300))
+                                                } else {
+                                                    // 如果是其他情況 (例如被覆蓋)，則向下滑出
+                                                    slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Down, animationSpec = tween(300))
+                                                }
                                             },
+                                            // [修正 3] 返回進入：維持由下往上 (雖然通常 History 是 Top level，不太會發生)
                                             popEnterTransition = {
-                                                slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Up, animationSpec = tween(animDuration)) +
-                                                        fadeIn(animationSpec = tween(animDuration))
+                                                slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Up, animationSpec = tween(300))
                                             },
+                                            // [修正 4] 返回離開 (按下 Back 鍵)：由上往下滑出 (與設定頁面相同)
                                             popExitTransition = {
-                                                slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Down, animationSpec = tween(animDuration)) +
-                                                        fadeOut(animationSpec = tween(animDuration))
+                                                slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Down, animationSpec = tween(300))
                                             }
                                         ) {
                                             PlanHistoryScreen(
@@ -495,32 +506,32 @@ class MainActivity : AppCompatActivity() {
                                                 onPlanClick = { planId, startDate ->
                                                     val timestamp = System.currentTimeMillis()
                                                     navController.navigate("dashboard?planId=$planId&date=$startDate&trigger=$timestamp") {
-                                                        popUpTo("dashboard") { inclusive = true }
+                                                        // 這裡移除 popUpTo，讓 dashboard 疊在 history 上面，
+                                                        // 這樣返回時才能看到 history 頁面滑下來
+                                                        launchSingleTop = true
                                                     }
-                                                }
+                                                },
+                                                sharedTransitionScope = this@SharedTransitionLayout,
+                                                animatedVisibilityScope = this@composable
                                             )
                                         }
 
-                                        // 9. Transaction Detail (改為 Composable 頁面以支援 Shared Element)
+                                        // 9. Transaction Detail
                                         composable(
                                             route = "transaction_detail/{expenseId}",
                                             arguments = listOf(navArgument("expenseId") { type = NavType.LongType }),
-                                            // 設定背景淡入淡出，讓 Shared Element 成為視覺焦點
                                             enterTransition = { fadeIn(animationSpec = tween(300)) },
                                             exitTransition = { fadeOut(animationSpec = tween(300)) },
                                             popEnterTransition = { fadeIn(animationSpec = tween(300)) },
                                             popExitTransition = { fadeOut(animationSpec = tween(300)) }
                                         ) { backStackEntry ->
                                             val expenseId = backStackEntry.arguments?.getLong("expenseId") ?: -1L
-
-                                            // 先取得 ViewModel 實體
                                             val viewModel: com.example.budgetquest.ui.transaction.TransactionViewModel = viewModel(factory = AppViewModelProvider.Factory)
 
                                             TransactionDetailScreen(
                                                 expenseId = expenseId,
                                                 onBackClick = { navController.popBackStack() },
                                                 onEditClick = { id ->
-                                                    // [修改 2] 移除 popUpTo，讓編輯頁面疊加上去，以觸發由下往上的動畫
                                                     navController.navigate("transaction/$id")
                                                 },
                                                 onDeleteClick = {
@@ -532,7 +543,7 @@ class MainActivity : AppCompatActivity() {
                                             )
                                         }
 
-                                        // [新增] 10. Subscription Detail
+                                        // 10. Subscription Detail
                                         composable(
                                             route = "subscription_detail/{subId}",
                                             arguments = listOf(navArgument("subId") { type = NavType.LongType }),
@@ -546,13 +557,9 @@ class MainActivity : AppCompatActivity() {
                                             SubscriptionDetailScreen(
                                                 subscriptionId = subId,
                                                 onBackClick = { navController.popBackStack() },
-
-                                                // [修正] 這裡才是寫 navController 導航邏輯的地方
                                                 onEditClick = { id ->
-                                                    // 導航到 SubscriptionScreen 並帶入 editId
                                                     navController.navigate("subscription?planId=-1&editId=$id")
                                                 },
-
                                                 onDeleteSuccess = {
                                                     navController.popBackStack()
                                                 },
@@ -560,11 +567,6 @@ class MainActivity : AppCompatActivity() {
                                                 animatedVisibilityScope = this@composable
                                             )
                                         }
-
-
-
-
-
                                     }
                                 }
                             }

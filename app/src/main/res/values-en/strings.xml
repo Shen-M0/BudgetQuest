@@ -2,9 +2,7 @@
     <string name="app_name">Budget Quest</string>
 
     <string name="action_back">Back</string>
-    <string name="action_cancel">Cancel</string>
     <string name="action_confirm">Confirm</string>
-    <string name="action_delete">Delete</string>
     <string name="action_select_date">Select Date</string>
     <string name="btn_save">Save</string>
 
@@ -54,19 +52,11 @@
     <string name="hint_subscription_example">e.g. Netflix...</string>
     <string name="action_add_subscription">Add Item</string>
 
-    <string name="title_summary">Summary</string>
-    <string name="label_remaining_budget">Remaining</string>
-    <string name="label_expense_distribution">Distribution</string>
-    <string name="label_filter_conditions">Filters</string>
-    <string name="label_filter_applied">Filter Applied</string>
-    <string name="msg_no_records_found">No Records</string>
+
     <string name="format_pie_chart_legend">%1$s: $%2$d (%3$d%%)</string>
     <string name="format_date_month_day">MM/dd</string>
     <string name="format_category_date">%1$s · %2$s</string>
-    <string name="hint_search_note">Search notes...</string>
-    <string name="msg_goal_achieved">Goal Achieved! 🎉\nGreat habit building.</string>
-    <string name="msg_budget_exceeded">Over Budget ⚠️\nReview unnecessary expenses.</string>
-    <string name="msg_no_plan_data">No Plan Data</string>
+
 
     <string name="title_date_format_detail">yyyy/MM/dd (EEE)</string>
     <string name="label_daily_total">Total</string>
@@ -91,7 +81,6 @@
     <string name="freq_day">Daily</string>
     <string name="freq_custom">Custom</string>
     <string name="format_subscription_price">$%1$d / %2$s</string>
-    <string name="format_date_standard">MM/dd/yyyy</string>
 
     <string name="title_create_plan">Create Plan</string>
     <string name="title_edit_plan">Edit Plan</string>
@@ -143,7 +132,6 @@
     <string name="desc_plan_end_reminder">Notify when plan ends</string>
     <string name="btn_test_notification">Test Notification</string>
     <string name="msg_check_notification_permission">If no notification, check system settings.</string>
-    <string name="title_cloud_backup">Cloud Backup</string>
     <string name="desc_cloud_backup">Backup to Google Drive</string>
     <string name="btn_backup">Backup</string>
     <string name="btn_restore">Restore</string>
@@ -244,14 +232,125 @@
     <string name="error_msg_category">Please select a category</string>
     <string name="error_msg_note">Please enter a note</string>
     <string name="error_msg_sub">Please enter a name</string>
-    <string name="label_total">Total</string>
 
     <string name="action_add_expense">Add Expense</string>
-    <string name="label_total_expense">Total Expense</string>
 
     <string name="suffix_auto_deduction">(Auto)</string>
 
+    <string name="title_summary">Summary</string>
+    <string name="tab_list_view">List</string>
+    <string name="tab_analysis_view">Stats</string>
+
+    <string name="msg_goal_achieved">Great job! You are within budget.\nKeep it up to reach your savings goal!</string>
+    <string name="msg_budget_exceeded">Alert! You have exceeded the budget.\nPlease review unnecessary expenses.</string>
+    <string name="msg_no_plan_data">No budget plan set.</string>
+    <string name="label_remaining_budget">Remaining</string>
+    <string name="label_filter_conditions">Filter</string>
+    <string name="label_filter_applied">Filter Applied</string>
+    <string name="hint_search_note">Search notes, merchants...</string>
+    <string name="msg_no_records_found">No records found</string>
+    <string name="label_expense_distribution">Category Distribution</string>
+    <string name="label_total">Total</string>
+
+    <string name="label_spending_overview">Overview</string>
+    <string name="label_real_total_spent">Total Outflow</string>
+    <string name="label_budget_spent">Budget Spending</string>
+    <string name="msg_including_excluded">(Incl. excluded %1$d)</string>
+
+    <string name="label_consumption_nature">Rationality Analysis</string>
+    <string name="label_need">Need</string>
+    <string name="label_want">Want</string>
+
+    <string name="label_payment_distribution">Payment Methods</string>
+
+    <string name="label_merchant_ranking">Top Merchants</string>
+    <string name="sort_by_amount">Amount</string>
+    <string name="sort_by_count">Count</string>
+    <string name="format_count_times">%1$d times</string>
+    <string name="msg_no_data">No data available</string>
+
+    <string name="title_transaction_detail">Transaction Details</string>
+    <string name="dialog_delete_title">Confirm Delete</string>
+    <string name="dialog_delete_message">Are you sure you want to delete this record? This cannot be undone.</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_edit">Edit</string>
+
+    <string name="label_date">Date</string>
+    <string name="label_merchant">Merchant</string>
+    <string name="label_payment">Payment</string>
+    <string name="label_need_full">Need</string>
+    <string name="label_want_full">Want</string>
+    <string name="label_excluded_full">Excluded</string>
+    <string name="desc_attached_image">Attached Image</string>
+    <string name="error_open_map">Cannot open map application</string>
 
 
+    <string name="title_advanced_options">Advanced Options</string>
+
+    <string name="label_photo_receipt">Photo / Receipt</string>
+    <string name="label_payment_method">Payment Method</string>
+    <string name="label_merchant_location">Merchant / Location</string>
+    <string name="label_exclude_budget">Exclude from Budget</string>
+
+
+    <string name="hint_add_photo">Tap to take photo or select image</string>
+    <string name="hint_merchant">e.g., 7-Eleven, Starbucks...</string>
+    <string name="hint_exclude_budget">Won\'t affect daily available budget</string>
+    <string name="dialog_image_source_title">Select Image Source</string>
+    <string name="dialog_image_source_message">Choose to select from gallery or take a photo.</string>
+    <string name="source_gallery">Gallery</string>
+    <string name="source_camera">Camera</string>
+
+    <string name="desc_manage_button">Manage</string>
+    <string name="desc_search_location">Search Location</string>
+    <string name="desc_selected_image">Selected Image</string>
+
+    <string name="error_search_failed">Search Error</string>
+
+    <string name="label_total_expense">Total Expenses</string>
+    <string name="format_date_standard">MM/dd/yyyy</string>
+
+    <string name="text_excluded_label">(Excluded)</string>
+
+    <string name="pay_cash">Cash</string>
+    <string name="pay_credit_card">Credit Card</string>
+    <string name="pay_linepay">LinePay</string>
+    <string name="pay_easycard">EasyCard</string>
+    <string name="pay_transfer">Transfer</string>
+    <string name="pay_visa">VISA</string>
+    <string name="pay_mastercard">MasterCard</string>
+    <string name="pay_apple_pay">Apple Pay</string>
+    <string name="pay_google_pay">Google Pay</string>
+    <string name="msg_locating">Locating...</string>
+    <string name="msg_location_found">Location updated</string>
+    <string name="error_location_not_found">Address not found</string>
+    <string name="error_geocoder_failed">Geocoder failed</string>
+    <string name="error_location_unavailable">Location unavailable, please check GPS</string>
+    <string name="error_permission_denied">Location permission required</string>
+
+
+    <string name="title_cloud_backup">Backup &amp; Restore</string>
+    <string name="subtitle_cloud_firebase">Cloud Sync (Firebase)</string>
+    <string name="subtitle_local_backup">Manual Backup (Local File)</string>
+    <string name="desc_cloud_sync">Securely backup data to the cloud. Easy restoration on new devices.</string>
+    <string name="desc_local_backup">Export database file to device storage.</string>
+    <string name="label_last_backup">Last Backup: %s</string>
+    <string name="msg_no_cloud_backup_found">No backup found</string>
+    <string name="action_upload">Upload</string>
+    <string name="action_download">Download</string>
+    <string name="action_link_google">Link Google Account</string>
+    <string name="label_anonymous_account">Anonymous (Unlinked)</string>
+    <string name="warning_anonymous_risk">Warning: Data will be lost if app is uninstalled. Link Google Account to secure.</string>
+    <string name="msg_google_login_success">Google Sign-In Successful</string>
+    <string name="msg_cloud_upload_success">Cloud backup successful</string>
+    <string name="msg_cloud_restore_success">Restore successful, please restart app</string>
+    <string name="error_fetch_backup_time">Failed to fetch time</string>
+    <string name="error_login_failed">Login failed</string>
+    <string name="error_google_login_failed">Google Sign-In failed</string>
+    <string name="error_backup_failed">Backup failed</string>
+    <string name="error_restore_failed">Restore failed</string>
+    <string name="error_login_required">Please login to restore</string>
+    <string name="error_network_login">Login failed, check network</string>
 
 </resources>

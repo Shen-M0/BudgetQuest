@@ -2,9 +2,7 @@
     <string name="app_name">Budget Quest</string>
 
     <string name="action_back">返回</string>
-    <string name="action_cancel">取消</string>
     <string name="action_confirm">确认</string>
-    <string name="action_delete">删除</string>
     <string name="action_select_date">选择日期</string>
     <string name="btn_save">保存</string>
 
@@ -33,12 +31,10 @@
         <item>六</item>
     </string-array>
 
-    <string name="title_add_transaction">记一笔</string>
-    <string name="title_edit_transaction">编辑消费</string>
+
     <string name="label_category">分类</string>
     <string name="label_note">备注</string>
-    <string name="hint_amount">0</string>
-    <string name="hint_note">输入项目名称...</string>
+
     <string name="date_format_transaction">yyyy/MM/dd</string>
     <string name="desc_edit_button">编辑列表</string>
 
@@ -54,19 +50,11 @@
     <string name="hint_subscription_example">例如: Netflix...</string>
     <string name="action_add_subscription">新增项目</string>
 
-    <string name="title_summary">消费记录</string>
-    <string name="label_remaining_budget">剩余可用</string>
-    <string name="label_expense_distribution">消费分布</string>
-    <string name="label_filter_conditions">筛选条件</string>
-    <string name="label_filter_applied">已应用筛选</string>
-    <string name="msg_no_records_found">暂无记录</string>
+
     <string name="format_pie_chart_legend">%1$s: $%2$d (%3$d%%)</string>
     <string name="format_date_month_day">MM/dd</string>
     <string name="format_category_date">%1$s · %2$s</string>
-    <string name="hint_search_note">搜索备注...</string>
-    <string name="msg_goal_achieved">太棒了！目标达成 🎉\n好习惯正在慢慢养成中。</string>
-    <string name="msg_budget_exceeded">注意！预算已超支 ⚠️\n建议检视非必要开销。</string>
-    <string name="msg_no_plan_data">无计划数据</string>
+
 
     <string name="title_date_format_detail">yyyy/MM/dd (EEE)</string>
     <string name="label_daily_total">本日总支出</string>
@@ -91,7 +79,6 @@
     <string name="freq_day">每天</string>
     <string name="freq_custom">自定义</string>
     <string name="format_subscription_price">$%1$d / %2$s</string>
-    <string name="format_date_standard">yyyy/MM/dd</string>
 
     <string name="title_create_plan">建立计划</string>
     <string name="title_edit_plan">编辑计划</string>
@@ -143,7 +130,6 @@
     <string name="desc_plan_end_reminder">计划结束当天通知</string>
     <string name="btn_test_notification">发送测试通知</string>
     <string name="msg_check_notification_permission">点击后若无反应，请检查手机设置中的通知权限。</string>
-    <string name="title_cloud_backup">云端备份与还原</string>
     <string name="desc_cloud_backup">将数据备份至 Google Drive (需登录 Drive App)</string>
     <string name="btn_backup">备份</string>
     <string name="btn_restore">还原</string>
@@ -244,12 +230,128 @@
     <string name="error_msg_category">请选择分类</string>
     <string name="error_msg_note">请输入备注</string>
     <string name="error_msg_sub">请输入名称</string>
-    <string name="label_total">总计</string>
 
     <string name="action_add_expense">新增消费</string>
-    <string name="label_total_expense">总支出</string>
 
     <string name="suffix_auto_deduction">(自动扣款)</string>
+
+    <string name="title_summary">详细消费</string>
+    <string name="tab_list_view">明细</string>
+    <string name="tab_analysis_view">分析</string>
+
+    <string name="msg_goal_achieved">恭喜！目前在预算范围内。\n保持这个节奏，存钱目标指日可待！</string>
+    <string name="msg_budget_exceeded">注意！支出已超出预算。\n建议检视非必要开销，适度调整消费。</string>
+    <string name="msg_no_plan_data">目前没有设定预算计划。</string>
+    <string name="label_remaining_budget">剩余预算</string>
+    <string name="label_filter_conditions">筛选条件</string>
+    <string name="label_filter_applied">已应用筛选</string>
+    <string name="hint_search_note">搜索备注、店家...</string>
+    <string name="msg_no_records_found">没有符合条件的记录</string>
+    <string name="label_expense_distribution">消费分类分布</string>
+    <string name="label_total">总计</string>
+
+    <string name="label_spending_overview">支出总览</string>
+    <string name="label_real_total_spent">真实总流出</string>
+    <string name="label_budget_spent">预算内支出</string>
+    <string name="msg_including_excluded">(含不计入 %1$d)</string>
+
+    <string name="label_consumption_nature">消费性质分析</string>
+    <string name="label_need">必要 (Need)</string>
+    <string name="label_want">想要 (Want)</string>
+
+    <string name="label_payment_distribution">支付方式分布</string>
+
+    <string name="label_merchant_ranking">消费足迹排行</string>
+    <string name="sort_by_amount">金额</string>
+    <string name="sort_by_count">次数</string>
+    <string name="format_count_times">%1$d 次</string>
+    <string name="msg_no_data">暂无数据</string>
+
+    <string name="title_transaction_detail">消费详情</string>
+    <string name="dialog_delete_title">确认删除</string>
+    <string name="dialog_delete_message">您确定要删除这笔消费记录吗？此操作无法撤销。</string>
+    <string name="action_delete">删除</string>
+    <string name="action_cancel">取消</string>
+    <string name="action_edit">编辑</string>
+
+    <string name="label_date">日期</string>
+    <string name="label_merchant">商家</string>
+    <string name="label_payment">支付</string>
+    <string name="label_need_full">必要 (Need)</string>
+    <string name="label_want_full">想要 (Want)</string>
+    <string name="label_excluded_full">不计入预算</string>
+    <string name="desc_attached_image">附图</string>
+    <string name="error_open_map">无法打开地图应用</string>
+
+    <string name="title_add_transaction">新增消费</string>
+    <string name="title_edit_transaction">编辑消费</string>
+    <string name="title_advanced_options">高级选项</string>
+
+    <string name="label_photo_receipt">照片 / 收据</string>
+    <string name="label_payment_method">支付方式</string>
+    <string name="label_merchant_location">商家 / 地点</string>
+    <string name="label_exclude_budget">不计入预算</string>
+
+    <string name="hint_amount">输入金额</string>
+    <string name="hint_note">输入备注...</string>
+    <string name="hint_add_photo">点击拍摄或选取照片</string>
+    <string name="hint_merchant">例如：7-11, 星巴克...</string>
+    <string name="hint_exclude_budget">开启后不会扣除今日可用额度</string>
+
+    <string name="dialog_image_source_title">选择图片来源</string>
+    <string name="dialog_image_source_message">请选择要从相册选取还是开启相机拍摄。</string>
+    <string name="source_gallery">相册</string>
+    <string name="source_camera">相机</string>
+
+    <string name="desc_manage_button">管理</string>
+    <string name="desc_search_location">搜索地点</string>
+    <string name="desc_selected_image">已选图片</string>
+
+    <string name="error_search_failed">搜索错误</string>
+
+    <string name="label_total_expense">总支出</string>
+    <string name="format_date_standard">yyyy/MM/dd</string>
+
+    <string name="text_excluded_label">(不计入)</string>
+
+    <string name="pay_cash">现金</string>
+    <string name="pay_credit_card">信用卡</string>
+    <string name="pay_linepay">LinePay</string>
+    <string name="pay_easycard">悠游卡</string>
+    <string name="pay_transfer">转账</string>
+    <string name="pay_visa">VISA</string>
+    <string name="pay_mastercard">MasterCard</string>
+    <string name="pay_apple_pay">Apple Pay</string>
+    <string name="pay_google_pay">Google Pay</string>
+    <string name="msg_locating">定位中...</string>
+    <string name="msg_location_found">已更新为当前位置</string>
+    <string name="error_location_not_found">无法获取地址信息</string>
+    <string name="error_geocoder_failed">地址解析失败</string>
+    <string name="error_location_unavailable">无法获取当前位置，请确认 GPS 已开启</string>
+    <string name="error_permission_denied">需要定位权限才能使用此功能</string>
+
+    <string name="title_cloud_backup">备份与还原</string>
+    <string name="subtitle_cloud_firebase">云端同步 (Firebase)</string>
+    <string name="subtitle_local_backup">手动备份 (本地文件)</string>
+    <string name="desc_cloud_sync">将数据安全备份至云端，换手机也能轻松还原。</string>
+    <string name="desc_local_backup">导出数据库文件至手机存储空间。</string>
+    <string name="label_last_backup">上次备份： %s</string>
+    <string name="msg_no_cloud_backup_found">尚无云端备份记录</string>
+    <string name="action_upload">上传</string>
+    <string name="action_download">下载</string>
+    <string name="action_link_google">关联 Google 账号</string>
+    <string name="label_anonymous_account">匿名账户 (未绑定)</string>
+    <string name="warning_anonymous_risk">注意：若卸载 App 或清除数据，备份将永久丢失。强烈建议绑定 Google 账号。</string>
+    <string name="msg_google_login_success">Google 登录成功</string>
+    <string name="msg_cloud_upload_success">云端备份成功</string>
+    <string name="msg_cloud_restore_success">还原成功，请重启应用程序</string>
+    <string name="error_fetch_backup_time">无法获取时间</string>
+    <string name="error_login_failed">登录失败</string>
+    <string name="error_google_login_failed">Google 登录失败</string>
+    <string name="error_backup_failed">备份失败</string>
+    <string name="error_restore_failed">还原失败</string>
+    <string name="error_login_required">请先登录才能还原</string>
+    <string name="error_network_login">登录失败，请检查网络连接</string>
 
 
 </resources>

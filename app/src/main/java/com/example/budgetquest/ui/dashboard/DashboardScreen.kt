@@ -1,16 +1,17 @@
 package com.example.budgetquest.ui.dashboard
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedVisibilityScope
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -58,7 +59,7 @@ import com.example.budgetquest.ui.common.CoachMarkTarget
 import com.example.budgetquest.ui.common.GlassCard
 import com.example.budgetquest.ui.common.GlassIconButton
 import com.example.budgetquest.ui.theme.AppTheme
-import com.example.budgetquest.ui.common.FluidBoundsTransform // 引用共通動畫常數
+import com.example.budgetquest.ui.common.FluidBoundsTransform
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
@@ -87,7 +88,7 @@ fun DashboardScreen(
     onHistoryClick: () -> Unit,
     onSettingsClick: () -> Unit,
     viewModel: DashboardViewModel = viewModel(factory = AppViewModelProvider.Factory),
-    // 這是從 MainActivity 傳來的 Scope (用於跨頁面轉場)
+    // [重要] 這裡一定要從 MainActivity 接收 Scope
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
@@ -108,8 +109,8 @@ fun DashboardScreen(
         }
     }
 
+    // ... (PagerConfig, PagerState, debouncer, layout config 等邏輯保持不變) ...
     val calendarAnchorYear = 1900
-
     val pagerConfig = remember(uiState.activePlan, uiState.viewMode) {
         if (uiState.viewMode == ViewMode.Focus && uiState.activePlan != null) {
             val plan = uiState.activePlan!!
@@ -248,6 +249,7 @@ fun DashboardScreen(
                     }
                 },
                 actions = {
+                    // ... (Actions 代碼保持不變) ...
                     val iconTint = AppTheme.colors.textSecondary
                     Row(modifier = Modifier.padding(end = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (uiState.viewMode == ViewMode.Focus) {
@@ -376,188 +378,202 @@ fun DashboardScreen(
                 .padding(innerPadding)
                 .fillMaxSize()
         ) {
-            // [關鍵優化] 加入局部的 SharedTransitionLayout 來處理專注模式與月曆模式的切換
-            SharedTransitionLayout {
-                AnimatedContent(
-                    targetState = uiState.viewMode,
-                    transitionSpec = {
-                        fadeIn(animationSpec = tween(400)) togetherWith fadeOut(animationSpec = tween(400))
-                    },
-                    label = "mode_transition"
-                ) { targetMode ->
-                    Column(modifier = Modifier.fillMaxSize()) {
+            // [恢復] 使用局部的 SharedTransitionLayout 處理「內部模式切換 (Focus<->Calendar)」
+            // 因為如果不加這個，模式切換的動畫會因為找不到 Scope 而失敗
+            // 但我們要確保「跨頁面動畫」能優先運作
 
-                        // 1. Status Card (只在專注模式顯示)
-                        if (targetMode == ViewMode.Focus && uiState.activePlan != null) {
-                            Box(modifier = Modifier.onGloballyPositioned { statusCardCoords = it }) {
-                                DashboardStatusCard(
-                                    todayAvailable = uiState.todayAvailable,
-                                    isExpired = uiState.isExpired
-                                )
-                            }
-                        } else {
-                            // 在月曆模式下，給一點頂部間距讓畫面不擁擠
-                            Spacer(modifier = Modifier.height(16.dp))
-                        }
+            // 邏輯修正：我們不使用 SharedTransitionLayout 包裹整個畫面，因為那樣會阻斷外部 Scope。
+            // 我們直接使用 AnimatedVisibility 來處理內部 UI 變化。
 
-                        // 2. Calendar GlassCard (共用元素)
-                        // 這是兩個模式間變化的主要區域
-                        GlassCard(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp)
-                                .padding(bottom = 16.dp)
-                                // [關鍵] 標記為共用元素，key="calendar_card"
-                                // 這會讓此卡片在 StatusCard 消失時，自動平滑地擴展到上方
-                                .sharedElement(
-                                    state = rememberSharedContentState(key = "calendar_card"),
-                                    animatedVisibilityScope = this@AnimatedContent,
-                                    boundsTransform = FluidBoundsTransform
-                                )
+            // 1. Status Card (只在專注模式顯示)
+            AnimatedVisibility(
+                visible = uiState.viewMode == ViewMode.Focus && uiState.activePlan != null,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                Box(modifier = Modifier.onGloballyPositioned { statusCardCoords = it }) {
+                    DashboardStatusCard(
+                        todayAvailable = uiState.todayAvailable,
+                        isExpired = uiState.isExpired
+                    )
+                }
+            }
+
+            if (uiState.viewMode == ViewMode.Calendar || uiState.activePlan == null) {
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
+            // 2. Calendar GlassCard (共用元素)
+            // 這是核心動畫容器
+            var cardModifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 16.dp)
+
+            // [關鍵] 動態決定 Key
+            // 如果 planId != -1，表示我們是從「歷史頁面」點進來的，這時候優先使用 "plan_$planId" 來對接歷史頁面的卡片
+            // 否則，使用 "calendar_card" 維持內部狀態的穩定
+            val transitionKey = if (planId != -1) {
+                "plan_$planId"
+            } else if (uiState.activePlan != null && uiState.viewMode == ViewMode.Focus) {
+                // 如果是專注模式且有計畫，也嘗試對接 (防止閃爍)
+                "plan_${uiState.activePlan!!.id}"
+            } else {
+                "calendar_card"
+            }
+
+            // 套用共享元素轉場
+            if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+                with(sharedTransitionScope) {
+                    cardModifier = cardModifier.sharedElement(
+                        state = rememberSharedContentState(key = transitionKey),
+                        animatedVisibilityScope = animatedVisibilityScope,
+                        boundsTransform = FluidBoundsTransform
+                    )
+                }
+            }
+
+            GlassCard(modifier = cardModifier) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(vertical = 16.dp)
+                ) {
+                    Box(modifier = Modifier.onGloballyPositioned { cardCoords = it }) {
+                        WeekHeader()
+                    }
+
+                    if (uiState.isLoading) {
+                        Box(
+                            modifier = Modifier.weight(1f).fillMaxWidth(),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(vertical = 16.dp)
-                            ) {
-                                Box(modifier = Modifier.onGloballyPositioned { cardCoords = it }) {
-                                    WeekHeader()
+                            CircularProgressIndicator(color = AppTheme.colors.accent)
+                        }
+                    } else if (uiState.dailyStates.isEmpty() && uiState.activePlan == null) {
+                        Box(
+                            modifier = Modifier.weight(1f).fillMaxWidth(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (uiState.viewMode == ViewMode.Focus && uiState.activePlan == null) {
+                                DashboardEmptyState(
+                                    onCreateClick = { debounce { onEmptyDateClick(-1L, -1L) } }
+                                )
+                            } else {
+                                CircularProgressIndicator(color = AppTheme.colors.accent)
+                            }
+                        }
+                    } else {
+                        Box(modifier = Modifier.weight(1f)) {
+                            HorizontalPager(
+                                state = pagerState,
+                                userScrollEnabled = true,
+                                modifier = Modifier.fillMaxSize()
+                            ){ page ->
+                                // ... Pager Content 保持不變 ...
+                                val pageTargetDate = remember(page, startCalForPager) {
+                                    (startCalForPager.clone() as Calendar).apply { add(Calendar.MONTH, page) }
                                 }
+                                val pageYear = pageTargetDate.get(Calendar.YEAR)
+                                val pageMonth = pageTargetDate.get(Calendar.MONTH)
+                                val isDataReady = pageYear == uiState.currentYear && pageMonth == uiState.currentMonth
 
-                                if (uiState.isLoading) {
-                                    Box(
-                                        modifier = Modifier.weight(1f).fillMaxWidth(),
-                                        contentAlignment = Alignment.Center
+                                if (isDataReady) {
+                                    LazyVerticalGrid(
+                                        columns = GridCells.Fixed(7),
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(horizontal = 12.dp),
+                                        contentPadding = PaddingValues(bottom = 64.dp),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
-                                        CircularProgressIndicator(color = AppTheme.colors.accent)
-                                    }
-                                } else if (uiState.dailyStates.isEmpty() && uiState.activePlan == null) {
-                                    Box(
-                                        modifier = Modifier.weight(1f).fillMaxWidth(),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        if (uiState.viewMode == ViewMode.Focus && uiState.activePlan == null) {
-                                            DashboardEmptyState(
-                                                onCreateClick = { debounce { onEmptyDateClick(-1L, -1L) } }
-                                            )
-                                        } else {
-                                            CircularProgressIndicator(color = AppTheme.colors.accent)
+                                        itemsIndexed(
+                                            uiState.dailyStates,
+                                            key = { index, dayState ->
+                                                if (dayState.status == DayStatus.Empty) "empty_$index" else "${dayState.date}_${dayState.status}"
+                                            }
+                                        ) { index, dayState ->
+                                            if (dayState.status == DayStatus.Empty) {
+                                                Box(modifier = Modifier.aspectRatio(1f))
+                                            } else {
+                                                val scale = remember(dayState.date) { Animatable(0.92f) }
+                                                val alpha = remember(dayState.date) { Animatable(0f) }
+                                                LaunchedEffect(dayState.date) {
+                                                    scale.snapTo(0.92f)
+                                                    alpha.snapTo(0f)
+                                                    launch { scale.animateTo(1f, animationSpec = tween(250, easing = FastOutSlowInEasing)) }
+                                                    launch { alpha.animateTo(1f, animationSpec = tween(200)) }
+                                                }
+
+                                                Box(
+                                                    modifier = Modifier.graphicsLayer {
+                                                        scaleX = scale.value
+                                                        scaleY = scale.value
+                                                        this.alpha = alpha.value
+                                                    }
+                                                ) {
+                                                    // DailyDetail 轉場的 SharedElement
+                                                    var itemModifier = Modifier as Modifier
+                                                    if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+                                                        with(sharedTransitionScope) {
+                                                            itemModifier = itemModifier.sharedElement(
+                                                                state = rememberSharedContentState(key = "day_${dayState.date}"),
+                                                                animatedVisibilityScope = animatedVisibilityScope,
+                                                                boundsTransform = FluidBoundsTransform
+                                                            )
+                                                        }
+                                                    }
+
+                                                    Box(modifier = itemModifier) {
+                                                        JapaneseDayGridItem(
+                                                            dayState = dayState,
+                                                            showBalance = uiState.viewMode == ViewMode.Focus,
+                                                            onClick = { date ->
+                                                                debounce {
+                                                                    if (uiState.viewMode == ViewMode.Calendar) {
+                                                                        if (dayState.baseLimit > 0 || dayState.status == DayStatus.Success || dayState.status == DayStatus.Fail) {
+                                                                            viewModel.selectPlanByDate(date)
+                                                                        } else {
+                                                                            scope.launch {
+                                                                                val (start, end) = viewModel.calculateSmartDates(date)
+                                                                                onEmptyDateClick(start, end)
+                                                                            }
+                                                                        }
+                                                                    } else {
+                                                                        if (dayState.status != DayStatus.Neutral) {
+                                                                            onDayClick(date)
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        )
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                 } else {
-                                    Box(modifier = Modifier.weight(1f)) {
-                                        HorizontalPager(
-                                            state = pagerState,
-                                            userScrollEnabled = true,
-                                            modifier = Modifier.fillMaxSize()
-                                        ){ page ->
-                                            // ... (Pager 內容保持不變)
-                                            val pageTargetDate = remember(page, startCalForPager) {
-                                                (startCalForPager.clone() as Calendar).apply { add(Calendar.MONTH, page) }
-                                            }
-                                            val pageYear = pageTargetDate.get(Calendar.YEAR)
-                                            val pageMonth = pageTargetDate.get(Calendar.MONTH)
-                                            val isDataReady = pageYear == uiState.currentYear && pageMonth == uiState.currentMonth
+                                    Box(modifier = Modifier.fillMaxSize())
+                                }
+                            }
 
-                                            if (isDataReady) {
-                                                LazyVerticalGrid(
-                                                    columns = GridCells.Fixed(7),
-                                                    modifier = Modifier
-                                                        .fillMaxSize()
-                                                        .padding(horizontal = 12.dp),
-                                                    contentPadding = PaddingValues(bottom = 64.dp),
-                                                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                                ) {
-                                                    itemsIndexed(
-                                                        uiState.dailyStates,
-                                                        key = { index, dayState ->
-                                                            if (dayState.status == DayStatus.Empty) "empty_$index" else "${dayState.date}_${dayState.status}"
-                                                        }
-                                                    ) { index, dayState ->
-                                                        if (dayState.status == DayStatus.Empty) {
-                                                            Box(modifier = Modifier.aspectRatio(1f))
-                                                        } else {
-                                                            val scale = remember(dayState.date) { Animatable(0.92f) }
-                                                            val alpha = remember(dayState.date) { Animatable(0f) }
-                                                            LaunchedEffect(dayState.date) {
-                                                                scale.snapTo(0.92f)
-                                                                alpha.snapTo(0f)
-                                                                launch { scale.animateTo(1f, animationSpec = tween(250, easing = FastOutSlowInEasing)) }
-                                                                launch { alpha.animateTo(1f, animationSpec = tween(200)) }
-                                                            }
-
-                                                            Box(
-                                                                modifier = Modifier.graphicsLayer {
-                                                                    scaleX = scale.value
-                                                                    scaleY = scale.value
-                                                                    this.alpha = alpha.value
-                                                                }
-                                                            ) {
-                                                                // 這裡使用從 MainActivity 傳來的 Scope (用於 DailyDetail 轉場)
-                                                                var itemModifier = Modifier as Modifier
-                                                                if (sharedTransitionScope != null && animatedVisibilityScope != null) {
-                                                                    with(sharedTransitionScope) {
-                                                                        itemModifier = itemModifier.sharedElement(
-                                                                            state = rememberSharedContentState(key = "day_${dayState.date}"),
-                                                                            animatedVisibilityScope = animatedVisibilityScope,
-                                                                            boundsTransform = FluidBoundsTransform
-                                                                        )
-                                                                    }
-                                                                }
-
-                                                                Box(modifier = itemModifier) {
-                                                                    JapaneseDayGridItem(
-                                                                        dayState = dayState,
-                                                                        showBalance = uiState.viewMode == ViewMode.Focus,
-                                                                        onClick = { date ->
-                                                                            debounce {
-                                                                                if (uiState.viewMode == ViewMode.Calendar) {
-                                                                                    if (dayState.baseLimit > 0 || dayState.status == DayStatus.Success || dayState.status == DayStatus.Fail) {
-                                                                                        viewModel.selectPlanByDate(date)
-                                                                                    } else {
-                                                                                        scope.launch {
-                                                                                            val (start, end) = viewModel.calculateSmartDates(date)
-                                                                                            onEmptyDateClick(start, end)
-                                                                                        }
-                                                                                    }
-                                                                                } else {
-                                                                                    if (dayState.status != DayStatus.Neutral) {
-                                                                                        onDayClick(date)
-                                                                                    }
-                                                                                }
-                                                                            }
-                                                                        }
-                                                                    )
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            } else {
-                                                Box(modifier = Modifier.fillMaxSize())
-                                            }
-                                        }
-
-                                        if (uiState.viewMode == ViewMode.Focus && totalPageCount > 1) {
-                                            if (pagerState.currentPage > 0) {
-                                                IconButton(
-                                                    onClick = { scope.launch { pagerState.animateScrollToPage(pagerState.currentPage - 1) } },
-                                                    modifier = Modifier.align(Alignment.CenterStart).offset(x = (-12).dp)
-                                                ) {
-                                                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, null, tint = AppTheme.colors.textSecondary.copy(alpha = 0.5f), modifier = Modifier.size(32.dp))
-                                                }
-                                            }
-                                            if (pagerState.currentPage < totalPageCount - 1) {
-                                                IconButton(
-                                                    onClick = { scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) } },
-                                                    modifier = Modifier.align(Alignment.CenterEnd).offset(x = 12.dp)
-                                                ) {
-                                                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = AppTheme.colors.textSecondary.copy(alpha = 0.5f), modifier = Modifier.size(32.dp))
-                                                }
-                                            }
-                                        }
+                            if (uiState.viewMode == ViewMode.Focus && totalPageCount > 1) {
+                                if (pagerState.currentPage > 0) {
+                                    IconButton(
+                                        onClick = { scope.launch { pagerState.animateScrollToPage(pagerState.currentPage - 1) } },
+                                        modifier = Modifier.align(Alignment.CenterStart).offset(x = (-12).dp)
+                                    ) {
+                                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, null, tint = AppTheme.colors.textSecondary.copy(alpha = 0.5f), modifier = Modifier.size(32.dp))
+                                    }
+                                }
+                                if (pagerState.currentPage < totalPageCount - 1) {
+                                    IconButton(
+                                        onClick = { scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) } },
+                                        modifier = Modifier.align(Alignment.CenterEnd).offset(x = 12.dp)
+                                    ) {
+                                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = AppTheme.colors.textSecondary.copy(alpha = 0.5f), modifier = Modifier.size(32.dp))
                                     }
                                 }
                             }
@@ -569,6 +585,7 @@ fun DashboardScreen(
     }
 
     if (isTutorialMode && isTutorialReady && coachMarkStep > 0) {
+        // ... (CoachMark 邏輯保持不變) ...
         val target = when (coachMarkStep) {
             1 -> focusToggleBtnCoords?.let { CoachMarkTarget(it, stringResource(R.string.tutorial_title_mode), stringResource(R.string.tutorial_desc_to_calendar), position = CoachMarkPosition.Bottom) }
             2 -> subBtnCoords?.let { CoachMarkTarget(it, stringResource(R.string.tutorial_title_subscribe), stringResource(R.string.tutorial_desc_subscribe), position = CoachMarkPosition.Bottom) }
@@ -613,7 +630,7 @@ fun DashboardScreen(
     }
 }
 
-// ... (RollingNumberText, DashboardStatusCard, WeekHeader, JapaneseDayGridItem, DashboardEmptyState 保持不變)
+// ... (RollingNumberText, DashboardStatusCard, WeekHeader, JapaneseDayGridItem, DashboardEmptyState 保持不變) ...
 @Composable
 fun RollingNumberText(
     targetValue: Int,

@@ -14,7 +14,9 @@ import androidx.compose.material.icons.rounded.School
 import androidx.compose.material.icons.rounded.ShowChart
 import androidx.compose.material.icons.rounded.SportsEsports
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.example.budgetquest.R
 
@@ -193,4 +195,25 @@ fun getIconByKey(iconKey: String?): ImageVector {
         "icon_travel" -> Icons.Rounded.Flight
         else -> Icons.Default.Category // 預設圖示
     }
+}
+
+/**
+ * 智慧取得支付方式名稱
+ * 如果有 resourceKey，則優先使用多語言字串；否則使用原始名稱 (使用者自訂)
+ */
+@Composable
+fun getSmartPaymentName(originalName: String, resourceKey: String? = null): String {
+    // 1. 如果有 Resource Key，嘗試反查 ID
+    if (resourceKey != null) {
+        val context = LocalContext.current
+        val resId = remember(resourceKey) {
+            context.resources.getIdentifier(resourceKey, "string", context.packageName)
+        }
+        if (resId != 0) {
+            return stringResource(resId)
+        }
+    }
+
+    // 2. 如果沒有 Key 或找不到資源，回傳原始名稱
+    return originalName
 }

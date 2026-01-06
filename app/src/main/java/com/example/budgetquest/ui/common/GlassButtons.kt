@@ -1,5 +1,7 @@
 package com.example.budgetquest.ui.common
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -23,6 +25,16 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.budgetquest.ui.theme.AppTheme
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.zIndex
+
 
 /**
  * 1. 玻璃圓形按鈕 (用於 TopBar 返回、功能選單)
@@ -231,6 +243,98 @@ fun GlassDetailActionButton(
                 fontWeight = FontWeight.Medium,
                 fontSize = 14.sp
             )
+        }
+    }
+}
+
+@Composable
+fun GlassTabRow(
+    selectedTabIndex: Int,
+    onTabSelected: (Int) -> Unit,
+    tabs: List<String>,
+    modifier: Modifier = Modifier
+) {
+    BoxWithConstraints(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .clip(RoundedCornerShape(28.dp))
+            .background(AppTheme.colors.surface.copy(alpha = 0.4f))
+            .border(1.dp, AppTheme.colors.textSecondary.copy(alpha = 0.15f), RoundedCornerShape(28.dp))
+    ) {
+        // [修正] 明確使用 maxWidth (這是 BoxWithConstraintsScope 的屬性)
+        // 如果您的編譯器報錯，有可能是因為 import 問題，但通常這裡直接用即可
+        val totalWidth = this.maxWidth
+        val tabWidth = totalWidth / tabs.size
+
+        // ... (其餘動畫邏輯保持不變)
+
+        // [動畫] 計算指示器的 X 軸偏移量
+        val indicatorOffset by animateDpAsState(
+            targetValue = tabWidth * selectedTabIndex,
+            animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+            label = "IndicatorOffset"
+        )
+
+        // [中層] 滑動指示器 (Active Indicator)
+        // 放在文字層之前繪製，確保它永遠在文字「後面」
+        Box(
+            modifier = Modifier
+                .width(tabWidth)
+                .fillMaxHeight()
+                .offset(x = indicatorOffset)
+                .padding(4.dp) // 內縮一點，製造懸浮感
+                .shadow(
+                    elevation = 8.dp,
+                    shape = RoundedCornerShape(24.dp),
+                    spotColor = AppTheme.colors.accent // 讓陰影帶有主題色
+                )
+                .clip(RoundedCornerShape(24.dp))
+                .background(
+                    // 使用漸層刷色，讓指示器更有質感
+                    brush = Brush.linearGradient(
+                        colors = listOf(
+                            AppTheme.colors.accent,
+                            AppTheme.colors.accent.copy(alpha = 0.8f)
+                        )
+                    )
+                )
+        )
+
+        // [上層] 文字層 (Tabs)
+        Row(modifier = Modifier.fillMaxSize()) {
+            tabs.forEachIndexed { index, title ->
+                val isSelected = selectedTabIndex == index
+
+                // 文字顏色動畫
+                val textColor by animateColorAsState(
+                    targetValue = if (isSelected) Color.White else AppTheme.colors.textSecondary,
+                    label = "TextColor"
+                )
+
+                // 字重動畫 (選中時變粗)
+                val fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+
+                Box(
+                    modifier = Modifier
+                        .width(tabWidth)
+                        .fillMaxHeight()
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null // 移除點擊水波紋，保持乾淨
+                        ) { onTabSelected(index) }
+                        .zIndex(1f), // 強制提升層級
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = title,
+                        color = textColor,
+                        fontSize = 14.sp,
+                        fontWeight = fontWeight,
+                        // [關鍵] 這裡不需要陰影，保持文字清晰，因為背景已經有區隔了
+                    )
+                }
+            }
         }
     }
 }

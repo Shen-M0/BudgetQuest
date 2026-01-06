@@ -1,23 +1,17 @@
 package com.example.budgetquest.ui.history
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -25,23 +19,22 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.budgetquest.R
 import com.example.budgetquest.ui.AppViewModelProvider
-import com.example.budgetquest.ui.common.GlassCard // [新增]
-import com.example.budgetquest.ui.common.GlassIconButton // [新增]
+import com.example.budgetquest.ui.common.FluidBoundsTransform
+import com.example.budgetquest.ui.common.GlassCard
+import com.example.budgetquest.ui.common.GlassIconButton
 import com.example.budgetquest.ui.common.JapaneseBudgetProgressBar
 import com.example.budgetquest.ui.theme.AppTheme
 import java.text.SimpleDateFormat
 import java.util.*
 
-// [移除] getGlassBrush (已在 common 定義)
-// [移除] getBorderBrush (已在 common 定義)
-// [移除] GlassIconContainer (已改用 GlassIconButton)
-
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalSharedTransitionApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun PlanHistoryScreen(
     onBackClick: () -> Unit,
     onPlanClick: (Int, Long) -> Unit,
-    viewModel: PlanHistoryViewModel = viewModel(factory = AppViewModelProvider.Factory)
+    viewModel: PlanHistoryViewModel = viewModel(factory = AppViewModelProvider.Factory),
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
     val plans by viewModel.allPlans.collectAsState()
 
@@ -60,7 +53,6 @@ fun PlanHistoryScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.title_plan_history), color = AppTheme.colors.textPrimary, fontSize = 18.sp) },
                 navigationIcon = {
-                    // [優化] 使用 GlassIconButton (預設 40dp)
                     GlassIconButton(
                         onClick = { debounce(onBackClick) },
                         modifier = Modifier.padding(start = 12.dp)
@@ -81,18 +73,38 @@ fun PlanHistoryScreen(
         }
     ) { innerPadding ->
         LazyColumn(
-            modifier = Modifier.padding(innerPadding).padding(20.dp),
+            modifier = Modifier
+                .padding(innerPadding)
+                .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             items(plans, key = { it.plan.id }) { planItem ->
-                PlanHistoryCard(
-                    item = planItem,
-                    onClick = {
-                        debounce {
-                            onPlanClick(planItem.plan.id, planItem.plan.startDate)
-                        }
+
+                var itemModifier = Modifier.fillMaxWidth()
+
+                // [動畫關鍵] 只有在 Scope 存在時才套用 SharedElement
+                // 這樣在頁面滑動進入時，卡片會跟著頁面一起滑動
+                // 而當點擊並導航到 Dashboard 時，這裡的設定會配合 MainActivity 的 fadeOut 觸發縮放效果
+                if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+                    with(sharedTransitionScope) {
+                        itemModifier = itemModifier.sharedElement(
+                            state = rememberSharedContentState(key = "plan_${planItem.plan.id}"),
+                            animatedVisibilityScope = animatedVisibilityScope,
+                            boundsTransform = FluidBoundsTransform
+                        )
                     }
-                )
+                }
+
+                Box(modifier = itemModifier) {
+                    PlanHistoryCard(
+                        item = planItem,
+                        onClick = {
+                            debounce {
+                                onPlanClick(planItem.plan.id, planItem.plan.startDate)
+                            }
+                        }
+                    )
+                }
             }
         }
     }
@@ -101,7 +113,8 @@ fun PlanHistoryScreen(
 @Composable
 fun PlanHistoryCard(
     item: PlanHistoryItem,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val dateFormatPattern = stringResource(R.string.format_date_history)
     val dateFormat = remember(dateFormatPattern) { SimpleDateFormat(dateFormatPattern, Locale.getDefault()) }
@@ -112,12 +125,10 @@ fun PlanHistoryCard(
     val isExpired = System.currentTimeMillis() > item.plan.endDate
     val isOngoing = item.plan.isActive && !isExpired
 
-    // [優化] 使用 GlassCard 取代原本冗長的 Box 定義
     GlassCard(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth()
     ) {
-        // GlassCard 內部預設是 Box，我們需要自己加 Padding 和 Column
         Column(modifier = Modifier.padding(24.dp)) {
             Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
                 Text(

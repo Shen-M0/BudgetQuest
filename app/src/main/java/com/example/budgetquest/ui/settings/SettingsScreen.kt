@@ -1,14 +1,11 @@
 package com.example.budgetquest.ui.settings
 
-import android.Manifest
+import android.app.Activity
 import android.app.TimePickerDialog
-import android.content.pm.PackageManager
-import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatDelegate
-import androidx.core.os.LocaleListCompat
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -17,14 +14,25 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Help
+import androidx.compose.material.icons.filled.AccountCircle // [新增]
 import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -33,11 +41,30 @@ import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Upload
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Warning // [新增]
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect // [新增]
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -46,16 +73,24 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
-import androidx.work.*
+import androidx.core.os.LocaleListCompat
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
 import com.example.budgetquest.R
 import com.example.budgetquest.data.BackupManager
+import com.example.budgetquest.data.FirebaseBackupManager
 import com.example.budgetquest.data.SettingsRepository
-import com.example.budgetquest.ui.AppViewModelProvider
 import com.example.budgetquest.ui.common.GlassActionTextButton
 import com.example.budgetquest.ui.common.GlassCard
 import com.example.budgetquest.ui.common.GlassIconButton
+import com.example.budgetquest.ui.common.rememberNotificationPermissionHandler
 import com.example.budgetquest.ui.theme.AppTheme
 import com.example.budgetquest.worker.ReminderWorker
+import com.google.android.gms.auth.api.signin.GoogleSignIn // [新增]
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions // [新增]
+import com.google.android.gms.common.api.ApiException // [新增]
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -74,12 +109,19 @@ fun SettingsScreen(
     val scope = rememberCoroutineScope()
 
     val backupManager = remember { BackupManager(context) }
+    val firebaseBackupManager = remember { FirebaseBackupManager(context) }
     val settingsRepo = remember { SettingsRepository(context) }
 
     var dailyReminder by remember { mutableStateOf(settingsRepo.isDailyReminderEnabled) }
     var reminderTime by remember { mutableStateOf(settingsRepo.reminderTime) }
     var planEndReminder by remember { mutableStateOf(settingsRepo.isPlanEndReminderEnabled) }
     var isDarkMode by remember { mutableStateOf(settingsRepo.isDarkModeEnabled) }
+
+    // [修改] Cloud 狀態與資訊
+    var isCloudLoading by remember { mutableStateOf(false) }
+    var currentUserEmail by remember { mutableStateOf<String?>(null) } // 儲存 Email
+    var isUserAnonymous by remember { mutableStateOf(false) } // 儲存是否為匿名
+    var lastBackupTimeDisplay by remember { mutableStateOf<String?>(null) } // 儲存上次備份時間
 
     var showLanguageDialog by remember { mutableStateOf(false) }
 
@@ -89,6 +131,83 @@ fun SettingsScreen(
         if (now - lastClickTime > 500L) {
             lastClickTime = now
             action()
+        }
+    }
+
+    // [新增] Google Sign In 選項設定
+    val gso = remember {
+        GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken(context.getString(R.string.default_web_client_id))
+            .requestEmail()
+            .build()
+    }
+
+    // 資源字串 (用於 Toast 或預設顯示)
+    val msgNoBackup = stringResource(R.string.msg_no_cloud_backup_found)
+    val msgGoogleLoginSuccess = stringResource(R.string.msg_google_login_success)
+    val msgLoginFailed = stringResource(R.string.error_login_failed)
+    val msgGoogleLoginFailed = stringResource(R.string.error_google_login_failed)
+    val msgCloudUploadSuccess = stringResource(R.string.msg_cloud_upload_success)
+    val msgCloudRestoreSuccess = stringResource(R.string.msg_cloud_restore_success)
+    val msgBackupFailed = stringResource(R.string.error_backup_failed)
+    val msgRestoreFailed = stringResource(R.string.error_restore_failed)
+    val msgLoginRequired = stringResource(R.string.error_login_required)
+    val msgNetworkError = stringResource(R.string.error_network_login)
+
+    // [新增] 定義一個函式來更新最後備份時間
+    fun refreshBackupTime() {
+        scope.launch {
+            val result = firebaseBackupManager.getLastBackupTime()
+            result.onSuccess { timeMillis ->
+                if (timeMillis != null) {
+                    val sdf = SimpleDateFormat("yyyy/MM/dd HH:mm", Locale.getDefault())
+                    lastBackupTimeDisplay = sdf.format(Date(timeMillis))
+                } else {
+                    lastBackupTimeDisplay = msgNoBackup
+                }
+            }.onFailure {
+                // lastBackupTimeDisplay = "無法取得"
+            }
+        }
+    }
+
+    // [新增] 初始化檢查登入狀態
+    LaunchedEffect(Unit) {
+        val user = firebaseBackupManager.getCurrentUser()
+        if (user != null) {
+            isUserAnonymous = user.isAnonymous
+            currentUserEmail = user.email
+            refreshBackupTime() // 如果已登入，抓取備份時間
+        }
+    }
+
+    // [新增] Google Sign In Launcher
+    val googleSignInLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+            try {
+                val account = task.getResult(ApiException::class.java)
+                val idToken = account.idToken
+                if (idToken != null) {
+                    scope.launch {
+                        isCloudLoading = true
+                        val authResult = firebaseBackupManager.signInWithGoogle(idToken)
+                        authResult.onSuccess { user ->
+                            isUserAnonymous = user.isAnonymous
+                            currentUserEmail = user.email
+                            Toast.makeText(context, msgGoogleLoginSuccess, Toast.LENGTH_SHORT).show()
+                            refreshBackupTime() // 切換帳號後，重新抓取該帳號的備份時間
+                        }.onFailure {
+                            Toast.makeText(context, "$msgLoginFailed: ${it.message}", Toast.LENGTH_LONG).show()
+                        }
+                        isCloudLoading = false
+                    }
+                }
+            } catch (e: ApiException) {
+                Toast.makeText(context, "$msgGoogleLoginFailed: ${e.statusCode}", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -114,6 +233,7 @@ fun SettingsScreen(
 
     val msgBackupSuccess = stringResource(R.string.msg_backup_success)
 
+    // Local Backup Launcher
     val backupLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/x-sqlite3")
     ) { uri ->
@@ -129,6 +249,7 @@ fun SettingsScreen(
         }
     }
 
+    // Local Restore Launcher
     val restoreLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
@@ -165,20 +286,11 @@ fun SettingsScreen(
         }
     }
 
-    val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission(),
-        onResult = { isGranted ->
-            if (isGranted) {
-                dailyReminder = true
-                settingsRepo.isDailyReminderEnabled = true
-                updateWorker(true, reminderTime)
-            } else {
-                dailyReminder = false
-                settingsRepo.isDailyReminderEnabled = false
-                updateWorker(false, reminderTime)
-            }
-        }
-    )
+    val requestNotificationPermissions = rememberNotificationPermissionHandler {
+        dailyReminder = true
+        settingsRepo.isDailyReminderEnabled = true
+        updateWorker(true, reminderTime)
+    }
 
     Scaffold(
         containerColor = Color.Transparent,
@@ -227,20 +339,7 @@ fun SettingsScreen(
                 planEndReminder = planEndReminder,
                 onDailyReminderChange = { isChecked ->
                     if (isChecked) {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                            val hasPermission = ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
-                            if (hasPermission) {
-                                dailyReminder = true
-                                settingsRepo.isDailyReminderEnabled = true
-                                updateWorker(true, reminderTime)
-                            } else {
-                                permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                            }
-                        } else {
-                            dailyReminder = true
-                            settingsRepo.isDailyReminderEnabled = true
-                            updateWorker(true, reminderTime)
-                        }
+                        requestNotificationPermissions()
                     } else {
                         dailyReminder = false
                         settingsRepo.isDailyReminderEnabled = false
@@ -269,14 +368,78 @@ fun SettingsScreen(
                 }
             )
 
-            CloudBackupCard(
-                onBackupClick = {
+            // [修改] 整合了 Google 登入、狀態顯示、Firebase 與 本地備份的卡片
+            BackupSettingsCard(
+                isLoading = isCloudLoading,
+                currentUserEmail = currentUserEmail, // 傳入 Email
+                isUserAnonymous = isUserAnonymous, // 傳入匿名狀態
+                lastBackupTime = lastBackupTimeDisplay, // 傳入上次備份時間
+                onGoogleSignInClick = { // Google 登入點擊事件
+                    debounce {
+                        val googleSignInClient = GoogleSignIn.getClient(context, gso)
+                        googleSignInLauncher.launch(googleSignInClient.signInIntent)
+                    }
+                },
+                // --- Cloud Actions ---
+                onCloudUploadClick = {
+                    debounce {
+                        scope.launch {
+                            isCloudLoading = true
+                            // 檢查是否登入，若無則嘗試匿名登入 (作為備案)
+                            val isLogged = if (firebaseBackupManager.getCurrentUser() == null) {
+                                firebaseBackupManager.signInAnonymously()
+                            } else true
+
+                            if (isLogged) {
+                                // 若原本為 null (剛匿名登入)，更新 UI 顯示
+                                if (currentUserEmail == null) {
+                                    val user = firebaseBackupManager.getCurrentUser()
+                                    isUserAnonymous = user?.isAnonymous == true
+                                    currentUserEmail = user?.email
+                                }
+
+                                val result = firebaseBackupManager.uploadBackup()
+                                result.onSuccess {
+                                    Toast.makeText(context, msgCloudUploadSuccess, Toast.LENGTH_SHORT).show()
+                                    refreshBackupTime() // [重要] 上傳成功後，立即更新顯示的時間
+                                }.onFailure {
+                                    Toast.makeText(context, "$msgBackupFailed: ${it.message}", Toast.LENGTH_LONG).show()
+                                }
+                            } else {
+                                Toast.makeText(context, msgNetworkError, Toast.LENGTH_SHORT).show()
+                            }
+                            isCloudLoading = false
+                        }
+                    }
+                },
+                onCloudRestoreClick = {
+                    debounce {
+                        scope.launch {
+                            isCloudLoading = true
+                            val user = firebaseBackupManager.getCurrentUser()
+                            // 若未登入，禁止還原 (因為不知道要從哪裡還原)
+                            if (user == null) {
+                                Toast.makeText(context, msgLoginRequired, Toast.LENGTH_SHORT).show()
+                            } else {
+                                val result = firebaseBackupManager.restoreBackup()
+                                result.onSuccess { msg ->
+                                    Toast.makeText(context, msgCloudRestoreSuccess, Toast.LENGTH_LONG).show()
+                                }.onFailure {
+                                    Toast.makeText(context, "$msgRestoreFailed: ${it.message}", Toast.LENGTH_LONG).show()
+                                }
+                            }
+                            isCloudLoading = false
+                        }
+                    }
+                },
+                // --- Local Actions ---
+                onLocalBackupClick = {
                     debounce {
                         val dateStr = SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(Date())
                         backupLauncher.launch("BudgetQuest_Backup_$dateStr.db")
                     }
                 },
-                onRestoreClick = {
+                onLocalRestoreClick = {
                     debounce {
                         restoreLauncher.launch(arrayOf("application/x-sqlite3", "application/octet-stream"))
                     }
@@ -295,7 +458,164 @@ fun SettingsScreen(
     }
 }
 
-// 統一的 Switch 樣式，解決「看起來像點」的問題
+// [重構] 備份設定卡片 (包含雲端資訊與 Google 登入)
+@Composable
+fun BackupSettingsCard(
+    isLoading: Boolean,
+    currentUserEmail: String?, // 接收 Email
+    isUserAnonymous: Boolean, // 接收匿名狀態
+    lastBackupTime: String?, // 接收上次備份時間
+    onGoogleSignInClick: () -> Unit, // 接收登入點擊
+    onCloudUploadClick: () -> Unit,
+    onCloudRestoreClick: () -> Unit,
+    onLocalBackupClick: () -> Unit,
+    onLocalRestoreClick: () -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    GlassCard(modifier = Modifier.fillMaxWidth()) {
+        Column {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded }
+                    .padding(20.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Cloud, null, tint = AppTheme.colors.textPrimary, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(stringResource(R.string.title_cloud_backup), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = AppTheme.colors.textPrimary)
+                }
+                if (isLoading) {
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = AppTheme.colors.accent)
+                } else {
+                    Icon(
+                        imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                        contentDescription = null,
+                        tint = AppTheme.colors.textSecondary
+                    )
+                }
+            }
+
+            AnimatedVisibility(visible = expanded) {
+                Column(
+                    modifier = Modifier
+                        .background(AppTheme.colors.surface.copy(alpha = 0.3f))
+                        .padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // 1. 雲端備份區塊
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(stringResource(R.string.subtitle_cloud_firebase), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = AppTheme.colors.accent)
+
+                        // 顯示目前帳號 (如果有)
+                        if (currentUserEmail != null) {
+                            Text(currentUserEmail, fontSize = 10.sp, color = AppTheme.colors.textSecondary)
+                        } else if (isUserAnonymous) {
+                            Text(stringResource(R.string.label_anonymous_account), fontSize = 10.sp, color = AppTheme.colors.fail)
+                        }
+                    }
+
+                    // 匿名帳號警告
+                    if (isUserAnonymous) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Warning, null, tint = AppTheme.colors.fail, modifier = Modifier.size(14.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                stringResource(R.string.warning_anonymous_risk),
+                                fontSize = 11.sp,
+                                color = AppTheme.colors.fail,
+                                lineHeight = 14.sp
+                            )
+                        }
+                    } else {
+                        Text(
+                            stringResource(R.string.desc_cloud_sync),
+                            fontSize = 12.sp,
+                            color = AppTheme.colors.textSecondary
+                        )
+                    }
+
+                    // Google 登入按鈕 (若未登入或為匿名)
+                    if (currentUserEmail == null || isUserAnonymous) {
+                        GlassActionTextButton(
+                            text = stringResource(R.string.action_link_google),
+                            icon = Icons.Default.AccountCircle,
+                            onClick = onGoogleSignInClick,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    // 顯示上次備份時間
+                    if (lastBackupTime != null) {
+                        Text(
+                            text = stringResource(R.string.label_last_backup, lastBackupTime),
+                            fontSize = 11.sp,
+                            color = AppTheme.colors.success
+                        )
+                    } else {
+                        Text(
+                            text = stringResource(R.string.msg_no_cloud_backup_found),
+                            fontSize = 11.sp,
+                            color = AppTheme.colors.textSecondary
+                        )
+                    }
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        GlassActionTextButton(
+                            text = stringResource(R.string.action_upload), // 建議加入 stringResource
+                            icon = Icons.Default.CloudUpload,
+                            onClick = onCloudUploadClick,
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        GlassActionTextButton(
+                            text = stringResource(R.string.action_download), // 建議加入 stringResource
+                            icon = Icons.Default.CloudDownload,
+                            onClick = onCloudRestoreClick,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    HorizontalDivider(color = AppTheme.colors.divider)
+
+                    // 2. 本地備份區塊
+                    Text(stringResource(R.string.subtitle_local_backup), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = AppTheme.colors.textPrimary)
+
+                    Text(
+                        stringResource(R.string.desc_local_backup),
+                        fontSize = 12.sp,
+                        color = AppTheme.colors.textSecondary
+                    )
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        GlassActionTextButton(
+                            text = stringResource(R.string.btn_backup),
+                            icon = Icons.Default.Upload,
+                            onClick = onLocalBackupClick,
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        GlassActionTextButton(
+                            text = stringResource(R.string.btn_restore),
+                            icon = Icons.Default.Download,
+                            onClick = onLocalRestoreClick,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ... (BudgetQuestSwitch, LanguageCard, LanguageSelectionDialog 等 Helper Composable 保持不變，與您提供的程式碼一致)
 @Composable
 private fun BudgetQuestSwitch(
     checked: Boolean,
@@ -303,7 +623,6 @@ private fun BudgetQuestSwitch(
     modifier: Modifier = Modifier
 ) {
     val isDark = isSystemInDarkTheme()
-    // 設定一個明顯的軌道顏色，讓開關在未選取時也是實心的膠囊狀
     val uncheckedTrackColor = if (isDark) {
         Color.White.copy(alpha = 0.3f)
     } else {
@@ -317,15 +636,13 @@ private fun BudgetQuestSwitch(
         colors = SwitchDefaults.colors(
             checkedTrackColor = AppTheme.colors.accent,
             checkedThumbColor = Color.White,
-            checkedBorderColor = Color.Transparent, // 移除邊框
-            uncheckedTrackColor = uncheckedTrackColor, // 使用實心顏色取代透明
+            checkedBorderColor = Color.Transparent,
+            uncheckedTrackColor = uncheckedTrackColor,
             uncheckedThumbColor = Color.White,
-            uncheckedBorderColor = Color.Transparent // 移除邊框
+            uncheckedBorderColor = Color.Transparent
         )
     )
 }
-
-// [移除] ContrastBackgroundRow (不再需要)
 
 @Composable
 fun LanguageCard(onClick: () -> Unit) {
@@ -416,69 +733,6 @@ fun LanguageSelectionDialog(
 }
 
 @Composable
-fun CloudBackupCard(
-    onBackupClick: () -> Unit,
-    onRestoreClick: () -> Unit
-) {
-    var expanded by remember { mutableStateOf(false) }
-
-    GlassCard(modifier = Modifier.fillMaxWidth()) {
-        Column {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { expanded = !expanded }
-                    .padding(20.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Cloud, null, tint = AppTheme.colors.textPrimary, modifier = Modifier.size(20.dp))
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(stringResource(R.string.title_cloud_backup), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = AppTheme.colors.textPrimary)
-                }
-                Icon(
-                    imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                    contentDescription = null,
-                    tint = AppTheme.colors.textSecondary
-                )
-            }
-
-            AnimatedVisibility(visible = expanded) {
-                Column(
-                    modifier = Modifier
-                        .background(AppTheme.colors.surface.copy(alpha = 0.3f))
-                        .padding(20.dp)
-                ) {
-                    Text(
-                        stringResource(R.string.desc_cloud_backup),
-                        fontSize = 12.sp,
-                        color = AppTheme.colors.textSecondary
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        GlassActionTextButton(
-                            text = stringResource(R.string.btn_backup),
-                            icon = Icons.Default.Upload,
-                            onClick = onBackupClick,
-                            modifier = Modifier.weight(1f)
-                        )
-
-                        GlassActionTextButton(
-                            text = stringResource(R.string.btn_restore),
-                            icon = Icons.Default.Download,
-                            onClick = onRestoreClick,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
 fun NotificationSettingsCard(
     dailyReminder: Boolean,
     reminderTime: String,
@@ -521,9 +775,8 @@ fun NotificationSettingsCard(
                     modifier = Modifier
                         .background(AppTheme.colors.surface.copy(alpha = 0.3f))
                         .padding(horizontal = 20.dp, vertical = 20.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp) // 適度間距
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // [修正] 直接使用 SettingsSwitchItem (已移除外部背景色)
                     SettingsSwitchItem(title = stringResource(R.string.label_daily_reminder), checked = dailyReminder, onCheckedChange = onDailyReminderChange)
 
                     if (dailyReminder) {
@@ -554,7 +807,6 @@ fun NotificationSettingsCard(
     }
 }
 
-// [修正] 移除 ContrastBackgroundRow，恢復透明背景，但保留 BudgetQuestSwitch
 @Composable
 fun SettingsSwitchItem(title: String, subtitle: String? = null, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     Row(
@@ -566,7 +818,6 @@ fun SettingsSwitchItem(title: String, subtitle: String? = null, checked: Boolean
             Text(title, fontSize = 15.sp, color = AppTheme.colors.textPrimary)
             if (subtitle != null) Text(subtitle, fontSize = 11.sp, color = AppTheme.colors.textSecondary)
         }
-        // [保留] 統一的 BudgetQuestSwitch
         BudgetQuestSwitch(
             checked = checked,
             onCheckedChange = onCheckedChange
@@ -574,7 +825,6 @@ fun SettingsSwitchItem(title: String, subtitle: String? = null, checked: Boolean
     }
 }
 
-// [修正] 移除 ContrastBackgroundRow，恢復透明背景
 @Composable
 fun SettingsActionItem(title: String, value: String, onClick: () -> Unit) {
     Row(

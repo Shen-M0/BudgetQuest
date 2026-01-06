@@ -1,13 +1,16 @@
 package com.example.budgetquest.ui.common
 
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue // [關鍵修正] 必須加入這行，by 才能運作
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -107,5 +110,47 @@ fun GlassChip(
                 color = if (selected) Color.White else AppTheme.colors.textSecondary
             )
         }
+    }
+}
+
+/**
+ * 玻璃擬態開關 (Glass Switch)
+ * 取代原生 Material Switch，提供更一致的視覺體驗
+ */
+@Composable
+fun GlassSwitch(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    // 動畫效果：圓點的移動
+    val thumbOffset by animateDpAsState(
+        targetValue = if (checked) 22.dp else 2.dp,
+        label = "thumbOffset"
+    )
+
+    // 顏色定義
+    val trackColor = if (checked) AppTheme.colors.accent.copy(alpha = 0.5f) else AppTheme.colors.surface.copy(alpha = 0.3f)
+    val thumbColor = if (checked) Color.White else AppTheme.colors.textSecondary.copy(alpha = 0.8f)
+    val borderColor = if (checked) AppTheme.colors.accent.copy(alpha = 0.5f) else AppTheme.colors.textSecondary.copy(alpha = 0.2f)
+
+    Box(
+        modifier = modifier
+            .size(width = 48.dp, height = 28.dp) // 開關大小
+            .clip(RoundedCornerShape(14.dp))      // 膠囊形狀
+            .background(trackColor)
+            .border(1.dp, borderColor, RoundedCornerShape(14.dp))
+            .clickable { onCheckedChange(!checked) },
+        contentAlignment = Alignment.CenterStart
+    ) {
+        // 開關上的圓點 (Thumb)
+        Box(
+            modifier = Modifier
+                .padding(start = thumbOffset) // 透過 Padding 來移動
+                .size(24.dp)
+                .clip(CircleShape)
+                .background(thumbColor)
+                .border(1.dp, Color.White.copy(alpha = 0.2f), CircleShape) // 圓點也有微光邊框
+        )
     }
 }

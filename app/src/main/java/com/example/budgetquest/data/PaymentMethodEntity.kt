@@ -9,5 +9,9 @@ data class PaymentMethodEntity(
     val id: Int = 0,
     val name: String,
     val isVisible: Boolean = true,
-    val order: Int = 0 // 用於排序
+    val order: Int = 0,
+
+    // [新增] 資源 Key，用於多語言反查
+    // 預設為 null (使用者自訂的支付方式就沒有 key)
+    val resourceKey: String? = null
 )

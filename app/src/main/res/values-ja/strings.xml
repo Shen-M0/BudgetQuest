@@ -2,9 +2,7 @@
     <string name="app_name">Budget Quest</string>
 
     <string name="action_back">戻る</string>
-    <string name="action_cancel">キャンセル</string>
     <string name="action_confirm">確認</string>
-    <string name="action_delete">削除</string>
     <string name="action_select_date">日付選択</string>
     <string name="btn_save">保存</string>
 
@@ -37,8 +35,6 @@
     <string name="title_edit_transaction">支出を編集</string>
     <string name="label_category">カテゴリ</string>
     <string name="label_note">メモ</string>
-    <string name="hint_amount">0</string>
-    <string name="hint_note">項目名を入力...</string>
     <string name="date_format_transaction">yyyy/MM/dd</string>
     <string name="desc_edit_button">リスト編集</string>
 
@@ -54,19 +50,11 @@
     <string name="hint_subscription_example">例: Netflix...</string>
     <string name="action_add_subscription">項目追加</string>
 
-    <string name="title_summary">消費記録</string>
-    <string name="label_remaining_budget">残高</string>
-    <string name="label_expense_distribution">内訳</string>
-    <string name="label_filter_conditions">絞り込み</string>
-    <string name="label_filter_applied">適用中</string>
-    <string name="msg_no_records_found">記録なし</string>
+
     <string name="format_pie_chart_legend">%1$s: $%2$d (%3$d%%)</string>
     <string name="format_date_month_day">MM/dd</string>
     <string name="format_category_date">%1$s · %2$s</string>
-    <string name="hint_search_note">検索...</string>
-    <string name="msg_goal_achieved">目標達成！🎉\n良い習慣が身についています。</string>
-    <string name="msg_budget_exceeded">予算オーバー ⚠️\n無駄遣いを見直しましょう。</string>
-    <string name="msg_no_plan_data">データなし</string>
+
 
     <string name="title_date_format_detail">yyyy/MM/dd (EEE)</string>
     <string name="label_daily_total">合計支出</string>
@@ -91,7 +79,6 @@
     <string name="freq_day">毎日</string>
     <string name="freq_custom">カスタム</string>
     <string name="format_subscription_price">$%1$d / %2$s</string>
-    <string name="format_date_standard">yyyy/MM/dd</string>
 
     <string name="title_create_plan">計画作成</string>
     <string name="title_edit_plan">計画編集</string>
@@ -143,7 +130,6 @@
     <string name="desc_plan_end_reminder">計画終了日にお知らせ</string>
     <string name="btn_test_notification">通知テスト送信</string>
     <string name="msg_check_notification_permission">反応がない場合は、設定の通知権限を確認してください。</string>
-    <string name="title_cloud_backup">バックアップと復元</string>
     <string name="desc_cloud_backup">Google Driveにバックアップ</string>
     <string name="btn_backup">バックアップ</string>
     <string name="btn_restore">復元</string>
@@ -243,12 +229,126 @@
     <string name="error_msg_category">カテゴリを選択してください</string>
     <string name="error_msg_note">メモを入力してください</string>
     <string name="error_msg_sub">名前を入力してください</string>
-    <string name="label_total">合計</string>
 
     <string name="action_add_expense">支出を追加</string>
-    <string name="label_total_expense">支出合計</string>
 
     <string name="suffix_auto_deduction">(自動引落)</string>
 
+    <string name="title_summary">詳細</string>
+    <string name="tab_list_view">明細</string>
+    <string name="tab_analysis_view">分析</string>
+
+    <string name="msg_goal_achieved">順調です！予算内です。\nこの調子で貯金目標を達成しましょう！</string>
+    <string name="msg_budget_exceeded">注意！予算を超過しました。\n無駄遣いを見直してください。</string>
+    <string name="msg_no_plan_data">予算プランがありません。</string>
+    <string name="label_remaining_budget">残高</string>
+    <string name="label_filter_conditions">絞り込み</string>
+    <string name="label_filter_applied">適用中</string>
+    <string name="hint_search_note">メモ、店名を検索...</string>
+    <string name="msg_no_records_found">記録が見つかりません</string>
+    <string name="label_expense_distribution">カテゴリ内訳</string>
+    <string name="label_total">合計</string>
+
+    <string name="label_spending_overview">支出概要</string>
+    <string name="label_real_total_spent">総支出</string>
+    <string name="label_budget_spent">予算内支出</string>
+    <string name="msg_including_excluded">(対象外 %1$d 含む)</string>
+
+    <string name="label_consumption_nature">消費傾向分析</string>
+    <string name="label_need">必要 (Need)</string>
+    <string name="label_want">欲しい (Want)</string>
+
+    <string name="label_payment_distribution">支払い方法</string>
+
+    <string name="label_merchant_ranking">よく行くお店</string>
+    <string name="sort_by_amount">金額順</string>
+    <string name="sort_by_count">回数順</string>
+    <string name="format_count_times">%1$d 回</string>
+    <string name="msg_no_data">データなし</string>
+
+    <string name="title_transaction_detail">詳細</string>
+    <string name="dialog_delete_title">削除の確認</string>
+    <string name="dialog_delete_message">この記録を削除してもよろしいですか？この操作は取り消せません。</string>
+    <string name="action_delete">削除</string>
+    <string name="action_cancel">キャンセル</string>
+    <string name="action_edit">編集</string>
+
+    <string name="label_date">日付</string>
+    <string name="label_merchant">店名</string>
+    <string name="label_payment">支払い</string>
+    <string name="label_need_full">必要 (Need)</string>
+    <string name="label_want_full">欲しい (Want)</string>
+    <string name="label_excluded_full">集計対象外</string>
+    <string name="desc_attached_image">添付画像</string>
+    <string name="error_open_map">地図アプリを開けません</string>
+
+
+    <string name="title_advanced_options">詳細オプション</string>
+
+    <string name="label_photo_receipt">写真 / レシート</string>
+    <string name="label_payment_method">支払い方法</string>
+    <string name="label_merchant_location">お店 / 場所</string>
+    <string name="label_exclude_budget">集計から除外</string>
+
+    <string name="hint_amount">金額を入力</string>
+    <string name="hint_note">メモを入力...</string>
+    <string name="hint_add_photo">タップして撮影または選択</string>
+    <string name="hint_merchant">例：セブンイレブン、スタバ...</string>
+    <string name="hint_exclude_budget">本日の予算から差し引かれません</string>
+
+    <string name="dialog_image_source_title">画像の選択</string>
+    <string name="dialog_image_source_message">アルバムから選択するか、カメラで撮影してください。</string>
+    <string name="source_gallery">アルバム</string>
+    <string name="source_camera">カメラ</string>
+
+    <string name="desc_manage_button">管理</string>
+    <string name="desc_search_location">場所を検索</string>
+    <string name="desc_selected_image">選択された画像</string>
+
+    <string name="error_search_failed">検索エラー</string>
+
+    <string name="label_total_expense">支出合計</string>
+    <string name="format_date_standard">yyyy/MM/dd</string>
+
+    <string name="text_excluded_label">(対象外)</string>
+
+    <string name="pay_cash">現金</string>
+    <string name="pay_credit_card">クレジットカード</string>
+    <string name="pay_linepay">LinePay</string>
+    <string name="pay_easycard">EasyCard (悠遊カード)</string>
+    <string name="pay_transfer">振込</string>
+    <string name="pay_visa">VISA</string>
+    <string name="pay_mastercard">MasterCard</string>
+    <string name="pay_apple_pay">Apple Pay</string>
+    <string name="pay_google_pay">Google Pay</string>
+    <string name="msg_locating">位置情報を取得中...</string>
+    <string name="msg_location_found">現在地に更新しました</string>
+    <string name="error_location_not_found">住所が見つかりません</string>
+    <string name="error_geocoder_failed">住所の取得に失敗しました</string>
+    <string name="error_location_unavailable">位置情報を取得できません。GPSを確認してください</string>
+    <string name="error_permission_denied">位置情報の権限が必要です</string>
+
+    <string name="title_cloud_backup">バックアップと復元</string>
+    <string name="subtitle_cloud_firebase">クラウド同期 (Firebase)</string>
+    <string name="subtitle_local_backup">手動バックアップ (ローカル)</string>
+    <string name="desc_cloud_sync">データをクラウドに安全に保存します。機種変更時も安心です。</string>
+    <string name="desc_local_backup">データベースファイルを端末にエクスポートします。</string>
+    <string name="label_last_backup">最終バックアップ: %s</string>
+    <string name="msg_no_cloud_backup_found">バックアップなし</string>
+    <string name="action_upload">アップロード</string>
+    <string name="action_download">ダウンロード</string>
+    <string name="action_link_google">Google アカウント連携</string>
+    <string name="label_anonymous_account">ゲスト (未連携)</string>
+    <string name="warning_anonymous_risk">注意：アプリを削除するとデータが失われます。Google 連携を推奨します。</string>
+    <string name="msg_google_login_success">Google ログイン成功</string>
+    <string name="msg_cloud_upload_success">クラウドバックアップ成功</string>
+    <string name="msg_cloud_restore_success">復元成功。アプリを再起動してください</string>
+    <string name="error_fetch_backup_time">取得失敗</string>
+    <string name="error_login_failed">ログイン失敗</string>
+    <string name="error_google_login_failed">Google ログイン失敗</string>
+    <string name="error_backup_failed">バックアップ失敗</string>
+    <string name="error_restore_failed">復元失敗</string>
+    <string name="error_login_required">復元するにはログインが必要です</string>
+    <string name="error_network_login">ログイン失敗。通信環境を確認してください</string>
 
 </resources>

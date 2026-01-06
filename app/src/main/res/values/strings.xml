@@ -56,16 +56,12 @@
 
 
     //以下為TransactionScreen.kt
-    <string name="title_add_transaction">記一筆</string>
-    <string name="title_edit_transaction">編輯消費</string>
     <string name="action_back">返回</string>
     <string name="action_select_date">選擇日期</string>
     <string name="btn_save">儲存</string>
 
     <string name="label_category">分類</string>
     <string name="label_note">備註</string>
-    <string name="hint_amount">0</string>
-    <string name="hint_note">輸入項目名稱...</string>
     <string name="date_format_transaction">yyyy/MM/dd</string>
 
     <string name="desc_edit_button">編輯列表</string>
@@ -80,7 +76,6 @@
     <string name="amount_currency_format">$ %d</string>
 
     //以下為CategoryManagerScreen.kt
-    <string name="action_cancel">取消</string>
     <string name="action_confirm">確認</string>
 
     <string name="title_manage_categories">管理分類</string>
@@ -98,19 +93,11 @@
     <string name="action_add_subscription">新增項目</string>
 
     //以下為SummaryScreen
-    <string name="title_summary">消費記錄</string>
-    <string name="label_remaining_budget">剩餘可用</string>
-    <string name="label_expense_distribution">消費分佈</string>
-    <string name="label_filter_conditions">篩選條件</string>
-    <string name="label_filter_applied">已套用篩選</string>
-    <string name="msg_no_records_found">暫無紀錄</string>
 
     <string name="format_pie_chart_legend">%1$s: $%2$d (%3$d%%)</string>
 
     <string name="format_date_month_day">MM/dd</string>
     <string name="format_category_date">%1$s · %2$s</string>
-
-    <string name="hint_search_note">搜尋備註...</string>
 
     //以下為SubscriptionScreen.kt
     <string name="title_fixed_expenses">固定扣款</string>
@@ -130,7 +117,6 @@
     <string name="freq_custom">自訂</string>
 
     <string name="format_subscription_price">$%1$d / %2$s</string>
-    <string name="format_date_standard">yyyy/MM/dd</string>
 
     //以下為SettingsScreen.kt
     <string name="title_settings">設定</string>
@@ -146,7 +132,6 @@
     <string name="btn_test_notification">發送測試通知</string>
     <string name="msg_check_notification_permission">點擊後若無反應，請檢查手機設定中的通知權限。</string>
 
-    <string name="title_cloud_backup">雲端備份與還原</string>
     <string name="desc_cloud_backup">將資料備份至 Google Drive (需登入 Drive App)</string>
     <string name="btn_backup">備份</string>
     <string name="btn_restore">還原</string>
@@ -192,7 +177,6 @@
 
     <string name="dialog_title_delete_plan">刪除計畫</string>
     <string name="dialog_msg_delete_plan">確定要刪除此計畫嗎？此動作無法復原。\n\n注意：刪除計畫「不會」清空期間內的消費紀錄。若要刪除紀錄，請使用「清空計畫內消費紀錄」功能。</string>
-    <string name="action_delete">刪除</string>
 
     <string name="format_currency">$ %d</string>
     <string name="format_date_short">MM/dd</string>
@@ -229,11 +213,6 @@
 
     <string name="error_empty_plan_fields">請輸入計畫名稱與預算</string>
     <string name="error_plan_overlap">日期範圍與現有計畫重疊，請重新選擇</string>
-
-    //以下為SubscriptionViewModel.kt與SummaryViewModel.kt
-    <string name="msg_goal_achieved">太棒了！目標達成 🎉\n好習慣正在慢慢養成中。</string>
-    <string name="msg_budget_exceeded">注意！預算已超支 ⚠️\n建議檢視非必要開銷。</string>
-    <string name="msg_no_plan_data">無計畫資料</string>
 
     <string name="default_category_entertainment">娛樂</string>
     <string name="default_frequency_month">MONTH</string>
@@ -285,13 +264,128 @@
     <string name="error_msg_category">請選擇分類</string>
     <string name="error_msg_note">請輸入備註</string>
     <string name="error_msg_sub">請輸入名稱</string>
-    <string name="label_total">總計</string>
 
     <string name="action_add_expense">新增消費</string>
-    <string name="label_total_expense">總支出</string>
 
     <string name="suffix_auto_deduction">(自動扣款)</string>
     //以下為新增項目，還未翻譯
+    <string name="title_summary">詳細消費</string>
+    <string name="tab_list_view">明細</string>
+    <string name="tab_analysis_view">分析</string>
+
+    <string name="msg_goal_achieved">恭喜！目前在預算範圍內。\n保持這個節奏，存錢目標指日可待！</string>
+    <string name="msg_budget_exceeded">注意！支出已超出預算。\n建議檢視非必要開銷，適度調整消費。</string>
+    <string name="msg_no_plan_data">目前沒有設定預算計畫。</string>
+    <string name="label_remaining_budget">剩餘預算</string>
+    <string name="label_filter_conditions">篩選條件</string>
+    <string name="label_filter_applied">已套用篩選</string>
+    <string name="hint_search_note">搜尋備註、店家...</string>
+    <string name="msg_no_records_found">沒有符合條件的紀錄</string>
+    <string name="label_expense_distribution">消費分類分佈</string>
+    <string name="label_total">總計</string>
+
+    <string name="label_spending_overview">支出總覽</string>
+    <string name="label_real_total_spent">真實總流出</string>
+    <string name="label_budget_spent">預算內支出</string>
+    <string name="msg_including_excluded">(含不計入 %1$d)</string>
+
+    <string name="label_consumption_nature">消費性質分析</string>
+    <string name="label_need">必要 (Need)</string>
+    <string name="label_want">想要 (Want)</string>
+
+    <string name="label_payment_distribution">支付方式分佈</string>
+
+    <string name="label_merchant_ranking">消費足跡排行</string>
+    <string name="sort_by_amount">金額</string>
+    <string name="sort_by_count">次數</string>
+    <string name="format_count_times">%1$d 次</string>
+    <string name="msg_no_data">暫無數據</string>
+
     <string name="title_transaction_detail">消費詳情</string>
+    <string name="dialog_delete_title">確認刪除</string>
+    <string name="dialog_delete_message">您確定要刪除這筆消費紀錄嗎？此操作無法復原。</string>
+    <string name="action_delete">刪除</string>
+    <string name="action_cancel">取消</string>
+    <string name="action_edit">編輯</string>
+
+    <string name="label_date">日期</string>
+    <string name="label_merchant">店家</string>
+    <string name="label_payment">支付</string>
+    <string name="label_need_full">需要 (Need)</string>
+    <string name="label_want_full">想要 (Want)</string>
+    <string name="label_excluded_full">不計入預算</string>
+    <string name="desc_attached_image">附圖</string>
+    <string name="error_open_map">無法開啟地圖應用程式</string>
+
+
+    <string name="title_add_transaction">新增消費</string>
+    <string name="title_edit_transaction">編輯消費</string>
+    <string name="title_advanced_options">進階選項</string>
+
+    <string name="label_photo_receipt">照片 / 收據</string>
+    <string name="label_payment_method">支付方式</string>
+    <string name="label_merchant_location">店家 / 地點</string>
+    <string name="label_exclude_budget">不計入預算</string>
+
+    <string name="hint_amount">輸入金額</string>
+    <string name="hint_note">輸入備註...</string>
+    <string name="hint_add_photo">點擊拍攝或選取照片</string>
+    <string name="hint_merchant">例如：7-11, 星巴克...</string>
+    <string name="hint_exclude_budget">開啟後不會扣除今日可用額度</string>
+
+    <string name="dialog_image_source_title">選擇圖片來源</string>
+    <string name="dialog_image_source_message">請選擇要從相簿選取還是開啟相機拍攝。</string>
+    <string name="source_gallery">相簿</string>
+    <string name="source_camera">相機</string>
+
+    <string name="desc_manage_button">管理</string>
+    <string name="desc_search_location">搜尋地點</string>
+    <string name="desc_selected_image">已選圖片</string>
+
+    <string name="error_search_failed">搜尋錯誤</string>
+
+    <string name="label_total_expense">總支出</string>
+    <string name="format_date_standard">yyyy/MM/dd</string>
+
+    <string name="text_excluded_label">(不計入)</string>
+
+    <string name="pay_cash">現金</string>
+    <string name="pay_credit_card">信用卡</string>
+    <string name="pay_linepay">LinePay</string>
+    <string name="pay_easycard">悠遊卡</string>
+    <string name="pay_transfer">轉帳</string>
+    <string name="pay_visa">VISA</string>
+    <string name="pay_mastercard">MasterCard</string>
+    <string name="pay_apple_pay">Apple Pay</string>
+    <string name="pay_google_pay">Google Pay</string>
+    <string name="msg_locating">定位中...</string>
+    <string name="msg_location_found">已更新為目前位置</string>
+    <string name="error_location_not_found">無法取得地址資訊</string>
+    <string name="error_geocoder_failed">地址解析失敗</string>
+    <string name="error_location_unavailable">無法取得目前位置，請確認 GPS 已開啟</string>
+    <string name="error_permission_denied">需要定位權限才能使用此功能</string>
+
+    <string name="title_cloud_backup">備份與還原</string>
+    <string name="subtitle_cloud_firebase">雲端同步 (Firebase)</string>
+    <string name="subtitle_local_backup">手動備份 (本地檔案)</string>
+    <string name="desc_cloud_sync">將資料安全備份至雲端，換手機也能輕鬆還原。</string>
+    <string name="desc_local_backup">匯出資料庫檔案至手機儲存空間。</string>
+    <string name="label_last_backup">上次備份： %s</string>
+    <string name="msg_no_cloud_backup_found">尚無雲端備份紀錄</string>
+    <string name="action_upload">上傳</string>
+    <string name="action_download">下載</string>
+    <string name="action_link_google">連結 Google 帳號</string>
+    <string name="label_anonymous_account">匿名帳戶 (未綁定)</string>
+    <string name="warning_anonymous_risk">注意：若移除 App 或清除資料，備份將永久遺失。強烈建議綁定 Google 帳號。</string>
+    <string name="msg_google_login_success">Google 登入成功</string>
+    <string name="msg_cloud_upload_success">雲端備份成功</string>
+    <string name="msg_cloud_restore_success">還原成功，請重啟應用程式</string>
+    <string name="error_fetch_backup_time">無法取得時間</string>
+    <string name="error_login_failed">登入失敗</string>
+    <string name="error_google_login_failed">Google 登入失敗</string>
+    <string name="error_backup_failed">備份失敗</string>
+    <string name="error_restore_failed">還原失敗</string>
+    <string name="error_login_required">請先登入才能還原</string>
+    <string name="error_network_login">登入失敗，請檢查網路連線</string>
 
 </resources>

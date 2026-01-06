@@ -18,6 +18,7 @@ val MIGRATION_4_5 = object : Migration(4, 5) { override fun migrate(db: SupportS
 val MIGRATION_5_6 = object : Migration(5, 6) { override fun migrate(db: SupportSQLiteDatabase) { /* Migration 邏輯 */ } }
 val MIGRATION_6_7 = object : Migration(6, 7) { override fun migrate(db: SupportSQLiteDatabase) { db.execSQL("ALTER TABLE plan_table ADD COLUMN planName TEXT NOT NULL DEFAULT '我的存錢計畫'") } }
 
+
 // [修正] 版本 8 -> 9 的遷移邏輯：配合新的需求 (預設空值/Null)
 val MIGRATION_8_9 = object : Migration(8, 9) {
     override fun migrate(db: SupportSQLiteDatabase) {
@@ -41,6 +42,13 @@ val MIGRATION_8_9 = object : Migration(8, 9) {
     }
 }
 
+// [新增] Migration 9 -> 10 (加入 resourceKey)
+val MIGRATION_9_10 = object : Migration(9, 10) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE payment_method_table ADD COLUMN resourceKey TEXT")
+    }
+}
+
 @Database(
     entities = [
         PlanEntity::class,
@@ -51,7 +59,7 @@ val MIGRATION_8_9 = object : Migration(8, 9) {
         SubscriptionTagEntity::class,
         PaymentMethodEntity::class // [確保] 這裡有包含
     ],
-    version = 9,
+    version = 10,
     exportSchema = false
 )
 abstract class BudgetDatabase : RoomDatabase() {
@@ -68,7 +76,8 @@ abstract class BudgetDatabase : RoomDatabase() {
                     .addMigrations(
                         MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4,
                         MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7,
-                        MIGRATION_8_9
+                        MIGRATION_8_9,
+                        MIGRATION_9_10
                     )
                     .fallbackToDestructiveMigration()
                     .addCallback(object : RoomDatabase.Callback() {
@@ -137,13 +146,19 @@ abstract class BudgetDatabase : RoomDatabase() {
             )
             subTags.forEach { dao.insertSubTag(it) }
 
-            // 4. [新增] 支付方式 (完全依照您的風格)
+            // 4. [修改] 支付方式 (支援多語言 Key)
             val paymentMethods = listOf(
-                PaymentMethodEntity(name = "現金", order = 0),
-                PaymentMethodEntity(name = "信用卡", order = 1),
-                PaymentMethodEntity(name = "LinePay", order = 2),
-                PaymentMethodEntity(name = "悠遊卡", order = 3),
-                PaymentMethodEntity(name = "轉帳", order = 4)
+                PaymentMethodEntity(name = "現金", order = 0, resourceKey = "pay_cash"),
+                PaymentMethodEntity(name = "信用卡", order = 1, resourceKey = "pay_credit_card"),
+                PaymentMethodEntity(name = "LinePay", order = 2, resourceKey = "pay_linepay"), // 專有名詞通常不需翻譯
+                PaymentMethodEntity(name = "悠遊卡", order = 3, resourceKey = "pay_easycard"),
+                PaymentMethodEntity(name = "轉帳", order = 4, resourceKey = "pay_transfer"),
+
+                // [新增] 您要求的額外項目
+                PaymentMethodEntity(name = "VISA", order = 5, resourceKey = "pay_visa"),
+                PaymentMethodEntity(name = "MasterCard", order = 6, resourceKey = "pay_mastercard"),
+                PaymentMethodEntity(name = "Apple Pay", order = 7, resourceKey = "pay_apple_pay"),
+                PaymentMethodEntity(name = "Google Pay", order = 8, resourceKey = "pay_google_pay")
             )
             paymentMethods.forEach { dao.insertPaymentMethod(it) }
         }

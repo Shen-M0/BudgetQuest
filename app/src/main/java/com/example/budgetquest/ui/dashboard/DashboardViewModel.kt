@@ -26,9 +26,8 @@ data class DailyState(
     val status: DayStatus
 )
 
-// [修改] 增加 isLoading 欄位，預設為 true (解決閃爍問題)
 data class DashboardUiState(
-    val isLoading: Boolean = true, // 載入狀態
+    val isLoading: Boolean = true,
     val currentYear: Int = Calendar.getInstance().get(Calendar.YEAR),
     val currentMonth: Int = Calendar.getInstance().get(Calendar.MONTH),
     val activePlan: PlanEntity? = null,
@@ -57,7 +56,6 @@ class DashboardViewModel(
         CalendarState(year, month)
     }
 
-    // 接收 trigger 參數
     fun setViewingPlanId(id: Int, trigger: Long) {
         if (trigger <= 0 || trigger == lastProcessedTrigger) return
         lastProcessedTrigger = trigger
@@ -66,7 +64,6 @@ class DashboardViewModel(
         }
     }
 
-    // 接收 trigger 參數
     fun switchToCalendarDate(date: Long, trigger: Long) {
         if (trigger <= 0 || trigger == lastProcessedTrigger) return
         lastProcessedTrigger = trigger
@@ -133,7 +130,10 @@ class DashboardViewModel(
             isExpired = todayMillis > getEndOfDay(activePlan.endDate)
 
             if (isExpired) {
-                val planExpenses = expenses.filter { it.date >= activePlan.startDate && it.date <= activePlan.endDate }
+                val planExpenses = expenses.filter {
+                    // [修正] 計算計畫總支出時，排除不計入預算的項目
+                    it.date >= activePlan.startDate && it.date <= activePlan.endDate && !it.excludeFromBudget
+                }
                 displayAmount = activePlan.totalBudget - planExpenses.sumOf { it.amount } - activePlan.targetSavings
             } else {
                 val todayStart = getStartOfDay(todayMillis)
@@ -145,7 +145,6 @@ class DashboardViewModel(
             }
         }
 
-        // [關鍵修正] 資料計算完成，isLoading = false
         DashboardUiState(
             isLoading = false,
             activePlan = activePlan,
@@ -161,7 +160,6 @@ class DashboardViewModel(
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
-            // [關鍵修正] 初始狀態 isLoading = true，避免一開始顯示空畫面
             initialValue = DashboardUiState(isLoading = true)
         )
 
@@ -293,7 +291,11 @@ class DashboardViewModel(
         for (i in 0 until safeTotalDays) {
             val dayStart = calendar.timeInMillis
             val dayEnd = getEndOfDay(dayStart)
-            val daySpent = expenses.filter { it.date in dayStart..dayEnd }.sumOf { it.amount }
+
+            // [關鍵修正] 計算每日支出時，排除不計入預算的項目
+            val daySpent = expenses
+                .filter { it.date in dayStart..dayEnd && !it.excludeFromBudget }
+                .sumOf { it.amount }
 
             val extraForLastDay = if (i == safeTotalDays - 1) remainder else 0
 

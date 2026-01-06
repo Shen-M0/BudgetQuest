@@ -1,30 +1,28 @@
 package com.example.budgetquest.ui.transaction
 
-import androidx.compose.animation.AnimatedVisibilityScope
-import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -35,6 +33,7 @@ import com.example.budgetquest.R
 import com.example.budgetquest.data.ExpenseEntity
 import com.example.budgetquest.ui.AppViewModelProvider
 import com.example.budgetquest.ui.common.AuroraFloatingActionButton
+import com.example.budgetquest.ui.common.FluidBoundsTransform
 import com.example.budgetquest.ui.common.GlassCard
 import com.example.budgetquest.ui.common.GlassIconButton
 import com.example.budgetquest.ui.common.getSmartCategoryName
@@ -43,10 +42,14 @@ import com.example.budgetquest.ui.theme.AppTheme
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import androidx.compose.animation.BoundsTransform
-import com.example.budgetquest.ui.common.FluidBoundsTransform
-import androidx.compose.animation.core.FastOutSlowInEasing
+import kotlin.math.abs
 
+// 快照物件
+data class DailyUiSnapshot(
+    val date: Long,
+    val expenses: List<ExpenseEntity>,
+    val totalAmount: Int
+)
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
@@ -56,17 +59,27 @@ fun DailyDetailScreen(
     onAddExpenseClick: (Long) -> Unit,
     onItemClick: (Long) -> Unit,
     viewModel: DailyDetailViewModel = viewModel(factory = AppViewModelProvider.Factory),
-    // [新增] 接收轉場 Scope
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
+    // 初始化
     LaunchedEffect(date) {
         viewModel.setDate(date)
     }
 
+    val currentDate by viewModel.currentDate.collectAsState(initial = date)
     val expenses by viewModel.expenses.collectAsState()
+    val canGoPrev by viewModel.canGoPrevious.collectAsState()
+    val canGoNext by viewModel.canGoNext.collectAsState()
 
-    val totalAmount = remember(expenses) { expenses.sumOf { it.amount } }
+    val totalAmount = remember(expenses) {
+        expenses.filter { !it.excludeFromBudget }.sumOf { it.amount }
+    }
+
+    // 建立快照
+    val currentSnapshot = remember(currentDate, expenses, totalAmount) {
+        DailyUiSnapshot(currentDate, expenses, totalAmount)
+    }
 
     val dateFormatPattern = stringResource(R.string.format_date_standard)
     val dateFormatter = remember(dateFormatPattern) { SimpleDateFormat(dateFormatPattern, Locale.getDefault()) }
@@ -80,11 +93,17 @@ fun DailyDetailScreen(
         }
     }
 
+    var isSlidingNext by remember { mutableStateOf(true) }
+
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
-                title = { Text(dateFormatter.format(Date(date)), color = AppTheme.colors.textPrimary, fontSize = 18.sp) },
+                title = {
+                    Box(modifier = Modifier.fillMaxWidth().offset(x = (-24).dp), contentAlignment = Alignment.Center) {
+                        Text(dateFormatter.format(Date(currentDate)), color = AppTheme.colors.textPrimary, fontSize = 18.sp)
+                    }
+                },
                 navigationIcon = {
                     GlassIconButton(
                         onClick = { debounce(onBackClick) },
@@ -101,65 +120,167 @@ fun DailyDetailScreen(
         },
         floatingActionButton = {
             AuroraFloatingActionButton(
-                onClick = { debounce { onAddExpenseClick(date) } }
+                onClick = { debounce { onAddExpenseClick(currentDate) } }
             )
         }
     ) { innerPadding ->
 
-        // [新增] 準備轉場 Modifier
-        var contentModifier = Modifier
+        // 外層容器 SharedElement
+        var containerModifier = Modifier
             .padding(innerPadding)
             .padding(20.dp)
             .fillMaxSize()
 
-        // 如果 Scope 存在，則加入 sharedElement
         if (sharedTransitionScope != null && animatedVisibilityScope != null) {
             with(sharedTransitionScope) {
-                contentModifier = contentModifier.sharedElement(
+                containerModifier = containerModifier.sharedElement(
                     state = rememberSharedContentState(key = "day_$date"),
                     animatedVisibilityScope = animatedVisibilityScope,
-                    // [使用] 引用共通的動畫設定
                     boundsTransform = FluidBoundsTransform
                 )
             }
         }
 
-        // [修改] 將 modifier 應用在 Column 上
-        Column(
-            modifier = contentModifier
-        ) {
-            TotalAmountCard(totalAmount)
-            Spacer(modifier = Modifier.height(20.dp))
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                contentPadding = PaddingValues(bottom = 80.dp)
-            ) {
-                items(expenses, key = { it.id }) { expense ->
-                    // [修改] 準備 Item 的轉場 Modifier
-                    var itemModifier = Modifier.fillMaxWidth()
-                    if (sharedTransitionScope != null && animatedVisibilityScope != null) {
-                        with(sharedTransitionScope) {
-                            itemModifier = itemModifier.sharedElement(
-                                state = rememberSharedContentState(key = "trans_${expense.id}"),
-                                animatedVisibilityScope = animatedVisibilityScope,
-                                boundsTransform = FluidBoundsTransform
-                            )
+        var lastSwipeTime by remember { mutableLongStateOf(0L) }
+        val swipeThresholdTime = 400L
+
+        Box(modifier = containerModifier) {
+
+            // 全螢幕手勢偵測
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pointerInput(Unit) {
+                        detectHorizontalDragGestures { _, dragAmount ->
+                            val now = System.currentTimeMillis()
+                            if (now - lastSwipeTime > swipeThresholdTime && abs(dragAmount) > 30) {
+                                if (dragAmount > 0) { // 右滑 -> 上一天
+                                    if (canGoPrev) {
+                                        isSlidingNext = false
+                                        viewModel.goToPreviousDay()
+                                        lastSwipeTime = now
+                                    }
+                                } else { // 左滑 -> 下一天
+                                    if (canGoNext) {
+                                        isSlidingNext = true
+                                        viewModel.goToNextDay()
+                                        lastSwipeTime = now
+                                    }
+                                }
+                            }
                         }
                     }
+            ) {
+                // 內容滑動動畫區
+                AnimatedContent(
+                    targetState = currentSnapshot,
+                    // [關鍵修正] 設定 contentKey
+                    // 只有當 snapshot.date 改變時，才視為畫面切換，執行 transitionSpec。
+                    // 如果 date 沒變 (例如只是 expenses 列表更新)，則不執行滑動動畫，直接原地重組。
+                    contentKey = { snapshot -> snapshot.date },
+                    transitionSpec = {
+                        val duration = 400
+                        if (isSlidingNext) {
+                            (slideInHorizontally(animationSpec = tween(duration)) { width -> width } + fadeIn(animationSpec = tween(duration))).togetherWith(
+                                slideOutHorizontally(animationSpec = tween(duration)) { width -> -width/2 } + fadeOut(animationSpec = tween(duration)))
+                        } else {
+                            (slideInHorizontally(animationSpec = tween(duration)) { width -> -width } + fadeIn(animationSpec = tween(duration))).togetherWith(
+                                slideOutHorizontally(animationSpec = tween(duration)) { width -> width/2 } + fadeOut(animationSpec = tween(duration)))
+                        }.using(SizeTransform(clip = false))
+                    },
+                    label = "DateSlide",
+                    modifier = Modifier.fillMaxSize()
+                ) { targetSnapshot ->
 
-                    Box(modifier = itemModifier) {
-                        JapaneseTransactionItem(
-                            expense = expense,
-                            onClick = { debounce { onItemClick(expense.id) } }
-                            // [移除] onDelete 參數
-                        )
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        TotalAmountCard(targetSnapshot.totalAmount)
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        LazyColumn(
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            contentPadding = PaddingValues(bottom = 80.dp),
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            items(targetSnapshot.expenses, key = { it.id }) { expense ->
+
+                                // 列表項目 SharedElement
+                                var itemModifier = Modifier.fillMaxWidth()
+                                if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+                                    with(sharedTransitionScope) {
+                                        itemModifier = itemModifier.sharedElement(
+                                            state = rememberSharedContentState(key = "trans_${expense.id}"),
+                                            animatedVisibilityScope = animatedVisibilityScope,
+                                            boundsTransform = FluidBoundsTransform
+                                        )
+                                    }
+                                }
+
+                                Box(modifier = itemModifier) {
+                                    JapaneseTransactionItem(
+                                        expense = expense,
+                                        onClick = { debounce { onItemClick(expense.id) } }
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
+            }
+
+            // 懸浮箭頭按鈕 (修正版)
+            if (canGoPrev) {
+                NavigationHintArrow(
+                    isLeft = true,
+                    onClick = {
+                        isSlidingNext = false
+                        viewModel.goToPreviousDay()
+                    },
+                    modifier = Modifier.align(Alignment.CenterStart)
+                )
+            }
+
+            if (canGoNext) {
+                NavigationHintArrow(
+                    isLeft = false,
+                    onClick = {
+                        isSlidingNext = true
+                        viewModel.goToNextDay()
+                    },
+                    modifier = Modifier.align(Alignment.CenterEnd)
+                )
             }
         }
     }
 }
 
+// 導航提示箭頭 (維持您喜歡的樣式)
+@Composable
+fun NavigationHintArrow(
+    isLeft: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            // 寬度 48dp, 高度 120dp 的點擊區域
+            .size(width = 48.dp, height = 120.dp)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null // 無水波紋，僅作為提示
+            ) { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = if (isLeft) Icons.AutoMirrored.Filled.KeyboardArrowLeft else Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            // 淺灰色，透明度 0.3f，符合"暗示"需求
+            tint = AppTheme.colors.textSecondary.copy(alpha = 0.3f),
+            modifier = Modifier.size(48.dp) // 圖示大小
+        )
+    }
+}
+
+// ... (TotalAmountCard, JapaneseTransactionItem, getCategoryColorDot 保持不變)
 @Composable
 fun TotalAmountCard(totalAmount: Int) {
     GlassCard(modifier = Modifier.fillMaxWidth()) {
@@ -185,8 +306,12 @@ fun JapaneseTransactionItem(
     val displayCategory = getSmartCategoryName(expense.category)
     val displayNote = getSmartNote(expense.note)
 
+    val itemAlpha = if (expense.excludeFromBudget) 0.5f else 1f
+
     GlassCard(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .alpha(itemAlpha),
         cornerRadius = 16.dp,
         onClick = onClick
     ) {
@@ -195,12 +320,10 @@ fun JapaneseTransactionItem(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // 左側內容群組
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.weight(1f)
             ) {
-                // 琉璃珠分類圓點
                 Box(
                     modifier = Modifier
                         .size(12.dp)
@@ -217,13 +340,19 @@ fun JapaneseTransactionItem(
                 Spacer(modifier = Modifier.width(16.dp))
 
                 Column {
-                    Text(text = displayCategory, color = AppTheme.colors.textSecondary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(text = displayCategory, color = AppTheme.colors.textSecondary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+
+                        if (expense.excludeFromBudget) {
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(stringResource(R.string.text_excluded_label), color = AppTheme.colors.textSecondary, fontSize = 10.sp)
+                        }
+                    }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(text = displayNote, color = AppTheme.colors.textPrimary, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
 
-            // 右側內容群組 - [移除] 刪除按鈕
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = stringResource(R.string.amount_negative_format, expense.amount),
@@ -231,7 +360,6 @@ fun JapaneseTransactionItem(
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )
-                // 這裡原本的刪除按鈕 Box 已移除
             }
         }
     }

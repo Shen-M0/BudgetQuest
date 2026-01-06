@@ -19,7 +19,20 @@ data class CategoryStat(
     val color: Color
 )
 
-// [新增] 狀態 Enum
+data class PaymentStat(
+    val method: String,
+    val amount: Int,
+    val percentage: Int
+)
+
+data class MerchantStat(
+    val name: String,
+    val count: Int,
+    val totalAmount: Int
+)
+
+enum class MerchantSortType { Amount, Count }
+
 enum class BudgetStatus { Achieved, Exceeded, None }
 
 data class SummaryUiState(
@@ -27,11 +40,31 @@ data class SummaryUiState(
     val filteredExpenses: List<ExpenseEntity> = emptyList(),
     val totalSpent: Int = 0,
     val actualSaved: Int = 0,
-    val budgetStatus: BudgetStatus = BudgetStatus.None, // [修改] 改用 Enum
+    val budgetStatus: BudgetStatus = BudgetStatus.None,
     val categoryStats: List<CategoryStat> = emptyList(),
+
+    val totalRealSpent: Int = 0,
+
+    val needAmount: Int = 0,
+    val wantAmount: Int = 0,
+    val needPercent: Int = 0,
+    val wantPercent: Int = 0,
+
+    val paymentStats: List<PaymentStat> = emptyList(),
+    val topMerchants: List<MerchantStat> = emptyList(),
+    val merchantSortType: MerchantSortType = MerchantSortType.Amount,
+
     val searchQuery: String = "",
     val selectedCategories: Set<String> = emptySet(),
     val selectedTags: Set<String> = emptySet()
+)
+
+// [新增] 一個內部資料類別，用來暫存篩選條件，解決 combine 參數過多的問題
+private data class FilterState(
+    val query: String,
+    val catFilter: Set<String>,
+    val tagFilter: Set<String>,
+    val sortType: MerchantSortType
 )
 
 class SummaryViewModel(private val repository: BudgetRepository) : ViewModel() {
@@ -47,8 +80,16 @@ class SummaryViewModel(private val repository: BudgetRepository) : ViewModel() {
 
     private val _targetPlanId = MutableStateFlow<Int?>(null)
 
+    private val _merchantSortType = MutableStateFlow(MerchantSortType.Amount)
+
     fun setPlanId(id: Int) {
         _targetPlanId.value = if (id == -1) null else id
+    }
+
+    fun toggleMerchantSortType() {
+        _merchantSortType.update { current ->
+            if (current == MerchantSortType.Amount) MerchantSortType.Count else MerchantSortType.Amount
+        }
     }
 
     private val targetPlanFlow = combine(_targetPlanId, repository.getAllPlansStream()) { targetId, plans ->
@@ -60,13 +101,26 @@ class SummaryViewModel(private val repository: BudgetRepository) : ViewModel() {
         }
     }
 
+    // [修正] 1. 先將 4 個篩選條件組合成一個 Flow
+    private val filterStateFlow = combine(
+        _searchQuery,
+        _selectedCategories,
+        _selectedTags,
+        _merchantSortType
+    ) { query, cat, tag, sort ->
+        FilterState(query, cat, tag, sort)
+    }
+
+    // [修正] 2. 再將數據源 (Plan, Expenses) 與篩選條件 (FilterState) 組合
+    // 這樣 combine 只會有 3 個參數，符合限制
     val uiState: StateFlow<SummaryUiState> = combine(
         targetPlanFlow,
         repository.getAllExpensesStream(),
-        _searchQuery,
-        _selectedCategories,
-        _selectedTags
-    ) { plan, allExpenses, query, catFilter, tagFilter ->
+        filterStateFlow
+    ) { plan, allExpenses, filterState ->
+
+        // 解構 filterState
+        val (query, catFilter, tagFilter, sortType) = filterState
 
         val planExpenses = if (plan != null) {
             val start = getStartOfDay(plan.startDate)
@@ -76,17 +130,57 @@ class SummaryViewModel(private val repository: BudgetRepository) : ViewModel() {
             emptyList()
         }
 
+        val totalRealSpent = planExpenses.sumOf { it.amount }
+        val validExpenses = planExpenses.filter { !it.excludeFromBudget }
+        val totalSpent = validExpenses.sumOf { it.amount }
+
+        // --- 1. Need / Want 統計 ---
+        val needAmount = planExpenses.filter { it.isNeed == true }.sumOf { it.amount }
+        val wantAmount = planExpenses.filter { it.isNeed == false }.sumOf { it.amount }
+        val totalNW = needAmount + wantAmount
+
+        val (needPercent, wantPercent) = if (totalNW > 0) {
+            val nPct = (needAmount.toFloat() / totalNW * 100).toInt()
+            val wPct = 100 - nPct
+            Pair(nPct, wPct)
+        } else {
+            Pair(0, 0)
+        }
+
+        // --- 2. 支付方式統計 ---
+        val rawPaymentStats = planExpenses
+            .groupBy { it.paymentMethod.ifBlank { "現金" } }
+            .map { (method, list) ->
+                val sum = list.sumOf { it.amount }
+                PaymentStat(method, sum, if (totalRealSpent > 0) (sum.toFloat() / totalRealSpent * 100).toInt() else 0)
+            }
+            .sortedByDescending { it.amount }
+
+        val paymentStats = adjustPercentages(rawPaymentStats, { it.percentage }, { item, newPct -> item.copy(percentage = newPct) })
+
+        // --- 3. 店家排行 ---
+        val rawMerchants = planExpenses
+            .filter { it.merchant.isNotBlank() }
+            .groupBy { it.merchant }
+            .map { (merchant, list) ->
+                MerchantStat(merchant, list.size, list.sumOf { it.amount })
+            }
+
+        val topMerchants = when (sortType) {
+            MerchantSortType.Amount -> rawMerchants.sortedByDescending { it.totalAmount }
+            MerchantSortType.Count -> rawMerchants.sortedByDescending { it.count }
+        }.take(5)
+
+        // --- 列表篩選 ---
         val filtered = planExpenses.filter { expense ->
-            val matchQuery = query.isBlank() || expense.note.contains(query, ignoreCase = true)
+            val matchQuery = query.isBlank() || expense.note.contains(query, ignoreCase = true) || expense.merchant.contains(query, ignoreCase = true)
             val matchCategory = catFilter.isEmpty() || catFilter.contains(expense.category)
             val matchTag = tagFilter.isEmpty() || tagFilter.any { expense.note.contains(it) }
             matchQuery && matchCategory && matchTag
         }.sortedByDescending { it.date }
 
-        val totalSpent = planExpenses.sumOf { it.amount }
         val actualSaved = (plan?.totalBudget ?: 0) - totalSpent - (plan?.targetSavings ?: 0)
 
-        // [修改] 計算狀態 Enum 而非字串
         val status = if (plan != null) {
             val remaining = (plan.totalBudget - plan.targetSavings) - totalSpent
             if (remaining >= 0) BudgetStatus.Achieved else BudgetStatus.Exceeded
@@ -94,15 +188,26 @@ class SummaryViewModel(private val repository: BudgetRepository) : ViewModel() {
             BudgetStatus.None
         }
 
-        val stats = calculateCategoryStats(planExpenses)
+        val stats = calculateCategoryStats(validExpenses)
 
         SummaryUiState(
             plan = plan,
             filteredExpenses = filtered,
             totalSpent = totalSpent,
             actualSaved = actualSaved,
-            budgetStatus = status, // [修改]
+            budgetStatus = status,
             categoryStats = stats,
+
+            totalRealSpent = totalRealSpent,
+            needAmount = needAmount,
+            wantAmount = wantAmount,
+            needPercent = needPercent,
+            wantPercent = wantPercent,
+
+            paymentStats = paymentStats,
+            topMerchants = topMerchants,
+            merchantSortType = sortType,
+
             searchQuery = query,
             selectedCategories = catFilter,
             selectedTags = tagFilter
@@ -113,7 +218,8 @@ class SummaryViewModel(private val repository: BudgetRepository) : ViewModel() {
         initialValue = SummaryUiState()
     )
 
-    // --- Actions ---
+    // ... (Actions 與 Helper 函式保持不變) ...
+    fun toggleMerchantSort() = toggleMerchantSortType()
     fun onSearchQueryChanged(query: String) { _searchQuery.value = query }
     fun onCategoryFilterChanged(category: String) {
         _selectedCategories.update { if (it.contains(category)) emptySet() else setOf(category) }
@@ -124,42 +230,46 @@ class SummaryViewModel(private val repository: BudgetRepository) : ViewModel() {
     fun updateSearchQuery(query: String) = onSearchQueryChanged(query)
     fun toggleCategoryFilter(category: String) = onCategoryFilterChanged(category)
     fun toggleTagFilter(tag: String) = onTagFilterChanged(tag)
+    fun deleteExpense(expense: ExpenseEntity) { viewModelScope.launch { repository.deleteExpense(expense) } }
 
-    fun deleteExpense(expense: ExpenseEntity) {
-        viewModelScope.launch { repository.deleteExpense(expense) }
-    }
-
-    // --- Management ---
     val visibleCategories = repository.getVisibleCategoriesStream().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val visibleTags = repository.getVisibleTagsStream().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val allCategories = repository.getAllCategoriesStream().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val allTags = repository.getAllTagsStream().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    fun addCategory(name: String, iconKey: String, colorHex: String) {
-        viewModelScope.launch {
-            repository.insertCategory(
-                CategoryEntity(
-                    name = name,
-                    iconKey = iconKey,
-                    colorHex = colorHex
-                )
-            )
-        }
-    }
+    fun addCategory(name: String, iconKey: String, colorHex: String) { viewModelScope.launch { repository.insertCategory(CategoryEntity(name = name, iconKey = iconKey, colorHex = colorHex)) } }
     fun toggleCategoryVisibility(category: CategoryEntity) { viewModelScope.launch { repository.updateCategory(category.copy(isVisible = !category.isVisible)) } }
     fun deleteCategory(category: CategoryEntity) { viewModelScope.launch { repository.deleteCategory(category) } }
     fun addTag(name: String) { viewModelScope.launch { repository.insertTag(TagEntity(name = name)) } }
     fun toggleTagVisibility(tag: TagEntity) { viewModelScope.launch { repository.updateTag(tag.copy(isVisible = !tag.isVisible)) } }
     fun deleteTag(tag: TagEntity) { viewModelScope.launch { repository.deleteTag(tag) } }
 
-    // --- Helper ---
+    private fun <T> adjustPercentages(
+        items: List<T>,
+        getPercent: (T) -> Int,
+        updatePercent: (T, Int) -> T
+    ): List<T> {
+        if (items.isEmpty()) return items
+        val sum = items.sumOf { getPercent(it) }
+        val diff = 100 - sum
+        if (diff > 0) {
+            val maxItemIndex = items.indexOfFirst { it == items.maxByOrNull { item -> getPercent(item) } }
+            if (maxItemIndex != -1) {
+                return items.mapIndexed { index, item ->
+                    if (index == maxItemIndex) updatePercent(item, getPercent(item) + diff) else item
+                }
+            }
+        }
+        return items
+    }
+
     private fun calculateCategoryStats(expenses: List<ExpenseEntity>): List<CategoryStat> {
         val total = expenses.sumOf { it.amount }
         if (total == 0) return emptyList()
-        return expenses.groupBy { it.category }.map { (cat, list) ->
+        val rawStats = expenses.groupBy { it.category }.map { (cat, list) ->
             val sum = list.sumOf { it.amount }
             CategoryStat(name = cat, totalAmount = sum, percentage = (sum.toFloat() / total * 100).toInt(), color = getCategoryColor(cat))
         }.sortedByDescending { it.totalAmount }
+        return adjustPercentages(rawStats, { it.percentage }, { item, newPct -> item.copy(percentage = newPct) })
     }
 
     private fun getCategoryColor(category: String): Color {

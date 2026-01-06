@@ -6,7 +6,15 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -15,16 +23,20 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.budgetquest.R
 import com.example.budgetquest.ui.theme.AppTheme
 
 // --- 筆刷定義 ---
 
 // 一般元件使用的玻璃筆刷 (依賴 AppTheme)
+// 這是您原本喜歡的風格
 @Composable
 fun getGlassBrush(): Brush {
     return Brush.verticalGradient(
@@ -35,21 +47,20 @@ fun getGlassBrush(): Brush {
     )
 }
 
-// [修正] Dialog 專用筆刷：確保深色模式正確，淺色模式夠亮
+// [修正] Dialog 專用筆刷
 @Composable
 fun getDialogGlassBrush(): Brush {
-    val isDark = isSystemInDarkTheme()
-    return if (isDark) {
-        // 深色模式：強制使用深色底 (Color(0xFF121212))，避免因 Dialog 抓不到 AppTheme 而變白
-        // 參數與 getGlassBrush 保持一致 (0.65f -> 0.35f)，還原您原本喜歡的風格
-        Brush.verticalGradient(
-            colors = listOf(
-                Color(0xFF121212).copy(alpha = 0.65f),
-                Color(0xFF121212).copy(alpha = 0.35f)
-            )
-        )
+    // [關鍵修正] 不再依賴 isSystemInDarkTheme()，而是檢查當前 AppTheme 的表面顏色亮度。
+    // 如果亮度 < 0.5，代表目前是深色主題 (無論是系統設定還是 APP 內切換)。
+    val isDarkTheme = AppTheme.colors.surface.luminance() < 0.5f
+
+    return if (isDarkTheme) {
+        // 深色模式：直接使用標準玻璃筆刷
+        // 這樣就能 100% 還原您原本喜歡的深色通透風格
+        getGlassBrush()
     } else {
-        // 淺色模式：使用高亮白色，對抗遮罩變暗
+        // 淺色模式：使用高亮白色
+        // 這是為了避免 Dialog 在黑色遮罩(Scrim)上看起來灰暗髒髒的
         Brush.verticalGradient(
             colors = listOf(
                 Color.White.copy(alpha = 0.95f),
@@ -117,7 +128,7 @@ fun GlassCard(
     val backgroundModifier = when {
         customBrush != null -> Modifier.background(customBrush)
         backgroundColor != null -> Modifier.background(backgroundColor)
-        else -> Modifier.background(getGlassBrush()) // 預設情況
+        else -> Modifier.background(getGlassBrush()) // 預設使用標準風格
     }
 
     // 2. 決定邊框邏輯
@@ -140,4 +151,61 @@ fun GlassCard(
         modifier = finalModifier,
         content = content
     )
+}
+
+// --- 業務邏輯元件 (從 SummaryScreen 移入) ---
+
+/**
+ * 預算狀態卡片
+ * 顯示：剩餘金額、進度條、狀態訊息
+ */
+@Composable
+fun MinimalBudgetCard(
+    totalBudget: Int,
+    totalSpent: Int,
+    message: String,
+    modifier: Modifier = Modifier
+) {
+    val remaining = totalBudget - totalSpent
+
+    GlassCard(
+        modifier = modifier.fillMaxWidth(),
+        cornerRadius = 20.dp
+    ) {
+        Column(modifier = Modifier.padding(24.dp)) {
+            // 標題區：金額 + 標籤
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(
+                    text = stringResource(R.string.amount_currency_format, remaining),
+                    style = getShadowTextStyle(fontSize = 32, fontWeight = FontWeight.Bold)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = stringResource(R.string.label_remaining_budget),
+                    fontSize = 12.sp,
+                    color = AppTheme.colors.textSecondary,
+                    modifier = Modifier.padding(bottom = 6.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // 進度條 (需確保 JapaneseProgressBar.kt 存在於同 package)
+            JapaneseBudgetProgressBar(
+                totalBudget = totalBudget,
+                totalSpent = totalSpent,
+                modifier = Modifier.padding(vertical = 16.dp)
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 狀態訊息
+            Text(
+                text = message,
+                fontSize = 13.sp,
+                lineHeight = 20.sp,
+                color = AppTheme.colors.textSecondary
+            )
+        }
+    }
 }

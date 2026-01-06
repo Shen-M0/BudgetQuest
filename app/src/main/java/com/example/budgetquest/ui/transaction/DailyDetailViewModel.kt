@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.budgetquest.data.BudgetRepository
 import com.example.budgetquest.data.ExpenseEntity
+import com.example.budgetquest.data.PlanEntity
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.util.Calendar
@@ -15,68 +16,80 @@ data class DailyDetailUiState(
 
 class DailyDetailViewModel(private val repository: BudgetRepository) : ViewModel() {
 
-    // 內部用來控制日期的 StateFlow
-    private val _dateFilter = MutableStateFlow(System.currentTimeMillis())
+    private val _currentDate = MutableStateFlow(0L)
+    val currentDate: StateFlow<Long> = _currentDate
 
-    // 1. 公開的 uiState，讓 Screen 讀取當前日期
-    val uiState: StateFlow<DailyDetailUiState> = _dateFilter
-        .map { DailyDetailUiState(date = it) }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = DailyDetailUiState()
-        )
+    private val _currentPlan = MutableStateFlow<PlanEntity?>(null)
 
-    // 2. 公開的 expenses 列表，根據日期自動過濾
-    val expenses: StateFlow<List<ExpenseEntity>> = combine(
-        _dateFilter,
-        repository.getAllExpensesStream()
-    ) { targetDate, allExpenses ->
-        val startOfDay = getStartOfDay(targetDate)
-        val endOfDay = getEndOfDay(targetDate)
+    // [新增] 解決問題 4：防止從編輯頁返回時，日期被重置為初始進入的日期
+    private var isInitialized = false
 
-        // 過濾出該日期的消費，並按時間排序
-        allExpenses.filter { it.date in startOfDay..endOfDay }
-            .sortedByDescending { it.date }
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = emptyList()
-    )
+    // [修正] 解決問題 3：使用嚴格的日期比較 (忽略時間)
+    val canGoPrevious: StateFlow<Boolean> = combine(_currentDate, _currentPlan) { date, plan ->
+        if (plan == null) false else isDateAfter(date, plan.startDate) // 當前日期 > 開始日期，才能往左
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
-    // --- Actions ---
+    val canGoNext: StateFlow<Boolean> = combine(_currentDate, _currentPlan) { date, plan ->
+        if (plan == null) false else isDateBefore(date, plan.endDate) // 當前日期 < 結束日期，才能往右
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
-    // 設定要顯示哪一天
+    val expenses: StateFlow<List<ExpenseEntity>> = combine(_currentDate, repository.getAllExpensesStream()) { date, all ->
+        val start = getStartOfDay(date)
+        val end = getEndOfDay(date)
+        all.filter { it.date in start..end }.sortedByDescending { it.date }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     fun setDate(date: Long) {
-        _dateFilter.value = date
-    }
+        // [關鍵修正] 如果已經初始化過 (代表 ViewModel 存活，可能是從編輯頁返回)，則忽略傳入的舊 date
+        if (isInitialized) return
 
-    // 刪除消費
-    fun deleteExpense(expense: ExpenseEntity) {
         viewModelScope.launch {
-            repository.deleteExpense(expense)
+            _currentDate.value = date
+            val plans = repository.getAllPlansStream().first()
+            // 找到包含此日期的計畫
+            val plan = plans.find {
+                val d = getStartOfDay(date)
+                val s = getStartOfDay(it.startDate)
+                val e = getStartOfDay(it.endDate) // 寬容判斷
+                d in s..e
+            }
+            _currentPlan.value = plan
+            isInitialized = true
         }
     }
 
-    // --- Helper Functions (計算當天的開始與結束時間) ---
-
-    private fun getStartOfDay(time: Long): Long {
-        val calendar = Calendar.getInstance()
-        calendar.timeInMillis = time
-        calendar.set(Calendar.HOUR_OF_DAY, 0)
-        calendar.set(Calendar.MINUTE, 0)
-        calendar.set(Calendar.SECOND, 0)
-        calendar.set(Calendar.MILLISECOND, 0)
-        return calendar.timeInMillis
+    fun goToPreviousDay() {
+        if (canGoPrevious.value) {
+            _currentDate.value -= ONE_DAY_MILLIS
+        }
     }
 
+    fun goToNextDay() {
+        if (canGoNext.value) {
+            _currentDate.value += ONE_DAY_MILLIS
+        }
+    }
+
+    companion object {
+        const val ONE_DAY_MILLIS = 24 * 60 * 60 * 1000L
+    }
+
+    private fun getStartOfDay(time: Long): Long {
+        val c = Calendar.getInstance().apply { timeInMillis = time; set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0) }
+        return c.timeInMillis
+    }
     private fun getEndOfDay(time: Long): Long {
-        val calendar = Calendar.getInstance()
-        calendar.timeInMillis = time
-        calendar.set(Calendar.HOUR_OF_DAY, 23)
-        calendar.set(Calendar.MINUTE, 59)
-        calendar.set(Calendar.SECOND, 59)
-        calendar.set(Calendar.MILLISECOND, 999)
-        return calendar.timeInMillis
+        val c = Calendar.getInstance().apply { timeInMillis = time; set(Calendar.HOUR_OF_DAY, 23); set(Calendar.MINUTE, 59); set(Calendar.SECOND, 59); set(Calendar.MILLISECOND, 999) }
+        return c.timeInMillis
+    }
+
+    // 判斷 date1 是否在 date2 之後 (date1 > date2)
+    private fun isDateAfter(date1: Long, date2: Long): Boolean {
+        return getStartOfDay(date1) > getStartOfDay(date2)
+    }
+
+    // 判斷 date1 是否在 date2 之前 (date1 < date2)
+    private fun isDateBefore(date1: Long, date2: Long): Boolean {
+        return getStartOfDay(date1) < getStartOfDay(date2)
     }
 }
