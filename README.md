@@ -22,39 +22,72 @@
 
 #### 2. 高度客製化記帳 (Transaction & Customization)
 
+* **圖片與附檔**：支援消費紀錄附帶照片（拍攝或相簿選取），並支援雲端同步備份，讓回憶與帳目一同保存。
 * **自訂分類系統**：使用者不只能新增、編輯、刪除分類，還支援 **自選圖示 (Icon) 與 色彩 (Color)**。
 * **智慧防呆**：新增消費時，系統會自動快取日期與分類，並優化了鍵盤與輸入框的互動流暢度，讓記帳過程行雲流水。
 
 #### 3. 計畫與訂閱管理 (Plan & Subscription)
 
-* **計畫導向**：支援建立多個不同週期的存錢計畫（例如：旅行基金、月度預算），系統自動防止日期重疊，確保每一分錢都在規劃之中。
-* **固定扣款**：獨立的訂閱管理頁面，支援「每月、每週、每日、自訂間隔」的自動扣款設定，並自動寫入當期計畫，無需重複輸入。
+* **多幣別支援**：整合即時匯率 API，支援設定主幣別（如 TWD, USD, JPY），自動換算並顯示資產價值。
+* **計畫導向**：支援建立多個不同週期的存錢計畫，系統自動防止日期重疊，確保每一分錢都在規劃之中。
+* **固定扣款**：獨立的訂閱管理頁面，支援「每月、每週、每日、自訂間隔」的自動扣款設定。
 
 #### 4. 系統架構與資料安全
 
-* **雲端備份**：整合 Google Drive (SAF)，支援資料庫的備份與還原 (Local-First)，資料掌握在使用者自己手中。
+* **Firebase 雲端備份**：整合 Firebase Auth (Google Sign-In) 與 Firebase Storage，實現資料庫與圖片的完整雲端備份與還原，支援跨裝置同步。
 * **背景通知**：整合 WorkManager 進行每日記帳提醒，確保不錯過任何一筆消費。
+
+---
+
+### ⚙️ 環境設定與 API 配置 (Configuration)
+
+> **⚠️ 注意：本專案整合了雲端服務與外部 API。為確保功能正常運作，請在本地端執行前完成以下環境配置。**
+
+#### 1. Firebase 專案設定 (必要)
+
+本專案依賴 Firebase 進行使用者驗證與雲端備份。
+
+1. 前往 Firebase Console 建立新專案。
+2. 新增 Android 應用程式，並確保套件名稱與本專案一致。
+3. 下載設定檔，將其放置於專案的 **App 模組根目錄** (`app/`) 下。
+4. 於 Firebase 控制台中啟用 **Authentication (Google Sign-In)** 與 **Storage** 功能。
+
+#### 2. 匯率 API 金鑰配置 (建議)
+
+本專案使用 ExchangeRate-API 提供即時匯率換算功能。
+
+1. 前往 ExchangeRate-API 官網 申請 API Key。
+2. 於專案原始碼中找到負責處理 **貨幣資料 (Currency Repository)** 的檔案。
+3. 將預設的 API Key 變數替換為您申請的金鑰。
+
+#### 3. 地圖 API 金鑰配置 (建議)
+
+本專案使用 Google Maps Platform API 提供地點搜尋與定位資訊。
+
+1. 前往 Google Cloud Platform (GCP) 申請 API Key，並啟用 Maps SDK for Android 與 Places API。
+2. 於專案原始碼中找到負責處理 **地圖資料** 的檔案。
+3. 將預設的 API Key 變數替換為您申請的金鑰。
 
 ---
 
 ### 🎨 使用體驗優化 (UX & Personalization)
 
-#### 1. 新手引導與按鈕教學 (Onboarding & Coach Marks)
+#### 1. 新手引導與按鈕教學
 
-* **首次引導 (Onboarding)**：初次使用時，App 會透過流暢的引導頁面，協助使用者建立第一個計畫，降低學習門檻。
-* **互動式教學 (Coach Marks)**：進入主畫面後，系統會透過 **聚光燈效果 (Spotlight Overlay)** 逐一介紹介面上的功能按鈕（如切換模式、歷史紀錄、設定等），讓使用者能在操作中自然學會如何使用。
+* **首次引導 (Onboarding)**：流暢的引導頁面，協助使用者建立第一個計畫。
+* **互動式教學 (Coach Marks)**：透過聚光燈效果，逐一介紹介面上的功能按鈕。
 
 #### 2. 深色模式支援 (Dark Mode)
 
-* 完美適配 **深色主題 (Dark Theme)**。無論是在白天還是夜晚記帳，介面配色皆經過精心調校，確保閱讀舒適不刺眼，同時節省電力。
+* 完美適配深色主題，無論日夜皆能舒適閱讀，並節省電力。
 
 #### 3. 多語言介面 (Localization)
 
-* 內建完整的國際化支援，App 會根據手機系統語言自動切換，亦可正確顯示對應的預設分類與備註名稱：
-* 🇹🇼 **繁體中文 (Traditional Chinese)**
-* 🇺🇸 **英文 (English)**
-* 🇯🇵 **日文 (Japanese)**
-* 🇨🇳 **簡體中文 (Simplified Chinese)**
+* 內建完整的國際化支援，根據系統語言自動切換：
+* **繁體中文 (Traditional Chinese)**
+* **英文 (English)**
+* **日文 (Japanese)**
+* **簡體中文 (Simplified Chinese)**
 
 
 
@@ -77,57 +110,26 @@
 * **語言**：Kotlin
 * **UI 框架**：Jetpack Compose (Material Design 3)
 * **架構模式**：MVVM (Model-View-ViewModel) + Repository Pattern
-* **非同步處理**：Coroutines & Flow (StateFlow / SharedFlow)
+* **非同步處理**：Coroutines & Flow
+* **網路請求**：Retrofit + Gson (Currency API)
+* **雲端服務**：
+* **Firebase Auth**：Google 登入驗證
+* **Firebase Storage**：資料庫與圖片備份
+
+
 * **本地資料庫**：Room Database (SQLite)
-* 完整 Entity 關聯 (Plan, Expense, Category, Tag)
-* Database Migration (V1 -> V8)
-
-
-* **導航**：Navigation Compose (Single Activity Architecture)
+* **導航**：Navigation Compose
 * **背景任務**：WorkManager
-* **效能優化**：
-* `rememberSaveable` 狀態保存
-* Global Click Debouncing (防手震)
-* Lazy Layout Optimization (Key-based recomposition)
-
-
-
----
-
-### 📂 主要專案結構 (Project Structure)
-
-```text
-com.example.budgetquest
-├── data/                   # Model 層
-│   ├── BudgetDatabase.kt   # Room DB 定義 & 預設資料填充
-│   ├── Entity.kt           # 資料表 (Expense, Category, Subscription...)
-│   └── BackupManager.kt    # Google Drive 備份邏輯
-│
-├── ui/                     # View 層 (Compose UI)
-│   ├── dashboard/          # 主畫面 (儀表板、專注/月曆模式)
-│   ├── transaction/        # 記帳功能 (含 CategoryManager)
-│   ├── plan/               # 計畫設定
-│   ├── summary/            # 統計圖表
-│   ├── subscription/       # 固定扣款 (訂閱管理)
-│   ├── settings/           # 設定 (深色模式、備份)
-│   ├── history/            # 歷史計畫回顧
-│   ├── onboarding/         # 首次引導頁
-│   └── common/             # 共用元件 (動畫數字, CoachMarks, Helper)
-│
-└── worker/                 # 背景工作
-    └── ReminderWorker.kt   # 通知推播
-
-```
 
 ---
 
 ### 🚀 如何執行 (Getting Started)
 
 1. Clone 本專案到本地端。
-2. 使用 Android Studio (建議 Ladybug 或更新版本) 開啟。
-3. 等待 Gradle Sync 完成。
-4. 連接實機或模擬器 (建議 API 26+)。
-5. 點擊 **Run**。
+2. **完成上述「環境設定與 API 配置」步驟。**
+3. 使用 Android Studio (建議使用最新穩定版) 開啟專案。
+4. 等待 Gradle Sync 完成。
+5. 連接實機或模擬器點擊 **Run**。
 
 ---
 
