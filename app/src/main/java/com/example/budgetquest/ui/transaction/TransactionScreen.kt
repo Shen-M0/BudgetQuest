@@ -16,6 +16,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -68,6 +69,7 @@ import com.example.budgetquest.ui.common.getIconByKey
 import com.example.budgetquest.ui.common.getSmartCategoryName
 import com.example.budgetquest.ui.common.getSmartPaymentName
 import com.example.budgetquest.ui.common.getSmartTagName
+import com.example.budgetquest.ui.settings.CurrencySelectionDialog // [引用] 複用設定頁面的 Dialog
 import com.example.budgetquest.ui.theme.AppTheme
 import com.google.android.gms.location.LocationServices
 import com.google.android.libraries.places.api.Places
@@ -101,6 +103,9 @@ fun TransactionScreen(
     var showTagManager by remember { mutableStateOf(false) }
 
     var isAdvancedExpanded by remember { mutableStateOf(false) }
+
+    // [新增] 幣別選擇 Dialog 狀態
+    var showCurrencyDialog by remember { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
@@ -136,13 +141,12 @@ fun TransactionScreen(
         }
     }
 
-    // [新增] FusedLocationProviderClient 用於獲取位置
+    // FusedLocationProviderClient 用於獲取位置
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
 
-    // [新增] 邏輯：獲取當前位置並轉為地址
+    // 邏輯：獲取當前位置並轉為地址
     fun getCurrentLocation() {
         try {
-            // 再次檢查權限 (雖然在呼叫前會檢查，但 IDE 還是會警告)
             if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
                 ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
             ) {
@@ -153,16 +157,12 @@ fun TransactionScreen(
                         scope.launch(Dispatchers.IO) {
                             try {
                                 val geocoder = Geocoder(context, Locale.getDefault())
-                                // 取得 1 筆地址結果
-                                @Suppress("DEPRECATION") // 為了相容性使用舊 API，新版 API 需 Tiramisu 以上
+                                @Suppress("DEPRECATION")
                                 val addresses = geocoder.getFromLocation(location.latitude, location.longitude, 1)
 
                                 if (!addresses.isNullOrEmpty()) {
                                     val address = addresses[0]
-                                    // 優先使用地標名稱 (FeatureName)，如果沒有則使用地址線
-                                    // 為了更精確顯示店家，通常 geocoder 只會給出地址，
-                                    // 若要精確店家通常需要 Places API 的 Current Place，但 Geocoder 比較省錢且簡單
-                                    val resultName = address.getAddressLine(0) // 完整地址
+                                    val resultName = address.getAddressLine(0)
 
                                     withContext(Dispatchers.Main) {
                                         viewModel.updateMerchant(resultName)
@@ -190,7 +190,7 @@ fun TransactionScreen(
         }
     }
 
-    // [新增] 權限請求 Launcher
+    // 權限請求 Launcher
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
@@ -285,6 +285,19 @@ fun TransactionScreen(
             onAddTag = viewModel::addTag,
             onToggleVisibility = viewModel::toggleTagVisibility,
             onDelete = viewModel::deleteTag
+        )
+    }
+
+    // [新增] 幣別選擇 Dialog
+    if (showCurrencyDialog) {
+        CurrencySelectionDialog(
+            currentSelection = viewModel.inputCurrency,
+            currencyList = viewModel.supportedCurrencies,
+            onDismiss = { showCurrencyDialog = false },
+            onConfirm = { selected ->
+                viewModel.updateInputCurrency(selected)
+                showCurrencyDialog = false
+            }
         )
     }
 
@@ -397,7 +410,7 @@ fun TransactionScreen(
         ) {
             Spacer(modifier = Modifier.height(0.dp))
 
-            // 1. 日期與金額
+            // 1. 日期與金額 (整合幣別選擇)
             GlassCard(modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier.padding(20.dp),
@@ -413,14 +426,53 @@ fun TransactionScreen(
                     }
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("$", fontSize = 24.sp, color = AppTheme.colors.textSecondary, fontWeight = FontWeight.Bold)
-                        Spacer(modifier = Modifier.width(8.dp))
+                        // [修改] 將原本固定的 "$" 改為 幣別按鈕
+                        Surface(
+                            onClick = { showCurrencyDialog = true },
+                            shape = RoundedCornerShape(8.dp),
+                            color = AppTheme.colors.surface.copy(alpha = 0.5f),
+                            border = BorderStroke(1.dp, AppTheme.colors.divider)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = viewModel.inputCurrency,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = AppTheme.colors.textPrimary
+                                )
+                                Icon(
+                                    imageVector = Icons.Default.KeyboardArrowDown,
+                                    contentDescription = null,
+                                    tint = AppTheme.colors.textSecondary,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        // 金額輸入框
                         GlassTextField(
                             value = uiState.amount,
                             onValueChange = { viewModel.updateAmount(it) },
                             placeholder = stringResource(R.string.hint_amount),
                             isNumber = true,
-                            label = null
+                            label = null,
+                            modifier = Modifier.weight(1f) // 讓輸入框佔滿剩餘空間
+                        )
+                    }
+
+                    // [新增] 匯率轉換預覽 (如果有轉換)
+                    if (viewModel.convertedPreview.isNotEmpty()) {
+                        Text(
+                            text = viewModel.convertedPreview,
+                            color = AppTheme.colors.accent,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.align(Alignment.End) // 靠右對齊
                         )
                     }
                 }
@@ -479,7 +531,7 @@ fun TransactionScreen(
                 }
             }
 
-            // 3. 進階選項
+            // 3. 進階選項 (保持不變)
             GlassCard(modifier = Modifier.fillMaxWidth()) {
                 Column {
                     Row(
@@ -591,7 +643,7 @@ fun TransactionScreen(
                                 }
                             }
 
-                            // C. 店家/地點 (地圖搜尋邏輯修正)
+                            // C. 店家/地點
                             Text(stringResource(R.string.label_merchant_location), fontSize = 12.sp, color = AppTheme.colors.textSecondary)
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -608,9 +660,7 @@ fun TransactionScreen(
                                 GlassIconButton(
                                     onClick = {
                                         debounce {
-                                            // [關鍵修正] 判斷輸入框內容
                                             if (uiState.merchant.isBlank()) {
-                                                // 情況 1：輸入框為空 -> 請求權限 -> 自動定位
                                                 val hasFine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
                                                 val hasCoarse = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
 
@@ -625,10 +675,9 @@ fun TransactionScreen(
                                                     )
                                                 }
                                             } else {
-                                                // 情況 2：輸入框有值 -> 開啟搜尋頁面 (帶入預填文字)
                                                 val fields = listOf(GooglePlace.Field.NAME, GooglePlace.Field.ADDRESS)
                                                 val intent = Autocomplete.IntentBuilder(AutocompleteActivityMode.OVERLAY, fields)
-                                                    .setInitialQuery(uiState.merchant) // 預填文字
+                                                    .setInitialQuery(uiState.merchant)
                                                     .build(context)
                                                 placeLauncher.launch(intent)
                                             }
@@ -636,7 +685,6 @@ fun TransactionScreen(
                                     },
                                     size = 48.dp
                                 ) {
-                                    // 根據是否有輸入文字，改變 Icon 讓使用者有預期心理
                                     val icon = if (uiState.merchant.isBlank()) Icons.Default.MyLocation else Icons.Default.Search
                                     Icon(icon, contentDescription = stringResource(R.string.desc_search_location), tint = AppTheme.colors.accent)
                                 }
@@ -680,7 +728,6 @@ fun TransactionScreen(
                                     onClick = { viewModel.toggleNeedStatus(false) }
                                 )
                             }
-
                         }
                     }
                 }

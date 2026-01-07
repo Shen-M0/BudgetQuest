@@ -8,12 +8,15 @@ import androidx.lifecycle.viewModelScope
 import com.example.budgetquest.R
 import com.example.budgetquest.data.BudgetRepository
 import com.example.budgetquest.data.CategoryEntity
+import com.example.budgetquest.data.CurrencyRepository
 import com.example.budgetquest.data.PaymentMethodEntity
 import com.example.budgetquest.data.RecurringExpenseEntity
+import com.example.budgetquest.data.SettingsRepository
 import com.example.budgetquest.data.SubscriptionTagEntity
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.text.DecimalFormat
 import java.util.Calendar
 
 data class SubscriptionUiState(
@@ -30,16 +33,17 @@ data class SubscriptionUiState(
 
     // [新增] 進階選項狀態
     val imageUri: String? = null,
-    // [修正] 預設為空
     val paymentMethod: String = "",
-    // [修正] 預設為 null
     val isNeed: Boolean? = null,
     val excludeFromBudget: Boolean = false,
     val merchant: String = ""
-
 )
 
-class SubscriptionViewModel(private val repository: BudgetRepository) : ViewModel() {
+class SubscriptionViewModel(
+    private val repository: BudgetRepository,
+    private val settingsRepository: SettingsRepository, // [新增]
+    private val currencyRepository: CurrencyRepository  // [新增]
+) : ViewModel() {
 
     var uiState by mutableStateOf(SubscriptionUiState())
         private set
@@ -71,7 +75,52 @@ class SubscriptionViewModel(private val repository: BudgetRepository) : ViewMode
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
 
+    // [新增] 幣別狀態
+    var baseCurrency by mutableStateOf("TWD")
+        private set
+    var inputCurrency by mutableStateOf("TWD")
+        private set
+    var supportedCurrencies by mutableStateOf<List<String>>(emptyList())
+        private set
+    var convertedPreview by mutableStateOf("")
+        private set
 
+    // 實際存入資料庫的金額 (換算後)
+    private var finalSaveAmount: Int = 0
+
+    init {
+        // [新增] 初始化幣別
+        viewModelScope.launch {
+            baseCurrency = settingsRepository.baseCurrency
+            inputCurrency = baseCurrency
+            val currencies = currencyRepository.getSupportedCurrencies()
+            supportedCurrencies = if (currencies.isEmpty()) listOf(baseCurrency) else currencies
+        }
+    }
+
+    // [新增] 切換幣別
+    fun updateInputCurrency(currency: String) {
+        inputCurrency = currency
+        calculateConversion()
+    }
+
+    // [新增] 計算邏輯
+    private fun calculateConversion() {
+        val inputVal = uiState.amount.toDoubleOrNull() ?: 0.0
+
+        if (inputCurrency == baseCurrency) {
+            finalSaveAmount = inputVal.toInt()
+            convertedPreview = ""
+        } else {
+            viewModelScope.launch {
+                val rate = currencyRepository.getRateFor(inputCurrency)
+                val converted = if (rate != 0.0) inputVal / rate else inputVal
+                finalSaveAmount = converted.toInt()
+                val df = DecimalFormat("#,##0")
+                convertedPreview = "≈ ${df.format(finalSaveAmount)} $baseCurrency"
+            }
+        }
+    }
 
 
     // [修正 1] 初始化邏輯：確保預設結束日期正確載入
@@ -174,6 +223,12 @@ class SubscriptionViewModel(private val repository: BudgetRepository) : ViewMode
             excludeFromBudget = excludeFromBudget ?: uiState.excludeFromBudget,
             merchant = merchant ?: uiState.merchant
         )
+
+        // [新增] 如果金額有變，觸發計算
+        if (amount != null) {
+            calculateConversion()
+        }
+
     }
 
     fun toggleNeedStatus(targetState: Boolean) {
@@ -201,6 +256,7 @@ class SubscriptionViewModel(private val repository: BudgetRepository) : ViewMode
         viewModelScope.launch {
             val sub = repository.getRecurringExpenseById(id)
             if (sub != null) {
+                // 1. 先更新 UI State
                 uiState = uiState.copy(
                     id = sub.id,
                     planId = sub.planId,
@@ -218,13 +274,25 @@ class SubscriptionViewModel(private val repository: BudgetRepository) : ViewMode
                     excludeFromBudget = sub.excludeFromBudget,
                     merchant = sub.merchant
                 )
+
+                // 2. [修正] 再更新 ViewModel 屬性 (不是 uiState 的屬性)
+                baseCurrency = settingsRepository.baseCurrency
+                inputCurrency = baseCurrency
+                finalSaveAmount = sub.amount
+                convertedPreview = ""
             }
         }
     }
 
     // [修正] 儲存時寫入新欄位
     fun saveSubscription(onSuccess: () -> Unit) {
-        val amountInt = uiState.amount.toIntOrNull()
+        // [修改] 使用 finalSaveAmount (如果有換算) 或直接 parse (如果沒換算)
+        val amountInt = if (inputCurrency == baseCurrency) {
+            uiState.amount.toIntOrNull()
+        } else {
+            finalSaveAmount
+        }
+
         if (amountInt == null || amountInt <= 0) {
             uiState = uiState.copy(errorMessageId = R.string.error_msg_amount)
             return
@@ -237,6 +305,13 @@ class SubscriptionViewModel(private val repository: BudgetRepository) : ViewMode
             uiState = uiState.copy(errorMessageId = R.string.error_msg_note)
             return
         }
+
+        // [修改] 備註自動加上原幣金額 (Optional)
+        var finalNote = uiState.note
+        if (inputCurrency != baseCurrency) {
+            finalNote = "$finalNote (${uiState.amount} $inputCurrency)"
+        }
+
 
         viewModelScope.launch {
             var days = if (uiState.frequency == "CUSTOM") uiState.customDays.toIntOrNull() ?: 1 else 0
@@ -255,7 +330,7 @@ class SubscriptionViewModel(private val repository: BudgetRepository) : ViewMode
                 id = if (uiState.id != -1L) uiState.id else 0,
                 planId = uiState.planId,
                 category = uiState.category,
-                note = uiState.note,
+                note = finalNote,
                 amount = amountInt,
                 frequency = uiState.frequency,
                 startDate = finalStartDate,
@@ -299,6 +374,4 @@ class SubscriptionViewModel(private val repository: BudgetRepository) : ViewMode
     fun addPaymentMethod(name: String) { viewModelScope.launch { repository.insertPaymentMethod(PaymentMethodEntity(name = name)) } }
     fun deletePaymentMethod(pm: PaymentMethodEntity) { viewModelScope.launch { repository.deletePaymentMethod(pm) } }
     fun togglePaymentMethodVisibility(pm: PaymentMethodEntity) { viewModelScope.launch { repository.updatePaymentMethod(pm.copy(isVisible = !pm.isVisible)) } }
-
-
 }

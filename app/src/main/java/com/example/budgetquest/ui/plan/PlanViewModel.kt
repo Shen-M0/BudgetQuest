@@ -7,7 +7,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.budgetquest.R // [確保 import]
 import com.example.budgetquest.data.BudgetRepository
+import com.example.budgetquest.data.CurrencyRepository
 import com.example.budgetquest.data.PlanEntity
+import com.example.budgetquest.data.SettingsRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -32,10 +34,16 @@ data class PlanSetupState(
     val endDate: Long = System.currentTimeMillis() + 86400000L * 30,
     val totalBudget: String = "",
     val targetSavings: String = "",
-    val errorMessageId: Int? = null
+    val errorMessageId: Int? = null,
+    val selectedCurrency: String = "TWD" // [新增] 選擇的幣別
 )
 
-class PlanViewModel(private val repository: BudgetRepository) : ViewModel() {
+// [修改] 建構子加入 SettingsRepository 和 CurrencyRepository
+class PlanViewModel(
+    private val repository: BudgetRepository,
+    private val settingsRepository: SettingsRepository, // [新增]
+    private val currencyRepository: CurrencyRepository  // [新增]
+) : ViewModel() {
 
     // [Bug 修復] 新增：指定要查看的計畫 ID (null 代表預設查看進行中計畫)
     private val _viewingPlanId = MutableStateFlow<Int?>(null)
@@ -82,6 +90,28 @@ class PlanViewModel(private val repository: BudgetRepository) : ViewModel() {
     var planUiState by mutableStateOf(PlanSetupState())
         private set
 
+    // [新增] 支援的幣別列表
+    var supportedCurrencies by mutableStateOf<List<String>>(emptyList())
+        private set
+
+    init {
+        // [新增] 初始化時載入幣別
+        viewModelScope.launch {
+            // 1. 載入當前設定的幣別 (如果是第一次，可能是預設 TWD)
+            val currentBase = settingsRepository.baseCurrency
+
+            // 2. 載入支援列表
+            val currencies = currencyRepository.getSupportedCurrencies()
+            val list = if (currencies.isEmpty()) listOf("TWD", "USD", "JPY", "EUR", "CNY", "KRW") else currencies
+
+            supportedCurrencies = list
+
+            // 更新 State
+            planUiState = planUiState.copy(selectedCurrency = currentBase)
+        }
+    }
+
+
     fun initDates(start: Long, end: Long) {
         if (start != -1L) {
             val finalEnd = if (end != -1L) end else start + 86400000L * 30
@@ -100,7 +130,8 @@ class PlanViewModel(private val repository: BudgetRepository) : ViewModel() {
         startDate: Long? = null,
         endDate: Long? = null,
         totalBudget: String? = null,
-        targetSavings: String? = null
+        targetSavings: String? = null,
+        selectedCurrency: String? = null // [新增]
     ) {
         planUiState = planUiState.copy(
             planName = planName ?: planUiState.planName,
@@ -108,7 +139,8 @@ class PlanViewModel(private val repository: BudgetRepository) : ViewModel() {
             endDate = endDate ?: planUiState.endDate,
             totalBudget = totalBudget ?: planUiState.totalBudget,
             targetSavings = targetSavings ?: planUiState.targetSavings,
-            errorMessageId = null // 清除錯誤
+            selectedCurrency = selectedCurrency ?: planUiState.selectedCurrency, // [新增]
+            errorMessageId = null
         )
     }
 
@@ -122,7 +154,9 @@ class PlanViewModel(private val repository: BudgetRepository) : ViewModel() {
                     startDate = plan.startDate,
                     endDate = plan.endDate,
                     totalBudget = plan.totalBudget.toString(),
-                    targetSavings = plan.targetSavings.toString()
+                    targetSavings = plan.targetSavings.toString(),
+                    // 編輯舊計畫時，幣別通常不允許修改，或者預設載入目前主幣別
+                    selectedCurrency = settingsRepository.baseCurrency
                 )
             }
         }
@@ -131,12 +165,24 @@ class PlanViewModel(private val repository: BudgetRepository) : ViewModel() {
     fun savePlan(onSuccess: (Int) -> Unit) {
         val currentState = planUiState
         if (currentState.planName.isBlank() || currentState.totalBudget.isBlank()) {
-            // [提取] 使用 Resource ID
             planUiState = planUiState.copy(errorMessageId = R.string.error_empty_plan_fields)
             return
         }
 
         viewModelScope.launch {
+            // [關鍵新增] 如果是建立新計畫 (或第一次使用)，將選擇的幣別存為全域設定
+            // 這裡假設 PlanSetup 頁面同時也是 "Onboarding Setup" 的角色
+            if (currentState.id == 0) { // 只有新增時才允許設定幣別
+                settingsRepository.baseCurrency = currentState.selectedCurrency
+
+                // 觸發匯率更新 (如果選了新幣別)
+                try {
+                    currencyRepository.getRates(currentState.selectedCurrency, forceRefresh = true)
+                } catch (e: Exception) {
+                    // 忽略錯誤 (可能是離線)，反正已經有預設值了
+                }
+            }
+
             val allPlans = repository.getAllPlans()
             val hasOverlap = allPlans.any { existing ->
                 if (existing.id == currentState.id) return@any false
@@ -144,7 +190,6 @@ class PlanViewModel(private val repository: BudgetRepository) : ViewModel() {
             }
 
             if (hasOverlap) {
-                // [提取] 使用 Resource ID
                 planUiState = planUiState.copy(errorMessageId = R.string.error_plan_overlap)
             } else {
                 val plan = PlanEntity(

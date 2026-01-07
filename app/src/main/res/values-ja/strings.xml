@@ -106,7 +106,6 @@
     <string name="title_plan_history">計画履歴</string>
     <string name="format_date_history">yyyy/MM/dd</string>
     <string name="status_ongoing">進行中</string>
-    <string name="status_ended">終了</string>
     <string name="format_date_range_history">%1$s - %2$s</string>
     <string name="label_spent_amount">支出 $%d</string>
     <string name="label_budget_amount">予算 $%d</string>
@@ -131,8 +130,7 @@
     <string name="btn_test_notification">通知テスト送信</string>
     <string name="msg_check_notification_permission">反応がない場合は、設定の通知権限を確認してください。</string>
     <string name="desc_cloud_backup">Google Driveにバックアップ</string>
-    <string name="btn_backup">バックアップ</string>
-    <string name="btn_restore">復元</string>
+
     <string name="msg_backup_success">バックアップ成功！</string>
     <string name="msg_backup_failed">失敗: %s</string>
     <string name="msg_restore_success">復元成功！アプリを再起動してください。</string>
@@ -329,17 +327,6 @@
     <string name="error_permission_denied">位置情報の権限が必要です</string>
 
     <string name="title_cloud_backup">バックアップと復元</string>
-    <string name="subtitle_cloud_firebase">クラウド同期 (Firebase)</string>
-    <string name="subtitle_local_backup">手動バックアップ (ローカル)</string>
-    <string name="desc_cloud_sync">データをクラウドに安全に保存します。機種変更時も安心です。</string>
-    <string name="desc_local_backup">データベースファイルを端末にエクスポートします。</string>
-    <string name="label_last_backup">最終バックアップ: %s</string>
-    <string name="msg_no_cloud_backup_found">バックアップなし</string>
-    <string name="action_upload">アップロード</string>
-    <string name="action_download">ダウンロード</string>
-    <string name="action_link_google">Google アカウント連携</string>
-    <string name="label_anonymous_account">ゲスト (未連携)</string>
-    <string name="warning_anonymous_risk">注意：アプリを削除するとデータが失われます。Google 連携を推奨します。</string>
     <string name="msg_google_login_success">Google ログイン成功</string>
     <string name="msg_cloud_upload_success">クラウドバックアップ成功</string>
     <string name="msg_cloud_restore_success">復元成功。アプリを再起動してください</string>
@@ -350,5 +337,71 @@
     <string name="error_restore_failed">復元失敗</string>
     <string name="error_login_required">復元するにはログインが必要です</string>
     <string name="error_network_login">ログイン失敗。通信環境を確認してください</string>
+
+    <string name="title_subscription_detail">固定費詳細</string>
+    <string name="label_cycle">支払い周期</string>
+    <string name="label_next_payment">次回支払日</string>
+    <string name="label_period">期間</string>
+    <string name="label_payment_method_detail">支払方法</string>
+    <string name="label_consumption_type">タイプ</string>
+    <string name="status_active">進行中</string>
+    <string name="status_ended">終了</string>
+    <string name="status_today">今日</string>
+    <string name="status_days_later">%d 日後</string>
+    <string name="period_infinite">無期限</string>
+
+    <string name="dialog_delete_sub_title">削除の確認</string>
+    <string name="dialog_delete_sub_msg">この固定費項目を削除しますか？\n注意：このルールによって自動生成された過去の履歴もすべて削除され、元に戻すことはできません。</string>
+    <string name="action_delete_all">すべて削除</string>
+
+    <string name="dialog_terminate_sub_title">停止の確認</string>
+    <string name="dialog_terminate_sub_msg">この固定費を停止しますか？\n終了日が今日に設定され、今後の自動記録は停止されますが、「過去の記録」は保持されます。</string>
+    <string name="action_terminate">停止する</string>
+
+    <string name="cycle_monthly">毎月</string>
+    <string name="cycle_weekly">毎週</string>
+    <string name="cycle_daily">毎日</string>
+    <string name="cycle_custom_days">%d 日ごと</string>
+    <string name="cycle_custom">カスタム</string>
+
+    <string name="type_need">必要 (Need)</string>
+    <string name="type_want">欲しい (Want)</string>
+
+    <string name="title_edit_subscription">固定費の編集</string>
+    <string name="title_new_subscription">固定費の追加</string>
+    <string name="dialog_image_source_msg">ギャラリーから選択するか、カメラで撮影してください。</string>
+    <string name="hint_click_add_photo">タップして写真を追加</string>
+    <string name="hint_merchant_example">例：Netflix, Spotify...</string>
+    <string name="title_subscription_list">固定費リスト</string>
+
+    <string name="title_manage_payment_methods">支払方法の管理</string>
+    <string name="label_new_payment_method">新しい支払方法</string>
+
+
+    <string name="subtitle_cloud_firebase">クラウド同期 (Firebase)</string>
+    <string name="label_anonymous_account">匿名アカウント</string>
+    <string name="warning_anonymous_risk">警告：匿名アカウントはこのデバイスに紐付けられています。アプリを削除したりデータを消去すると、クラウドバックアップは永久に失われます。Googleアカウントをリンクしてデータを保護してください。</string>
+    <string name="desc_cloud_sync">データをクラウドに安全に同期します。Googleアカウントをリンクすると、複数のデバイスでデータにアクセスでき、データの損失を防げます。</string>
+    <string name="action_link_google">Googleアカウントをリンク</string>
+    <string name="label_last_backup">最終バックアップ：%s</string>
+    <string name="action_upload">アップロード</string>
+    <string name="action_download">ダウンロード</string>
+    <string name="subtitle_local_backup">ローカルバックアップ</string>
+    <string name="desc_local_backup">データベースファイルを手動でエクスポートまたはインポートします。クラウドを使用せずにデータを転送する場合に便利です。</string>
+    <string name="btn_backup">バックアップ</string>
+    <string name="btn_restore">復元</string>
+
+    <string name="desc_currency_impact">主通貨 (設定はすべての金額表示に反映されます)</string>
+
+    <string name="title_currency_settings">表示通貨</string>
+    <string name="dialog_select_currency">通貨を選択</string>
+
+    <string name="msg_no_cloud_backup_found">クラウドバックアップが見つかりません</string>
+
+    <string name="error_offline_missing_currency">ネットワークがなく、この通貨のオフラインデータもありません。インターネットに接続してください。</string>
+    <string name="error_currency_update_failed">為替レートの更新に失敗しました。通信環境を確認してください。</string>
+
+    <string name="msg_backup_failed_format">バックアップ失敗：%s</string>
+    <string name="msg_restore_failed_format">復元失敗：%s</string>
 
 </resources>

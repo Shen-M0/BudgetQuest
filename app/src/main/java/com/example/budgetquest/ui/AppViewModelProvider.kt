@@ -5,6 +5,7 @@ import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.budgetquest.BudgetQuestApplication
+import com.example.budgetquest.data.SettingsRepository // [新增]
 import com.example.budgetquest.ui.dashboard.DashboardViewModel
 import com.example.budgetquest.ui.plan.PlanViewModel
 import com.example.budgetquest.ui.subscription.SubscriptionViewModel
@@ -18,43 +19,68 @@ object AppViewModelProvider {
     val Factory = viewModelFactory {
         // 1. PlanViewModel
         initializer {
-            PlanViewModel(budgetQuestApplication().container.budgetRepository)
+            val app = budgetQuestApplication()
+            PlanViewModel(
+                repository = app.container.budgetRepository,
+                settingsRepository = com.example.budgetquest.data.SettingsRepository(app.applicationContext), // [新增]
+                currencyRepository = app.currencyRepository // [新增]
+            )
         }
 
         // 2. DashboardViewModel
+        // [修改] 注入 SettingsRepository
         initializer {
-            DashboardViewModel(budgetQuestApplication().container.budgetRepository)
+            val app = budgetQuestApplication()
+            DashboardViewModel(
+                budgetRepository = app.container.budgetRepository,
+                settingsRepository = com.example.budgetquest.data.SettingsRepository(app.applicationContext) // [新增]
+            )
         }
 
         // 3. TransactionViewModel
         initializer {
-            TransactionViewModel(budgetQuestApplication().container.budgetRepository)
+            val app = budgetQuestApplication()
+            TransactionViewModel(
+                repository = app.container.budgetRepository,
+                settingsRepository = SettingsRepository(app.applicationContext), // [新增]
+                currencyRepository = app.currencyRepository // [新增]
+            )
         }
 
         // 4. SummaryViewModel
+        // 需要: BudgetRepository, SettingsRepository
         initializer {
-            SummaryViewModel(budgetQuestApplication().container.budgetRepository)
+            val app = budgetQuestApplication()
+            SummaryViewModel(
+                repository = app.container.budgetRepository,
+                settingsRepository = SettingsRepository(app.applicationContext)
+            )
         }
 
-        // 5. SubscriptionViewModel (新加入的)
+        // 5. SubscriptionViewModel
         initializer {
-            SubscriptionViewModel(budgetQuestApplication().container.budgetRepository)
+            val app = budgetQuestApplication()
+            SubscriptionViewModel(
+                repository = app.container.budgetRepository,
+                settingsRepository = com.example.budgetquest.data.SettingsRepository(app.applicationContext), // [新增]
+                currencyRepository = app.currencyRepository // [新增]
+            )
         }
 
-        // [關鍵修正] 加入這一段！
+        // 6. PlanHistoryViewModel
         initializer {
             PlanHistoryViewModel(budgetQuestApplication().container.budgetRepository)
         }
-        // [關鍵修復] 加入 DailyDetailViewModel 的初始化邏輯
+
+        // 7. DailyDetailViewModel
         initializer {
             DailyDetailViewModel(budgetQuestApplication().container.budgetRepository)
         }
 
-        // [新增這一段] 修復閃退的關鍵
+        // 8. SubscriptionDetailViewModel
         initializer {
             SubscriptionDetailViewModel(budgetQuestApplication().container.budgetRepository)
         }
-
     }
 }
 

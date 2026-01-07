@@ -7,10 +7,13 @@ import com.example.budgetquest.data.BudgetRepository
 import com.example.budgetquest.data.CategoryEntity
 import com.example.budgetquest.data.ExpenseEntity
 import com.example.budgetquest.data.PlanEntity
+import com.example.budgetquest.data.SettingsRepository
 import com.example.budgetquest.data.TagEntity
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.util.Calendar
+
+// --- [關鍵修正] 將 Data Classes 定義在 ViewModel 外部，讓 Screen 可以存取 ---
 
 data class CategoryStat(
     val name: String,
@@ -56,10 +59,12 @@ data class SummaryUiState(
 
     val searchQuery: String = "",
     val selectedCategories: Set<String> = emptySet(),
-    val selectedTags: Set<String> = emptySet()
+    val selectedTags: Set<String> = emptySet(),
+
+    val currencyCode: String = "TWD"
 )
 
-// [新增] 一個內部資料類別，用來暫存篩選條件，解決 combine 參數過多的問題
+// 內部 Helper 類別
 private data class FilterState(
     val query: String,
     val catFilter: Set<String>,
@@ -67,7 +72,10 @@ private data class FilterState(
     val sortType: MerchantSortType
 )
 
-class SummaryViewModel(private val repository: BudgetRepository) : ViewModel() {
+class SummaryViewModel(
+    private val repository: BudgetRepository,
+    private val settingsRepository: SettingsRepository
+) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow("")
     val searchQuery = _searchQuery.asStateFlow()
@@ -82,15 +90,24 @@ class SummaryViewModel(private val repository: BudgetRepository) : ViewModel() {
 
     private val _merchantSortType = MutableStateFlow(MerchantSortType.Amount)
 
+    private val _currencyCode = MutableStateFlow(settingsRepository.baseCurrency)
+
     fun setPlanId(id: Int) {
         _targetPlanId.value = if (id == -1) null else id
+        _currencyCode.value = settingsRepository.baseCurrency
     }
 
-    fun toggleMerchantSortType() {
+    fun toggleMerchantSort() {
         _merchantSortType.update { current ->
             if (current == MerchantSortType.Amount) MerchantSortType.Count else MerchantSortType.Amount
         }
     }
+
+    // [修正] 補上 Screen 需要的分類與標籤 Flow
+    val visibleCategories = repository.getVisibleCategoriesStream().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val visibleTags = repository.getVisibleTagsStream().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val allCategories = repository.getAllCategoriesStream().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val allTags = repository.getAllTagsStream().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val targetPlanFlow = combine(_targetPlanId, repository.getAllPlansStream()) { targetId, plans ->
         if (targetId != null) {
@@ -101,7 +118,6 @@ class SummaryViewModel(private val repository: BudgetRepository) : ViewModel() {
         }
     }
 
-    // [修正] 1. 先將 4 個篩選條件組合成一個 Flow
     private val filterStateFlow = combine(
         _searchQuery,
         _selectedCategories,
@@ -111,15 +127,19 @@ class SummaryViewModel(private val repository: BudgetRepository) : ViewModel() {
         FilterState(query, cat, tag, sort)
     }
 
-    // [修正] 2. 再將數據源 (Plan, Expenses) 與篩選條件 (FilterState) 組合
-    // 這樣 combine 只會有 3 個參數，符合限制
-    val uiState: StateFlow<SummaryUiState> = combine(
+    private val dataFlow = combine(
         targetPlanFlow,
         repository.getAllExpensesStream(),
-        filterStateFlow
-    ) { plan, allExpenses, filterState ->
+        _currencyCode
+    ) { plan, expenses, currency ->
+        Triple(plan, expenses, currency)
+    }
 
-        // 解構 filterState
+    val uiState: StateFlow<SummaryUiState> = combine(
+        dataFlow,
+        filterStateFlow
+    ) { (plan, allExpenses, currency), filterState ->
+
         val (query, catFilter, tagFilter, sortType) = filterState
 
         val planExpenses = if (plan != null) {
@@ -134,20 +154,19 @@ class SummaryViewModel(private val repository: BudgetRepository) : ViewModel() {
         val validExpenses = planExpenses.filter { !it.excludeFromBudget }
         val totalSpent = validExpenses.sumOf { it.amount }
 
-        // --- 1. Need / Want 統計 ---
+        // Need / Want
         val needAmount = planExpenses.filter { it.isNeed == true }.sumOf { it.amount }
         val wantAmount = planExpenses.filter { it.isNeed == false }.sumOf { it.amount }
         val totalNW = needAmount + wantAmount
 
         val (needPercent, wantPercent) = if (totalNW > 0) {
             val nPct = (needAmount.toFloat() / totalNW * 100).toInt()
-            val wPct = 100 - nPct
-            Pair(nPct, wPct)
+            Pair(nPct, 100 - nPct)
         } else {
             Pair(0, 0)
         }
 
-        // --- 2. 支付方式統計 ---
+        // Payment Stats
         val rawPaymentStats = planExpenses
             .groupBy { it.paymentMethod.ifBlank { "現金" } }
             .map { (method, list) ->
@@ -158,7 +177,7 @@ class SummaryViewModel(private val repository: BudgetRepository) : ViewModel() {
 
         val paymentStats = adjustPercentages(rawPaymentStats, { it.percentage }, { item, newPct -> item.copy(percentage = newPct) })
 
-        // --- 3. 店家排行 ---
+        // Merchants
         val rawMerchants = planExpenses
             .filter { it.merchant.isNotBlank() }
             .groupBy { it.merchant }
@@ -171,7 +190,7 @@ class SummaryViewModel(private val repository: BudgetRepository) : ViewModel() {
             MerchantSortType.Count -> rawMerchants.sortedByDescending { it.count }
         }.take(5)
 
-        // --- 列表篩選 ---
+        // List Filtering
         val filtered = planExpenses.filter { expense ->
             val matchQuery = query.isBlank() || expense.note.contains(query, ignoreCase = true) || expense.merchant.contains(query, ignoreCase = true)
             val matchCategory = catFilter.isEmpty() || catFilter.contains(expense.category)
@@ -197,20 +216,18 @@ class SummaryViewModel(private val repository: BudgetRepository) : ViewModel() {
             actualSaved = actualSaved,
             budgetStatus = status,
             categoryStats = stats,
-
             totalRealSpent = totalRealSpent,
             needAmount = needAmount,
             wantAmount = wantAmount,
             needPercent = needPercent,
             wantPercent = wantPercent,
-
             paymentStats = paymentStats,
             topMerchants = topMerchants,
             merchantSortType = sortType,
-
             searchQuery = query,
             selectedCategories = catFilter,
-            selectedTags = tagFilter
+            selectedTags = tagFilter,
+            currencyCode = currency
         )
     }.stateIn(
         scope = viewModelScope,
@@ -218,24 +235,16 @@ class SummaryViewModel(private val repository: BudgetRepository) : ViewModel() {
         initialValue = SummaryUiState()
     )
 
-    // ... (Actions 與 Helper 函式保持不變) ...
-    fun toggleMerchantSort() = toggleMerchantSortType()
-    fun onSearchQueryChanged(query: String) { _searchQuery.value = query }
-    fun onCategoryFilterChanged(category: String) {
+    // Actions
+    fun updateSearchQuery(query: String) { _searchQuery.value = query }
+    fun toggleCategoryFilter(category: String) {
         _selectedCategories.update { if (it.contains(category)) emptySet() else setOf(category) }
     }
-    fun onTagFilterChanged(tag: String) {
+    fun toggleTagFilter(tag: String) {
         _selectedTags.update { if (it.contains(tag)) emptySet() else setOf(tag) }
     }
-    fun updateSearchQuery(query: String) = onSearchQueryChanged(query)
-    fun toggleCategoryFilter(category: String) = onCategoryFilterChanged(category)
-    fun toggleTagFilter(tag: String) = onTagFilterChanged(tag)
-    fun deleteExpense(expense: ExpenseEntity) { viewModelScope.launch { repository.deleteExpense(expense) } }
 
-    val visibleCategories = repository.getVisibleCategoriesStream().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-    val visibleTags = repository.getVisibleTagsStream().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-    val allCategories = repository.getAllCategoriesStream().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-    val allTags = repository.getAllTagsStream().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    // CRUD Wrappers
     fun addCategory(name: String, iconKey: String, colorHex: String) { viewModelScope.launch { repository.insertCategory(CategoryEntity(name = name, iconKey = iconKey, colorHex = colorHex)) } }
     fun toggleCategoryVisibility(category: CategoryEntity) { viewModelScope.launch { repository.updateCategory(category.copy(isVisible = !category.isVisible)) } }
     fun deleteCategory(category: CategoryEntity) { viewModelScope.launch { repository.deleteCategory(category) } }
@@ -243,6 +252,7 @@ class SummaryViewModel(private val repository: BudgetRepository) : ViewModel() {
     fun toggleTagVisibility(tag: TagEntity) { viewModelScope.launch { repository.updateTag(tag.copy(isVisible = !tag.isVisible)) } }
     fun deleteTag(tag: TagEntity) { viewModelScope.launch { repository.deleteTag(tag) } }
 
+    // Helpers
     private fun <T> adjustPercentages(
         items: List<T>,
         getPercent: (T) -> Int,

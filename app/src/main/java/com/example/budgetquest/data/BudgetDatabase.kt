@@ -57,14 +57,17 @@ val MIGRATION_9_10 = object : Migration(9, 10) {
         CategoryEntity::class,
         TagEntity::class,
         SubscriptionTagEntity::class,
-        PaymentMethodEntity::class // [確保] 這裡有包含
+        PaymentMethodEntity::class, // [確保] 這裡有包含
+        CurrencyRateEntity::class
     ],
-    version = 10,
+    version = 11,
     exportSchema = false
 )
 abstract class BudgetDatabase : RoomDatabase() {
 
     abstract fun budgetDao(): BudgetDao
+    abstract fun currencyDao(): CurrencyDao // [新增] 加入這行
+
 
     companion object {
         @Volatile
@@ -163,4 +166,7 @@ abstract class BudgetDatabase : RoomDatabase() {
             paymentMethods.forEach { dao.insertPaymentMethod(it) }
         }
     }
+
+
+
 }

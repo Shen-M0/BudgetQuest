@@ -1,6 +1,7 @@
 package com.example.budgetquest
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.animation.AnimatedContentTransitionScope
@@ -19,6 +20,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -42,11 +44,13 @@ import com.example.budgetquest.ui.theme.BudgetQuestTheme
 import com.example.budgetquest.ui.transaction.DailyDetailScreen
 import com.example.budgetquest.ui.transaction.TransactionDetailScreen
 import com.example.budgetquest.ui.transaction.TransactionScreen
+import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
     @OptIn(ExperimentalSharedTransitionApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
 
         val settingsRepo = SettingsRepository(applicationContext)
 

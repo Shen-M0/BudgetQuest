@@ -65,6 +65,7 @@ import com.example.budgetquest.ui.theme.AppTheme
 import com.example.budgetquest.ui.transaction.CategoryManagerDialog
 import com.example.budgetquest.ui.transaction.PaymentMethodManagerDialog
 import com.example.budgetquest.ui.transaction.SubTagManagerDialog
+import com.example.budgetquest.ui.settings.CurrencySelectionDialog // [新增] 引用設定頁的 Dialog
 import com.google.android.libraries.places.api.Places
 import com.google.android.libraries.places.api.model.Place
 import com.google.android.libraries.places.widget.Autocomplete
@@ -94,6 +95,9 @@ fun SubscriptionScreen(
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
 
+    // [新增] 幣別選擇 Dialog 狀態
+    var showCurrencyDialog by remember { mutableStateOf(false) }
+
     LaunchedEffect(Unit) {
         if (!Places.isInitialized()) {
             // Places.initialize(context.applicationContext, "YOUR_API_KEY")
@@ -110,7 +114,7 @@ fun SubscriptionScreen(
         }
     }
 
-    // 圖片與地點相關邏輯
+    // 圖片與地點相關邏輯 (保持不變)
     var showImageSourceDialog by remember { mutableStateOf(false) }
     var tempCameraUri by remember { mutableStateOf<Uri?>(null) }
     val galleryLauncher = rememberLauncherForActivityResult(contract = ActivityResultContracts.PickVisualMedia()) { uri: Uri? ->
@@ -199,15 +203,15 @@ fun SubscriptionScreen(
     if (showImageSourceDialog) {
         AlertDialog(
             onDismissRequest = { showImageSourceDialog = false },
-            title = { Text("選擇圖片來源") },
-            text = { Text("請選擇要從相簿選取還是開啟相機拍攝。") },
-            confirmButton = { TextButton(onClick = { showImageSourceDialog = false; galleryLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }) { Text("相簿") } },
-            dismissButton = { TextButton(onClick = { showImageSourceDialog = false; val uri = ImageUtils.createTempPictureUri(context); tempCameraUri = uri; cameraLauncher.launch(uri) }) { Text("相機") } },
+            title = { Text(stringResource(R.string.dialog_image_source_title)) },
+            text = { Text(stringResource(R.string.dialog_image_source_msg)) },
+            confirmButton = { TextButton(onClick = { showImageSourceDialog = false; galleryLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }) { Text(stringResource(R.string.source_gallery)) } },
+            dismissButton = { TextButton(onClick = { showImageSourceDialog = false; val uri = ImageUtils.createTempPictureUri(context); tempCameraUri = uri; cameraLauncher.launch(uri) }) { Text(stringResource(R.string.source_camera)) } },
             containerColor = AppTheme.colors.surface
         )
     }
 
-    // [新增] 觀察支付方式列表
+    // 觀察支付方式列表
     val paymentMethods by viewModel.visiblePaymentMethods.collectAsState()
     var showPaymentMethodManager by remember { mutableStateOf(false) }
 
@@ -222,13 +226,25 @@ fun SubscriptionScreen(
         )
     }
 
+    // [新增] 幣別選擇 Dialog
+    if (showCurrencyDialog) {
+        CurrencySelectionDialog(
+            currentSelection = viewModel.inputCurrency,
+            currencyList = viewModel.supportedCurrencies,
+            onDismiss = { showCurrencyDialog = false },
+            onConfirm = { selected ->
+                viewModel.updateInputCurrency(selected)
+                showCurrencyDialog = false
+            }
+        )
+    }
 
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = {
-                    val title = if (editId != -1L) "編輯固定支出" else "固定支出"
+                    val title = if (editId != -1L) stringResource(R.string.title_edit_subscription) else stringResource(R.string.title_new_subscription)
                     Text(title, color = AppTheme.colors.textPrimary, fontSize = 18.sp)
                 },
                 navigationIcon = {
@@ -242,7 +258,6 @@ fun SubscriptionScreen(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState, snackbar = { data -> Snackbar(snackbarData = data, containerColor = AppTheme.colors.fail, contentColor = Color.White) }) }
     ) { innerPadding ->
 
-        // [關鍵修改] 使用單一 LazyColumn 取代原本的 Column + LazyColumn
         LazyColumn(
             modifier = Modifier
                 .padding(innerPadding)
@@ -256,16 +271,73 @@ fun SubscriptionScreen(
             item {
                 GlassCard(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+
+                        // [修改] 讓日期和金額並排，並整合匯率
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically // 垂直置中
+                        ) {
                             GlassDateButton(
                                 label = stringResource(R.string.label_date_start),
                                 value = dateFormatter.format(Date(uiState.startDate)),
                                 onClick = { debounce { startDatePickerDialog.show() } }
                             )
+
+                            // [修改] 金額輸入區塊
                             Box(modifier = Modifier.weight(1f)) {
-                                GlassTextField(value = uiState.amount, onValueChange = { viewModel.updateUiState(amount = it) }, label = stringResource(R.string.label_amount), isNumber = true, placeholder = "")
+                                Column {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        // 幣別按鈕
+                                        Surface(
+                                            onClick = { showCurrencyDialog = true },
+                                            shape = RoundedCornerShape(8.dp),
+                                            color = AppTheme.colors.surface.copy(alpha = 0.5f),
+                                            border = androidx.compose.foundation.BorderStroke(1.dp, AppTheme.colors.divider),
+                                            modifier = Modifier.padding(end = 8.dp)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = viewModel.inputCurrency,
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = AppTheme.colors.textPrimary
+                                                )
+                                                Icon(
+                                                    imageVector = Icons.Default.KeyboardArrowDown,
+                                                    contentDescription = null,
+                                                    tint = AppTheme.colors.textSecondary,
+                                                    modifier = Modifier.size(12.dp)
+                                                )
+                                            }
+                                        }
+
+                                        // 輸入框
+                                        GlassTextField(
+                                            value = uiState.amount,
+                                            onValueChange = { viewModel.updateUiState(amount = it) },
+                                            label = stringResource(R.string.label_amount),
+                                            isNumber = true,
+                                            placeholder = "",
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                    }
+
+                                    // 轉換預覽
+                                    if (viewModel.convertedPreview.isNotEmpty()) {
+                                        Text(
+                                            text = viewModel.convertedPreview,
+                                            color = AppTheme.colors.accent,
+                                            fontSize = 12.sp,
+                                            modifier = Modifier.align(Alignment.End).padding(top = 4.dp)
+                                        )
+                                    }
+                                }
                             }
                         }
+
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             GlassDateButton(
                                 label = stringResource(R.string.label_date_end),
@@ -320,14 +392,14 @@ fun SubscriptionScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("進階選項", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = AppTheme.colors.textPrimary)
+                            Text(stringResource(R.string.title_advanced_options), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = AppTheme.colors.textPrimary)
                             Icon(imageVector = if (isAdvancedExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown, contentDescription = null, tint = AppTheme.colors.textSecondary)
                         }
 
                         AnimatedVisibility(visible = isAdvancedExpanded, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
                             Column(verticalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.padding(top = 16.dp)) {
                                 // A. 圖片
-                                Text("照片 / 收據", fontSize = 12.sp, color = AppTheme.colors.textSecondary)
+                                Text(stringResource(R.string.label_photo_receipt), fontSize = 12.sp, color = AppTheme.colors.textSecondary)
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth().height(150.dp)
@@ -340,7 +412,7 @@ fun SubscriptionScreen(
                                     if (uiState.imageUri.isNullOrEmpty()) {
                                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                             Icon(Icons.Default.AddPhotoAlternate, null, tint = AppTheme.colors.textSecondary, modifier = Modifier.size(24.dp))
-                                            Text("點擊附加照片", fontSize = 12.sp, color = AppTheme.colors.textSecondary)
+                                            Text(stringResource(R.string.hint_click_add_photo), fontSize = 12.sp, color = AppTheme.colors.textSecondary)
                                         }
                                     } else {
                                         val file = File(uiState.imageUri!!)
@@ -354,17 +426,15 @@ fun SubscriptionScreen(
                                 }
 
                                 // B. 支付方式
-                                Text("支付方式", fontSize = 12.sp, color = AppTheme.colors.textSecondary)
-                                // [修正] 使用動態列表
+                                Text(stringResource(R.string.label_payment_method), fontSize = 12.sp, color = AppTheme.colors.textSecondary)
                                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     items(paymentMethods, key = { it.id }) { method ->
                                         GlassChip(
                                             label = method.name,
                                             selected = uiState.paymentMethod == method.name,
-                                            onClick = { viewModel.updateUiState(paymentMethod = method.name) } // ViewModel 內已實作 Toggle
+                                            onClick = { viewModel.updateUiState(paymentMethod = method.name) }
                                         )
                                     }
-                                    // [新增] 管理按鈕
                                     item {
                                         GlassIconButton(
                                             onClick = { debounce { showPaymentMethodManager = true } },
@@ -376,9 +446,9 @@ fun SubscriptionScreen(
                                 }
 
                                 // C. 店家/地點
-                                Text("店家 / 地點", fontSize = 12.sp, color = AppTheme.colors.textSecondary)
+                                Text(stringResource(R.string.label_merchant_location), fontSize = 12.sp, color = AppTheme.colors.textSecondary)
                                 Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                    GlassTextField(value = uiState.merchant, onValueChange = { viewModel.updateUiState(merchant = it) }, placeholder = "例如：Netflix, Spotify...", label = null, modifier = Modifier.weight(1f))
+                                    GlassTextField(value = uiState.merchant, onValueChange = { viewModel.updateUiState(merchant = it) }, placeholder = stringResource(R.string.hint_merchant_example), label = null, modifier = Modifier.weight(1f))
                                     Spacer(modifier = Modifier.width(8.dp))
                                     GlassIconButton(onClick = { debounce {
                                         val fields = listOf(Place.Field.NAME, Place.Field.ADDRESS)
@@ -391,24 +461,22 @@ fun SubscriptionScreen(
 
                                 // D. 其他開關
                                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                                    Column { Text("不計入預算", fontSize = 14.sp, color = AppTheme.colors.textPrimary); Text("開啟後不會扣除今日額度", fontSize = 11.sp, color = AppTheme.colors.textSecondary) }
+                                    Column { Text(stringResource(R.string.label_exclude_budget), fontSize = 14.sp, color = AppTheme.colors.textPrimary); Text(stringResource(R.string.hint_exclude_budget), fontSize = 11.sp, color = AppTheme.colors.textSecondary) }
                                     Switch(checked = uiState.excludeFromBudget, onCheckedChange = { viewModel.updateUiState(excludeFromBudget = it) }, colors = SwitchDefaults.colors(checkedTrackColor = AppTheme.colors.accent, checkedThumbColor = Color.White, uncheckedTrackColor = AppTheme.colors.background.copy(alpha = 0.5f), uncheckedBorderColor = Color.Transparent))
                                 }
-                                Text("消費性質", fontSize = 12.sp, color = AppTheme.colors.textSecondary)
+                                Text(stringResource(R.string.label_consumption_nature), fontSize = 12.sp, color = AppTheme.colors.textSecondary)
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    // [修正] 判斷是否選中 (uiState.isNeed == true)，並使用 toggle
                                     GlassChip(
-                                        label = "需要 (Need)",
+                                        label = stringResource(R.string.label_need_full),
                                         selected = uiState.isNeed == true,
                                         icon = if (uiState.isNeed == true) Icons.Default.Check else null,
-                                        onClick = { viewModel.toggleNeedStatus(true) } // 使用 toggle
+                                        onClick = { viewModel.toggleNeedStatus(true) }
                                     )
-                                    // [修正] 判斷是否選中 (uiState.isNeed == false)
                                     GlassChip(
-                                        label = "想要 (Want)",
+                                        label = stringResource(R.string.label_want_full),
                                         selected = uiState.isNeed == false,
                                         icon = if (uiState.isNeed == false) Icons.Default.Check else null,
-                                        onClick = { viewModel.toggleNeedStatus(false) } // 使用 toggle
+                                        onClick = { viewModel.toggleNeedStatus(false) }
                                     )
                                 }
                             }
@@ -420,20 +488,17 @@ fun SubscriptionScreen(
             // 區塊 4: 儲存按鈕
             item {
                 AuroraPrimaryButton(
-                    text = if (editId != -1L) "儲存變更" else stringResource(R.string.btn_add_to_list),
+                    text = if (editId != -1L) stringResource(R.string.btn_save_changes) else stringResource(R.string.btn_add_to_list),
                     onClick = { debounce { viewModel.saveSubscription { onSaveSuccess() } } }
                 )
             }
 
-            // [修改] 只有在「非編輯模式 (editId == -1)」時，才顯示下方的列表
             if (editId == -1L) {
-                // 區塊 5: 標題與列表
                 item {
-                    Text("固定支出項目", color = AppTheme.colors.textSecondary, fontSize = 14.sp, modifier = Modifier.padding(start = 4.dp))
+                    Text(stringResource(R.string.title_subscription_list), color = AppTheme.colors.textSecondary, fontSize = 14.sp, modifier = Modifier.padding(start = 4.dp))
                 }
 
                 items(items = list, key = { it.id }) { item ->
-                    // ... (列表內容保持不變) ...
                     var itemModifier = Modifier.fillMaxWidth()
                     if (sharedTransitionScope != null && animatedVisibilityScope != null) {
                         with(sharedTransitionScope) {
@@ -457,7 +522,7 @@ fun SubscriptionScreen(
     }
 }
 
-// ... 下方的 GlassDateButton 與 SubscriptionItem 保持不變 (請保留上一次回答中的實作) ...
+// ... (GlassDateButton & SubscriptionItem)
 @Composable
 fun GlassDateButton(label: String, value: String, onClick: () -> Unit) {
     GlassCard(modifier = Modifier.clickable { onClick() }, cornerRadius = 16.dp) {

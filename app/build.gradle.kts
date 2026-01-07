@@ -2,6 +2,7 @@
 import java.io.FileInputStream
 import java.util.Properties
 
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -29,19 +30,23 @@ android {
             useSupportLibrary = true
         }
 
-        // [修正] 直接使用 Properties 與 FileInputStream
-        // 因為已經在最上方 import 了，所以這裡可以直接用，不需要加 java. 前綴
+        // 1. 載入 local.properties 檔案
         val localProperties = Properties()
         val localPropertiesFile = rootProject.file("local.properties")
         if (localPropertiesFile.exists()) {
             localProperties.load(FileInputStream(localPropertiesFile))
         }
 
-        // 讀取 Key，如果沒設定則預設為空字串
-        val apiKey = localProperties.getProperty("GOOGLE_MAPS_API_KEY") ?: ""
+        // 2. 讀取 Google Maps Key
+        val mapsApiKey = localProperties.getProperty("GOOGLE_MAPS_API_KEY") ?: ""
+        buildConfigField("String", "GOOGLE_MAPS_API_KEY", "\"$mapsApiKey\"")
 
-        // 建立 BuildConfig.GOOGLE_MAPS_API_KEY
-        buildConfigField("String", "GOOGLE_MAPS_API_KEY", "\"$apiKey\"")
+        // 3. 讀取 Exchange Rate Key (使用不同的變數名稱避免衝突)
+        val exchangeApiKey = localProperties.getProperty("EXCHANGE_RATE_API_KEY") ?: ""
+        buildConfigField("String", "EXCHANGE_RATE_API_KEY", "\"$exchangeApiKey\"")
+
+        // --- [結束] API Key 讀取邏輯 ---
+
     }
 
     buildTypes {
@@ -106,6 +111,10 @@ dependencies {
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-storage")
     implementation("com.google.android.gms:play-services-auth:21.0.0") // [新增] Google Sign-In
+
+    // Retrofit (網路請求) & Gson (JSON 解析)
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
 
 
 }

@@ -22,11 +22,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import com.example.budgetquest.R
 import com.example.budgetquest.data.PaymentMethodEntity
 import com.example.budgetquest.ui.common.GlassCard
 import com.example.budgetquest.ui.common.GlassIconButton
 import com.example.budgetquest.ui.common.GlassTextField
 import com.example.budgetquest.ui.common.getDialogGlassBrush
+import com.example.budgetquest.ui.common.getSmartPaymentName
 import com.example.budgetquest.ui.theme.AppTheme
 
 @Composable
@@ -48,8 +50,9 @@ fun PaymentMethodManagerDialog(
                 modifier = Modifier.padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                // 標題
                 Text(
-                    text = "管理支付方式",
+                    text = stringResource(R.string.title_manage_payment_methods),
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = AppTheme.colors.textPrimary
@@ -61,7 +64,7 @@ fun PaymentMethodManagerDialog(
                     GlassTextField(
                         value = newName,
                         onValueChange = { newName = it },
-                        label = "新支付方式",
+                        label = stringResource(R.string.label_new_payment_method),
                         placeholder = "",
                         modifier = Modifier.weight(1f)
                     )
@@ -94,8 +97,12 @@ fun PaymentMethodManagerDialog(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
+                            // [修改] 使用 getSmartPaymentName
+                            // 我們將 item.name 同時傳給 resourceKey，讓函式嘗試去 string.xml 找對應的 ID
+                            // 如果 item.name 是 "pay_cash"，它會找到 R.string.pay_cash 並顯示翻譯
+                            // 如果 item.name 是使用者輸入的 "我的私房錢"，它會找不到 ID 並直接顯示原名
                             Text(
-                                text = item.name,
+                                text = getSmartPaymentName(originalName = item.name, resourceKey = item.name),
                                 color = if (item.isVisible) AppTheme.colors.textPrimary else AppTheme.colors.textSecondary,
                                 fontSize = 16.sp
                             )

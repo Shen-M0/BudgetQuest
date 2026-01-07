@@ -2,6 +2,7 @@ package com.example.budgetquest.ui.subscription
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.budgetquest.R // [新增]
 import com.example.budgetquest.data.BudgetRepository
 import com.example.budgetquest.data.RecurringExpenseEntity
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,11 +21,20 @@ data class SubscriptionDetailUiState(
     val startDate: Long = 0L,
     val endDate: Long? = null,
     val isActive: Boolean = true,
-    val cycleText: String = "",
-    val nextDateText: String = "",
-    val periodText: String = "",
 
-    // [新增] 補上這兩個欄位，解決 Screen 的 Unresolved reference 錯誤
+    // [修改] 改為存 Resource ID 或 Pair，讓 UI 層去解析
+    // 為了不讓 UI 邏輯太複雜，這裡還是存字串，但字串內容是空的，
+    // 我們新增幾個輔助欄位讓 UI 決定顯示什麼
+
+    val frequencyType: String = "", // MONTH, WEEK...
+    val customDays: Int = 0,
+
+    val nextDateMillis: Long = 0L,
+    val daysLeft: Long = -1L, // -1 代表已結束
+
+    val startDateMillis: Long = 0L,
+    val endDateMillis: Long? = null,
+
     val paymentMethod: String = "",
     val isNeed: Boolean? = null
 )
@@ -44,44 +54,27 @@ class SubscriptionDetailViewModel(private val repository: BudgetRepository) : Vi
                 val now = System.currentTimeMillis()
                 val isActive = sub.endDate == null || sub.endDate > now
 
-                // 1. 週期
-                val cycleStr = when(sub.frequency) {
-                    "MONTH" -> "每月"
-                    "WEEK" -> "每週"
-                    "DAY" -> "每日"
-                    "CUSTOM" -> "每 ${sub.customDays} 天"
-                    else -> "自訂"
-                }
-
-                // 2. 下次支出
+                // 計算下次日期
                 val nextDateMillis = calculateNextDueDate(sub)
-                val dateFormat = SimpleDateFormat("yyyy/MM/dd", Locale.getDefault())
-
-                val nextDateStr = if (!isActive) {
-                    "已結束"
-                } else {
-                    val dateStr = dateFormat.format(java.util.Date(nextDateMillis))
-                    val daysLeft = getDaysDifference(now, nextDateMillis)
-                    if (daysLeft == 0L) "$dateStr (今天)" else "$dateStr ($daysLeft 天後)"
-                }
-
-                // 3. 期間
-                val startStr = dateFormat.format(java.util.Date(sub.startDate))
-                val endStr = sub.endDate?.let { dateFormat.format(java.util.Date(it)) } ?: "無限期"
-                val periodStr = "$startStr ~ $endStr"
+                val daysLeft = if (!isActive) -1L else getDaysDifference(now, nextDateMillis)
 
                 _uiState.value = SubscriptionDetailUiState(
                     id = sub.id,
                     name = sub.note,
                     amount = sub.amount,
                     category = sub.category,
-                    startDate = sub.startDate,
-                    endDate = sub.endDate,
                     isActive = isActive,
-                    cycleText = cycleStr,
-                    nextDateText = nextDateStr,
-                    periodText = periodStr,
-                    // [新增] 載入資料庫中的值
+
+                    // 傳遞原始數據給 UI
+                    frequencyType = sub.frequency,
+                    customDays = sub.customDays,
+
+                    nextDateMillis = nextDateMillis,
+                    daysLeft = daysLeft,
+
+                    startDateMillis = sub.startDate,
+                    endDateMillis = sub.endDate,
+
                     paymentMethod = sub.paymentMethod,
                     isNeed = sub.isNeed
                 )
@@ -89,6 +82,7 @@ class SubscriptionDetailViewModel(private val repository: BudgetRepository) : Vi
         }
     }
 
+    // ... (getDaysDifference, calculateNextDueDate, terminateSubscription, deleteSubscription 保持不變) ...
     private fun getDaysDifference(startMillis: Long, endMillis: Long): Long {
         val startCal = Calendar.getInstance().apply {
             timeInMillis = startMillis

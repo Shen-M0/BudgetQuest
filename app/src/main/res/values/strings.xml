@@ -133,8 +133,7 @@
     <string name="msg_check_notification_permission">點擊後若無反應，請檢查手機設定中的通知權限。</string>
 
     <string name="desc_cloud_backup">將資料備份至 Google Drive (需登入 Drive App)</string>
-    <string name="btn_backup">備份</string>
-    <string name="btn_restore">還原</string>
+
     <string name="msg_backup_success">備份成功！</string>
     <string name="msg_backup_failed">備份失敗: %s</string>
     <string name="msg_restore_success">還原成功！請重新啟動 APP 以載入資料</string>
@@ -197,7 +196,6 @@
     <string name="title_plan_history">計畫歷程</string>
     <string name="format_date_history">yyyy/MM/dd</string>
     <string name="status_ongoing">進行中</string>
-    <string name="status_ended">已結束</string>
     <string name="format_date_range_history">%1$s - %2$s</string>
     <string name="label_spent_amount">已花費 $%d</string>
     <string name="label_budget_amount">預算 $%d</string>
@@ -366,17 +364,7 @@
     <string name="error_permission_denied">需要定位權限才能使用此功能</string>
 
     <string name="title_cloud_backup">備份與還原</string>
-    <string name="subtitle_cloud_firebase">雲端同步 (Firebase)</string>
-    <string name="subtitle_local_backup">手動備份 (本地檔案)</string>
-    <string name="desc_cloud_sync">將資料安全備份至雲端，換手機也能輕鬆還原。</string>
-    <string name="desc_local_backup">匯出資料庫檔案至手機儲存空間。</string>
-    <string name="label_last_backup">上次備份： %s</string>
-    <string name="msg_no_cloud_backup_found">尚無雲端備份紀錄</string>
-    <string name="action_upload">上傳</string>
-    <string name="action_download">下載</string>
-    <string name="action_link_google">連結 Google 帳號</string>
-    <string name="label_anonymous_account">匿名帳戶 (未綁定)</string>
-    <string name="warning_anonymous_risk">注意：若移除 App 或清除資料，備份將永久遺失。強烈建議綁定 Google 帳號。</string>
+
     <string name="msg_google_login_success">Google 登入成功</string>
     <string name="msg_cloud_upload_success">雲端備份成功</string>
     <string name="msg_cloud_restore_success">還原成功，請重啟應用程式</string>
@@ -387,5 +375,70 @@
     <string name="error_restore_failed">還原失敗</string>
     <string name="error_login_required">請先登入才能還原</string>
     <string name="error_network_login">登入失敗，請檢查網路連線</string>
+
+    <string name="title_subscription_detail">固定支出詳情</string>
+    <string name="label_cycle">支出週期</string>
+    <string name="label_next_payment">下次支出</string>
+    <string name="label_period">支出期間</string>
+    <string name="label_payment_method_detail">支付方式</string>
+    <string name="label_consumption_type">消費性質</string>
+    <string name="status_active">進行中</string>
+    <string name="status_ended">已結束</string>
+    <string name="status_today">今天</string>
+    <string name="status_days_later">%d 天後</string>
+    <string name="period_infinite">無限期</string>
+
+    <string name="dialog_delete_sub_title">確認刪除</string>
+    <string name="dialog_delete_sub_msg">您確定要刪除此固定支出項目嗎？\n注意：這將會一併刪除所有透過此規則自動產生的歷史支出紀錄，且無法復原。</string>
+    <string name="action_delete_all">全部刪除</string>
+
+    <string name="dialog_terminate_sub_title">確認終止</string>
+    <string name="dialog_terminate_sub_msg">您確定要停止此固定支出嗎？\n這將設定結束日期為今天，之後將不再自動記錄，但「過去的紀錄」會被保留。</string>
+    <string name="action_terminate">終止支出</string>
+
+    <string name="cycle_monthly">每月</string>
+    <string name="cycle_weekly">每週</string>
+    <string name="cycle_daily">每日</string>
+    <string name="cycle_custom_days">每 %d 天</string>
+    <string name="cycle_custom">自訂</string>
+
+    <string name="type_need">需要 (Need)</string>
+    <string name="type_want">想要 (Want)</string>
+
+    <string name="title_edit_subscription">編輯固定支出</string>
+    <string name="title_new_subscription">新增固定支出</string>
+    <string name="dialog_image_source_msg">請選擇要從相簿選取還是開啟相機拍攝。</string>
+    <string name="hint_click_add_photo">點擊附加照片</string>
+    <string name="hint_merchant_example">例如：Netflix, Spotify...</string>
+    <string name="title_subscription_list">固定支出項目</string>
+
+    <string name="title_manage_payment_methods">管理支付方式</string>
+    <string name="label_new_payment_method">新增支付方式</string>
+
+    <string name="subtitle_cloud_firebase">雲端備份 (Firebase)</string>
+    <string name="label_anonymous_account">匿名帳號</string>
+    <string name="warning_anonymous_risk">警告：匿名帳號綁定於此裝置。若移除應用程式或清除資料，雲端備份將永久遺失。請綁定 Google 帳號以保護您的資料。</string>
+    <string name="desc_cloud_sync">將您的資料安全同步至雲端。綁定 Google 帳號可跨裝置存取並防止資料遺失。</string>
+    <string name="action_link_google">綁定 Google 帳號</string>
+    <string name="label_last_backup">上次備份：%s</string>
+    <string name="action_upload">上傳</string>
+    <string name="action_download">下載</string>
+    <string name="subtitle_local_backup">本地備份</string>
+    <string name="desc_local_backup">手動匯出或匯入資料庫檔案。適用於不使用雲端的情況下轉移資料。</string>
+    <string name="btn_backup">備份</string>
+    <string name="btn_restore">還原</string>
+
+    <string name="title_currency_settings">主顯示幣別</string>
+    <string name="dialog_select_currency">選擇主幣別</string>
+
+    <string name="msg_no_cloud_backup_found">無雲端備份紀錄</string>
+
+    <string name="error_offline_missing_currency">無網路連線且無此幣別預設資料，請連上網路以更新匯率。</string>
+    <string name="error_currency_update_failed">匯率更新失敗，請檢查網路連線。</string>
+
+    <string name="msg_backup_failed_format">備份失敗：%s</string>
+    <string name="msg_restore_failed_format">還原失敗：%s</string>
+
+    <string name="desc_currency_impact">主要幣別 (設定後將影響所有金額顯示)</string>
 
 </resources>

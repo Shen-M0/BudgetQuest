@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.budgetquest.data.BudgetRepository
 import com.example.budgetquest.data.ExpenseEntity
 import com.example.budgetquest.data.PlanEntity
+import com.example.budgetquest.data.SettingsRepository // [新增]
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -35,13 +36,15 @@ data class DashboardUiState(
     val totalSpent: Int = 0,
     val todayAvailable: Int = 0,
     val isExpired: Boolean = false,
-    val viewMode: ViewMode = ViewMode.Focus
+    val viewMode: ViewMode = ViewMode.Focus,
+    val currencyCode: String = "TWD" // [新增] 幣別代碼
 )
 
 data class CalendarState(val year: Int, val month: Int)
 
 class DashboardViewModel(
-    private val budgetRepository: BudgetRepository
+    private val budgetRepository: BudgetRepository,
+    private val settingsRepository: SettingsRepository // [新增] 注入設定 Repo
 ) : ViewModel() {
 
     private val _viewMode = MutableStateFlow(ViewMode.Focus)
@@ -55,6 +58,19 @@ class DashboardViewModel(
     private val _calendarState = combine(_currentYear, _currentMonth) { year, month ->
         CalendarState(year, month)
     }
+
+    // [新增] 幣別設定流 (將 SharedPreferences 的值轉為 Flow，雖然 SettingsRepo 沒提供 flow，但我們可以在 combine 裡直接讀取)
+    // 更好的做法是讓 SettingsRepository 提供 Flow<String>，但為了不更動太多，我們這裡用一個簡單的 Flow 封裝
+    // 注意：因為您的 SettingsRepository 是基於 SharedPreferences 且沒有 Flow 介面，
+    // 這裡我們假設每次畫面重組或資料變動時讀取一次。
+    // 如果要即時反應設定頁的回來，通常設定頁回來會觸發重組。
+    // 為了簡單起見，我們在 init 時讀取，並假設 Dashboard 重新進入時會刷新。
+    // 若要更完美，可以將 SettingsRepository 改造成 DataStore，或者使用 LiveData/Flow 監聽 SharedPrefs。
+
+    // 這裡我們採用最簡單有效的方法：在 combine 的 lambda 裡面直接讀取最新的值 (雖然這不是響應式的，但對於這種不常變動的設定足夠了)
+    // 或者，我們可以做一個簡單的 MutableStateFlow 來存幣別，並在 init 讀取。
+
+    private val _currencyCode = MutableStateFlow(settingsRepository.baseCurrency)
 
     fun setViewingPlanId(id: Int, trigger: Long) {
         if (trigger <= 0 || trigger == lastProcessedTrigger) return
@@ -101,13 +117,25 @@ class DashboardViewModel(
         }
     }
 
-    val uiState: StateFlow<DashboardUiState> = combine(
+    // [修正] 將資料分組 combine 以避免參數過多
+    // 第一組：核心業務資料 (計畫與交易)
+    private val _coreData = combine(
         _targetPlan,
         budgetRepository.getAllPlansStream(),
-        budgetRepository.getAllExpensesStream(),
+        budgetRepository.getAllExpensesStream()
+    ) { activePlan, allPlans, expenses ->
+        Triple(activePlan, allPlans, expenses)
+    }
+
+
+    // [修正] 最終 UI State 組合
+    // 這裡只需要 combine (_coreData, _viewMode, _calendarState, _currencyCode) 共 4 個
+    val uiState: StateFlow<DashboardUiState> = combine(
+        _coreData,
         _viewMode,
-        _calendarState
-    ) { activePlan, allPlans, expenses, mode, calState ->
+        _calendarState,
+        _currencyCode
+    ) { (activePlan, allPlans, expenses), mode, calState, currency ->
 
         val year = calState.year
         val month = calState.month
@@ -131,7 +159,6 @@ class DashboardViewModel(
 
             if (isExpired) {
                 val planExpenses = expenses.filter {
-                    // [修正] 計算計畫總支出時，排除不計入預算的項目
                     it.date >= activePlan.startDate && it.date <= activePlan.endDate && !it.excludeFromBudget
                 }
                 displayAmount = activePlan.totalBudget - planExpenses.sumOf { it.amount } - activePlan.targetSavings
@@ -153,7 +180,8 @@ class DashboardViewModel(
             currentYear = year,
             dailyStates = dailyStates,
             viewMode = mode,
-            isExpired = isExpired
+            isExpired = isExpired,
+            currencyCode = currency
         )
     }
         .flowOn(Dispatchers.Default)
@@ -165,6 +193,16 @@ class DashboardViewModel(
 
     init {
         viewModelScope.launch { budgetRepository.checkAndGenerateRecurringExpenses() }
+        // [新增] 每次初始化時更新一次幣別 (以防從設定頁回來後沒更新)
+        // 注意：這不是完美的即時監聽，但因為 ViewModel 通常會在 Dashboard 重新進入時還活著，
+        // 我們可能需要在 onResume 等生命週期去 trigger 更新。
+        // 但為了簡化，我們先讀取一次。若要從設定頁回來即時更新，建議在 DashboardScreen 的 LaunchedEffect 呼叫一個 refreshCurrency()
+        _currencyCode.value = settingsRepository.baseCurrency
+    }
+
+    // [新增] 供 UI 呼叫以刷新幣別 (例如從設定頁回來)
+    fun refreshCurrency() {
+        _currencyCode.value = settingsRepository.baseCurrency
     }
 
     fun toggleViewMode() { _viewMode.value = if (_viewMode.value == ViewMode.Focus) ViewMode.Calendar else ViewMode.Focus }
@@ -292,7 +330,6 @@ class DashboardViewModel(
             val dayStart = calendar.timeInMillis
             val dayEnd = getEndOfDay(dayStart)
 
-            // [關鍵修正] 計算每日支出時，排除不計入預算的項目
             val daySpent = expenses
                 .filter { it.date in dayStart..dayEnd && !it.excludeFromBudget }
                 .sumOf { it.amount }

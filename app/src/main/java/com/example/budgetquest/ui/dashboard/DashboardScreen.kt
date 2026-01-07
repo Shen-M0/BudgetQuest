@@ -88,12 +88,15 @@ fun DashboardScreen(
     onHistoryClick: () -> Unit,
     onSettingsClick: () -> Unit,
     viewModel: DashboardViewModel = viewModel(factory = AppViewModelProvider.Factory),
-    // [重要] 這裡一定要從 MainActivity 接收 Scope
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
+
+    // [新增] 從 UI State 獲取幣別，若 ViewModel 還沒準備好，預設顯示空字串或 TWD
+    // 假設您已經在 ViewModel 的 UiState 加上了 currencyCode
+    val currencyCode = uiState.currencyCode
 
     var lastHandledTrigger by rememberSaveable { mutableLongStateOf(0L) }
 
@@ -187,6 +190,7 @@ fun DashboardScreen(
 
     var coachMarkStep by remember { mutableStateOf(0) }
     var isTutorialReady by remember { mutableStateOf(false) }
+    // ... Coords variables ...
     var focusToggleBtnCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
     var calendarToggleBtnCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
     var subBtnCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
@@ -249,7 +253,6 @@ fun DashboardScreen(
                     }
                 },
                 actions = {
-                    // ... (Actions 代碼保持不變) ...
                     val iconTint = AppTheme.colors.textSecondary
                     Row(modifier = Modifier.padding(end = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (uiState.viewMode == ViewMode.Focus) {
@@ -378,13 +381,6 @@ fun DashboardScreen(
                 .padding(innerPadding)
                 .fillMaxSize()
         ) {
-            // [恢復] 使用局部的 SharedTransitionLayout 處理「內部模式切換 (Focus<->Calendar)」
-            // 因為如果不加這個，模式切換的動畫會因為找不到 Scope 而失敗
-            // 但我們要確保「跨頁面動畫」能優先運作
-
-            // 邏輯修正：我們不使用 SharedTransitionLayout 包裹整個畫面，因為那樣會阻斷外部 Scope。
-            // 我們直接使用 AnimatedVisibility 來處理內部 UI 變化。
-
             // 1. Status Card (只在專注模式顯示)
             AnimatedVisibility(
                 visible = uiState.viewMode == ViewMode.Focus && uiState.activePlan != null,
@@ -394,7 +390,8 @@ fun DashboardScreen(
                 Box(modifier = Modifier.onGloballyPositioned { statusCardCoords = it }) {
                     DashboardStatusCard(
                         todayAvailable = uiState.todayAvailable,
-                        isExpired = uiState.isExpired
+                        isExpired = uiState.isExpired,
+                        currencyCode = currencyCode // [新增] 傳入幣別
                     )
                 }
             }
@@ -404,26 +401,20 @@ fun DashboardScreen(
             }
 
             // 2. Calendar GlassCard (共用元素)
-            // 這是核心動畫容器
             var cardModifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
                 .padding(bottom = 16.dp)
 
-            // [關鍵] 動態決定 Key
-            // 如果 planId != -1，表示我們是從「歷史頁面」點進來的，這時候優先使用 "plan_$planId" 來對接歷史頁面的卡片
-            // 否則，使用 "calendar_card" 維持內部狀態的穩定
             val transitionKey = if (planId != -1) {
                 "plan_$planId"
             } else if (uiState.activePlan != null && uiState.viewMode == ViewMode.Focus) {
-                // 如果是專注模式且有計畫，也嘗試對接 (防止閃爍)
                 "plan_${uiState.activePlan!!.id}"
             } else {
                 "calendar_card"
             }
 
-            // 套用共享元素轉場
             if (sharedTransitionScope != null && animatedVisibilityScope != null) {
                 with(sharedTransitionScope) {
                     cardModifier = cardModifier.sharedElement(
@@ -514,7 +505,6 @@ fun DashboardScreen(
                                                         this.alpha = alpha.value
                                                     }
                                                 ) {
-                                                    // DailyDetail 轉場的 SharedElement
                                                     var itemModifier = Modifier as Modifier
                                                     if (sharedTransitionScope != null && animatedVisibilityScope != null) {
                                                         with(sharedTransitionScope) {
@@ -530,6 +520,7 @@ fun DashboardScreen(
                                                         JapaneseDayGridItem(
                                                             dayState = dayState,
                                                             showBalance = uiState.viewMode == ViewMode.Focus,
+                                                            currencyCode = currencyCode, // [新增] 傳入幣別
                                                             onClick = { date ->
                                                                 debounce {
                                                                     if (uiState.viewMode == ViewMode.Calendar) {
@@ -630,10 +621,11 @@ fun DashboardScreen(
     }
 }
 
-// ... (RollingNumberText, DashboardStatusCard, WeekHeader, JapaneseDayGridItem, DashboardEmptyState 保持不變) ...
+// [修改] 讓 RollingNumberText 接收並顯示幣別
 @Composable
 fun RollingNumberText(
     targetValue: Int,
+    currencyCode: String, // [新增]
     fontSize: androidx.compose.ui.unit.TextUnit,
     fontWeight: FontWeight,
     color: Color
@@ -649,13 +641,26 @@ fun RollingNumberText(
             animatable.snapTo(targetValue.toFloat())
         }
     }
-    Text(text = "$ ${animatable.value.toInt()}", fontSize = fontSize, fontWeight = fontWeight, color = color)
+
+    // [UI 修改] 使用 Row 讓金額與幣別水平排列
+    Row(verticalAlignment = Alignment.Bottom) {
+        Text(text = "$ ${animatable.value.toInt()}", fontSize = fontSize, fontWeight = fontWeight, color = color)
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(
+            text = currencyCode,
+            fontSize = fontSize.times(0.4f), // 幣別字體大小為金額的 40%
+            fontWeight = FontWeight.Normal,
+            color = color.copy(alpha = 0.6f),
+            modifier = Modifier.padding(bottom = 6.dp) // 稍微墊高對齊底部
+        )
+    }
 }
 
 @Composable
 fun DashboardStatusCard(
     todayAvailable: Int,
-    isExpired: Boolean
+    isExpired: Boolean,
+    currencyCode: String // [新增]
 ) {
     GlassCard(
         modifier = Modifier
@@ -677,6 +682,7 @@ fun DashboardStatusCard(
             Spacer(modifier = Modifier.height(4.dp))
             RollingNumberText(
                 targetValue = todayAvailable,
+                currencyCode = currencyCode, // [新增]
                 fontSize = 36.sp,
                 fontWeight = FontWeight.Bold,
                 color = if (todayAvailable >= 0) AppTheme.colors.success else AppTheme.colors.fail
@@ -685,6 +691,7 @@ fun DashboardStatusCard(
     }
 }
 
+// WeekHeader 保持不變
 @Composable
 fun WeekHeader() {
     Row(
@@ -711,6 +718,7 @@ fun WeekHeader() {
 fun JapaneseDayGridItem(
     dayState: DailyState,
     showBalance: Boolean,
+    currencyCode: String, // [新增]
     onClick: (Long) -> Unit
 ) {
     val isDark = isSystemInDarkTheme()
@@ -783,12 +791,22 @@ fun JapaneseDayGridItem(
         )
 
         if (showBalance && dayState.status != DayStatus.Future && dayState.status != DayStatus.Neutral) {
-            Text(
-                text = "${dayState.balance}",
-                fontSize = 10.sp,
-                color = textColor,
-                maxLines = 1
-            )
+            // [UI 修改] 在格子內顯示餘額與微小的幣別
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "${dayState.balance}",
+                    fontSize = 10.sp,
+                    color = textColor,
+                    maxLines = 1
+                )
+                // [新增] 極小的幣別顯示
+                Text(
+                    text = currencyCode,
+                    fontSize = 6.sp, // 非常小，避免佔位
+                    color = textColor.copy(alpha = 0.5f),
+                    lineHeight = 6.sp
+                )
+            }
         }
     }
 }

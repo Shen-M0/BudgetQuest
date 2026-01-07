@@ -1,10 +1,12 @@
 package com.example.budgetquest.ui.plan
 
 import android.app.DatePickerDialog
+import android.content.Context // [新增]
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.clickable // 雖然 GlassCard 封裝了，但部分邏輯可能還需要
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box // 用於 GlassCard 內部排版
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -22,13 +24,15 @@ import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton // 用於 TopBar 的標準 IconButton (如果需要)
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.Text
@@ -64,8 +68,6 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
-// [移除] 所有本地定義的樣式與元件
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlanSetupScreen(
@@ -82,7 +84,18 @@ fun PlanSetupScreen(
     var showDeleteDialog by remember { mutableStateOf(false) }
 
     val uiState = viewModel.planUiState
+    val supportedCurrencies = viewModel.supportedCurrencies
+
     val context = LocalContext.current
+
+    // [新增] 檢查是否為「第一次設定幣別」
+    // 我們直接檢查 SharedPreferences 中是否存在 "base_currency" 這個 Key
+    // 如果不存在，代表使用者從未儲存過計畫或設定過幣別 -> 顯示選擇器
+    // 如果存在，代表已經設定過 -> 隱藏選擇器
+    val isFirstTimeCurrencySetup = remember {
+        val prefs = context.getSharedPreferences("budget_quest_settings", Context.MODE_PRIVATE)
+        !prefs.contains("base_currency")
+    }
 
     var lastClickTime by remember { mutableLongStateOf(0L) }
     fun debounce(action: () -> Unit) {
@@ -202,7 +215,6 @@ fun PlanSetupScreen(
                 },
                 navigationIcon = {
                     if (showBackButton) {
-                        // [優化] 使用 GlassIconButton (圓形水波紋)
                         GlassIconButton(
                             onClick = { debounce(onBackClick) },
                             modifier = Modifier.padding(start = 12.dp)
@@ -237,8 +249,7 @@ fun PlanSetupScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            // [優化] 使用 GlassCard 和 GlassTextField (輸入計畫名稱)
-            // GlassCard 預設帶有邊框 (Border)，符合您的需求
+            // 計畫名稱
             GlassCard(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     GlassTextField(
@@ -251,7 +262,6 @@ fun PlanSetupScreen(
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                // [優化] 日期選擇器使用 CommonGlassDateCard
                 CommonGlassDateCard(
                     label = stringResource(R.string.label_start_date),
                     date = uiState.startDate,
@@ -266,7 +276,20 @@ fun PlanSetupScreen(
                 )
             }
 
-            // [優化] 預算設定區塊
+            // [修改] 幣別選擇器
+            // 顯示條件：
+            // 1. 必須是新增計畫模式 (planId == null 或 -1)
+            // 2. [新增] 必須是「第一次設定幣別」(isFirstTimeCurrencySetup 為 true)
+            // 這樣之後的新增計畫就不會顯示了
+            if ((planId == null || planId == -1 || uiState.id == 0) && isFirstTimeCurrencySetup) {
+                PlanCurrencySelector(
+                    selectedCurrency = uiState.selectedCurrency,
+                    supportedCurrencies = supportedCurrencies,
+                    onCurrencySelected = { viewModel.updatePlanState(selectedCurrency = it) }
+                )
+            }
+
+            // 預算設定區塊
             GlassCard(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     Text(stringResource(R.string.label_budget_target), fontSize = 12.sp, color = AppTheme.colors.textSecondary, modifier = Modifier.padding(bottom = 4.dp))
@@ -295,7 +318,7 @@ fun PlanSetupScreen(
             val savings = uiState.targetSavings.toIntOrNull() ?: 0
             val dailyAvailable = (budget - savings) / safeDays
 
-            // [優化] 每日可用金額
+            // 每日可用金額
             GlassCard(modifier = Modifier.fillMaxWidth()) {
                 Row(
                     modifier = Modifier.padding(24.dp).fillMaxWidth(),
@@ -305,12 +328,22 @@ fun PlanSetupScreen(
                     Column {
                         Text(stringResource(R.string.label_daily_available), fontSize = 14.sp, color = AppTheme.colors.textSecondary)
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            stringResource(R.string.format_currency, dailyAvailable),
-                            fontSize = 32.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = AppTheme.colors.success
-                        )
+                        Row(verticalAlignment = Alignment.Bottom) {
+                            Text(
+                                stringResource(R.string.format_currency, dailyAvailable),
+                                fontSize = 32.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = AppTheme.colors.success
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            // [優化] 顯示選擇的幣別
+                            Text(
+                                uiState.selectedCurrency,
+                                fontSize = 14.sp,
+                                color = AppTheme.colors.success.copy(alpha = 0.7f),
+                                modifier = Modifier.padding(bottom = 6.dp)
+                            )
+                        }
                     }
                     Icon(
                         Icons.Default.CalendarToday,
@@ -322,8 +355,7 @@ fun PlanSetupScreen(
             }
 
             if (planId != null && planId != -1) {
-                // [優化] 進階選項 (開關型按鈕)
-                // 使用 GlassCard 並傳入 onClick，這樣就會有帶邊框的點擊效果，符合「深色模式切換」的風格
+                // 進階選項
                 GlassCard(
                     modifier = Modifier.fillMaxWidth(),
                     onClick = { debounce { isDeleteExpanded = !isDeleteExpanded } }
@@ -344,7 +376,6 @@ fun PlanSetupScreen(
 
                         AnimatedVisibility(visible = isDeleteExpanded) {
                             Column(modifier = Modifier.padding(top = 16.dp)) {
-                                // [優化] 使用 GlassActionTextButton (紅色危險按鈕)
                                 GlassActionTextButton(
                                     text = stringResource(R.string.btn_clear_expenses),
                                     icon = Icons.Default.Refresh,
@@ -370,7 +401,6 @@ fun PlanSetupScreen(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // [優化] 使用 AuroraPrimaryButton
             AuroraPrimaryButton(
                 text = if (planId == null) stringResource(R.string.btn_start_plan) else stringResource(R.string.btn_save_changes),
                 onClick = {
@@ -387,13 +417,86 @@ fun PlanSetupScreen(
     }
 }
 
-// 為了方便重用，這裡定義一個小型的 DateCard，使用 GlassCard 封裝
+// 幣別選擇器 UI (保持不變)
+// [修改] 幣別選擇器 UI
+@Composable
+fun PlanCurrencySelector(
+    selectedCurrency: String,
+    supportedCurrencies: List<String>,
+    onCurrencySelected: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    GlassCard(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            // [提取] 說明文字
+            Text(
+                text = stringResource(R.string.desc_currency_impact),
+                fontSize = 12.sp,
+                color = AppTheme.colors.textSecondary
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Box {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { expanded = true }
+                        .padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Language,
+                            contentDescription = null,
+                            tint = AppTheme.colors.accent
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = selectedCurrency,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = AppTheme.colors.textPrimary
+                        )
+                    }
+                    Icon(
+                        imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                        contentDescription = null,
+                        tint = AppTheme.colors.textSecondary
+                    )
+                }
+
+                DropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false },
+                    modifier = Modifier.background(AppTheme.colors.surface)
+                ) {
+                    supportedCurrencies.forEach { currency ->
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = currency,
+                                    color = if (currency == selectedCurrency) AppTheme.colors.accent else AppTheme.colors.textPrimary
+                                )
+                            },
+                            onClick = {
+                                onCurrencySelected(currency)
+                                expanded = false
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 fun CommonGlassDateCard(label: String, date: Long, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val dateFormat = stringResource(R.string.format_date_short)
     val formatter = remember(dateFormat) { SimpleDateFormat(dateFormat, Locale.getDefault()) }
 
-    // 使用 GlassCard 封裝，自動獲得邊框與點擊效果
     GlassCard(
         modifier = modifier,
         onClick = onClick

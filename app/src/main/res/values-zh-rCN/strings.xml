@@ -106,7 +106,6 @@
     <string name="title_plan_history">计划历程</string>
     <string name="format_date_history">yyyy/MM/dd</string>
     <string name="status_ongoing">进行中</string>
-    <string name="status_ended">已结束</string>
     <string name="format_date_range_history">%1$s - %2$s</string>
     <string name="label_spent_amount">已花费 $%d</string>
     <string name="label_budget_amount">预算 $%d</string>
@@ -336,7 +335,6 @@
     <string name="desc_cloud_sync">将数据安全备份至云端，换手机也能轻松还原。</string>
     <string name="desc_local_backup">导出数据库文件至手机存储空间。</string>
     <string name="label_last_backup">上次备份： %s</string>
-    <string name="msg_no_cloud_backup_found">尚无云端备份记录</string>
     <string name="action_upload">上传</string>
     <string name="action_download">下载</string>
     <string name="action_link_google">关联 Google 账号</string>
@@ -353,5 +351,55 @@
     <string name="error_login_required">请先登录才能还原</string>
     <string name="error_network_login">登录失败，请检查网络连接</string>
 
+    <string name="title_subscription_detail">固定支出详情</string>
+    <string name="label_cycle">支出周期</string>
+    <string name="label_next_payment">下次支出</string>
+    <string name="label_period">支出期间</string>
+    <string name="label_payment_method_detail">支付方式</string>
+    <string name="label_consumption_type">消费性质</string>
+    <string name="status_active">进行中</string>
+    <string name="status_ended">已结束</string>
+    <string name="status_today">今天</string>
+    <string name="status_days_later">%d 天后</string>
+    <string name="period_infinite">无限期</string>
 
+    <string name="dialog_delete_sub_title">确认删除</string>
+    <string name="dialog_delete_sub_msg">您确定要删除此固定支出项目吗？\n注意：这将会一并删除所有透过此规则自动产生的历史支出纪录，且无法复原。</string>
+    <string name="action_delete_all">全部删除</string>
+
+    <string name="dialog_terminate_sub_title">确认终止</string>
+    <string name="dialog_terminate_sub_msg">您确定要停止此固定支出吗？\n这将设定结束日期为今天，之后将不再自动记录，但「过去的纪录」会被保留。</string>
+    <string name="action_terminate">终止支出</string>
+
+    <string name="cycle_monthly">每月</string>
+    <string name="cycle_weekly">每周</string>
+    <string name="cycle_daily">每日</string>
+    <string name="cycle_custom_days">每 %d 天</string>
+    <string name="cycle_custom">自订</string>
+
+    <string name="type_need">需要 (Need)</string>
+    <string name="type_want">想要 (Want)</string>
+
+    <string name="title_edit_subscription">编辑固定支出</string>
+    <string name="title_new_subscription">新增固定支出</string>
+    <string name="dialog_image_source_msg">请选择要从相册选取还是开启相机拍摄。</string>
+    <string name="hint_click_add_photo">点击附加照片</string>
+    <string name="hint_merchant_example">例如：Netflix, Spotify...</string>
+    <string name="title_subscription_list">固定支出项目</string>
+
+    <string name="title_manage_payment_methods">管理支付方式</string>
+    <string name="label_new_payment_method">新增支付方式</string>
+
+    <string name="desc_currency_impact">主要币种 (设定后将影响所有金额显示)</string>
+
+    <string name="title_currency_settings">主显示币种</string>
+    <string name="dialog_select_currency">选择主币种</string>
+
+    <string name="msg_no_cloud_backup_found">无云端备份记录</string>
+
+    <string name="error_offline_missing_currency">无网络连接且无此币种预设数据，请连接网络以更新汇率。</string>
+    <string name="error_currency_update_failed">汇率更新失败，请检查网络连接。</string>
+
+    <string name="msg_backup_failed_format">备份失败：%s</string>
+    <string name="msg_restore_failed_format">还原失败：%s</string>
 </resources>
