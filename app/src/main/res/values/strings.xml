@@ -441,4 +441,12 @@
 
     <string name="desc_currency_impact">主要幣別 (設定後將影響所有金額顯示)</string>
 
+    <string name="error_login_failed_general">登入失敗</string>
+    <string name="error_not_logged_in">尚未登入</string>
+    <string name="error_db_file_not_found">找不到本地資料庫檔案</string>
+    <string name="msg_upload_success_simple">上傳成功</string>
+    <string name="msg_restore_success_simple">還原成功</string>
+    <string name="error_download_failed">下載失敗</string>
+
+
 </resources>

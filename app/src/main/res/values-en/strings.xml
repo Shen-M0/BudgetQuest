@@ -405,5 +405,12 @@
     <string name="msg_backup_failed_format">Backup Failed: %s</string>
     <string name="msg_restore_failed_format">Restore Failed: %s</string>
 
+    <string name="error_login_failed_general">Login failed</string>
+    <string name="error_not_logged_in">Not logged in</string>
+    <string name="error_db_file_not_found">Local database file not found</string>
+    <string name="msg_upload_success_simple">Upload successful</string>
+    <string name="msg_restore_success_simple">Restore successful</string>
+    <string name="error_download_failed">Download failed</string>
+
 
 </resources>

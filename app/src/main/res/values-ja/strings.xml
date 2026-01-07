@@ -404,4 +404,12 @@
     <string name="msg_backup_failed_format">バックアップ失敗：%s</string>
     <string name="msg_restore_failed_format">復元失敗：%s</string>
 
+    <string name="error_login_failed_general">ログインに失敗しました</string>
+    <string name="error_not_logged_in">ログインしていません</string>
+    <string name="error_db_file_not_found">ローカルデータベースファイルが見つかりません</string>
+    <string name="msg_upload_success_simple">アップロード成功</string>
+    <string name="msg_restore_success_simple">復元成功</string>
+    <string name="error_download_failed">ダウンロード失敗</string>
+
+
 </resources>
