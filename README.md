@@ -2,7 +2,7 @@
 
 | 計畫導向記帳 | 動態餘額連動 | 資料完全掌握 |
 | --- | --- | --- |
-| <img src="./screenshots/Budget_Quest_1.png" width="240"/> | <img src="./screenshots/Budget_Quest_2.png" width="240"/> | <img src="./screenshots/Budget_Quest_3.png" width="240"/> |
+| <img src="./screenshots/Budget_Quest_12.png" width="240"/> | <img src="./screenshots/Budget_Quest_13.png" width="240"/> | <img src="./screenshots/Budget_Quest_14.png" width="240"/> |
 
 ### 📖 專案簡介 (Introduction)
 
@@ -97,11 +97,11 @@
 
 | 1. 專注儀表板 | 2. 月曆總覽模式 | 3. 新增/編輯消費 |
 | --- | --- | --- |
-| <img src="./screenshots/Budget_Quest_5.png" width="240"/> | <img src="./screenshots/Budget_Quest_6.png" width="240"/> | <img src="./screenshots/Budget_Quest_7.png" width="240"/> |
+| <img src="./screenshots/Budget_Quest_15.png" width="240"/> | <img src="./screenshots/Budget_Quest_16.png" width="240"/> | <img src="./screenshots/Budget_Quest_17.png" width="240"/> |
 
 | 4. 自訂分類管理 | 5. 統計分析 | 6. 深色模式與多語言 |
 | --- | --- | --- |
-| <img src="./screenshots/Budget_Quest_8.png" width="240"/> | <img src="./screenshots/Budget_Quest_9.png" width="240"/> | <img src="./screenshots/Budget_Quest_11.png" width="240"/> |
+| <img src="./screenshots/Budget_Quest_18.png" width="240"/> | <img src="./screenshots/Budget_Quest_19.png" width="240"/> | <img src="./screenshots/Budget_Quest_20.png" width="240"/> |
 
 ---
 
